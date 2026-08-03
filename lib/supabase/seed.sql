@@ -16,13 +16,13 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO profiles (id, tenant_id, full_name, team, role, status, approved_by, approved_at)
 VALUES (
-  '<PASTE-ADMIN-AUTH-USER-ID>',
+  'd7b2ac72-4ce6-4514-bfb0-8e0fde1d2176',
   'a0000000-0000-4000-8000-000000000001',
   '시스템 관리자',
-  NULL,
+  '관리자',
   'admin',
   'approved',
-  '<PASTE-ADMIN-AUTH-USER-ID>',
+  'd7b2ac72-4ce6-4514-bfb0-8e0fde1d2176',
   now()
 )
 ON CONFLICT (id) DO NOTHING;

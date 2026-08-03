@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signIn, type SignInState } from "@/app/actions/auth";
-import { TEAMS } from "@/lib/auth/constants";
+import { LOGIN_TEAMS } from "@/lib/auth/constants";
 
 const initialState: SignInState = { status: "idle" };
 
@@ -79,7 +79,7 @@ export function LoginForm() {
             <option value="" disabled>
               선택하세요
             </option>
-            {TEAMS.map((team) => (
+            {LOGIN_TEAMS.map((team) => (
               <option key={team} value={team}>
                 {team}
               </option>
