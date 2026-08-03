@@ -1,6 +1,6 @@
 # TASK-006: 관리자 승인 관리 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 관리자가 대기 중인 가입 요청을 확인하고 승인/반려할 수 있는 `/admin/approvals` 페이지와 `approveUser`/`rejectUser` Server Action을 구현했다. 미들웨어(proxy.ts)의 역할 가드와 별개로, 페이지와 각 액션 내부에서도 `role==='admin'`을 다시 확인한다.

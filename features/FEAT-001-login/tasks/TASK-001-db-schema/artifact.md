@@ -1,6 +1,6 @@
 # TASK-001: DB 스키마 확장 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `profiles` 테이블에 회원가입 승인 흐름에 필요한 컬럼(team/status/approved_by/approved_at)과 이름+소속팀 유니크 제약을 추가했다. 기존 `profiles_tenant_isolation` 정책을 SELECT 전용으로 좁히고, 부트스트랩용 INSERT 정책과 SECURITY DEFINER 기반 관리자 정책을 신설했으며, 로그인/가입 화면이 인증 전(anon) 상태에서 계정을 조회할 수 있도록 전용 RPC 2개를 추가했다.

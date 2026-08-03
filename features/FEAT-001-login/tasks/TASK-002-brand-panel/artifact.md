@@ -1,6 +1,6 @@
 # TASK-002: 브랜드 패널 컴포넌트 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 02-design.html 좌측의 염전 격자 패턴 브랜드 패널을 `AuthBrandPanel` React 컴포넌트로 구현했다. 필요한 팔레트 토큰과 격자/시머 CSS를 `app/globals.css`에 옮기고, 목업에서 쓰던 서체(Song Myung, JetBrains Mono, Pretendard)를 `app/layout.tsx`에 연결했다.
