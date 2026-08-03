@@ -10,7 +10,7 @@
 | `/admin/approvals` | 페이지 | 관리자 승인 목록 (role=admin 전용, middleware 가드) |
 | `app/actions/auth.ts` | Server Actions | `signUp`, `signIn`, `signOut` |
 | `app/actions/approvals.ts` | Server Actions | `approveUser`, `rejectUser` (role=admin만 실행 가능하도록 서버에서 재검증) |
-| `middleware.ts` | 미들웨어 | 세션 확인, `profiles.status` 확인(미승인 시 로그인 차단), `/admin/**` 접근 시 role=admin 확인 |
+| `proxy.ts (Next.js 16 컨벤션, 구 middleware.ts)` | 미들웨어 | 세션 확인, `profiles.status` 확인(미승인 시 로그인 차단), `/admin/**` 접근 시 role=admin 확인 |
 
 로그인 성공 시 이동 위치: 역할별 홈 화면은 이번 FEAT 범위가 아니므로, 우선 기존 `app/page.tsx`(루트)로 이동한다. 역할별 대시보드는 이후 FEAT에서 라우팅을 확장한다.
 
@@ -72,7 +72,7 @@ components/
   auth/LoginForm.tsx
   auth/SignupForm.tsx
   admin/ApprovalTable.tsx
-middleware.ts                  -- 세션·승인상태·역할 기반 접근 제어
+proxy.ts (Next.js 16 컨벤션, 구 middleware.ts)                  -- 세션·승인상태·역할 기반 접근 제어
 ```
 
 02-design.html의 좌측 브랜드 패널(염전 격자 패턴)은 `AuthBrandPanel` 하나로 공용화해 로그인/회원가입/대기 화면에서 재사용한다.

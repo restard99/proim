@@ -4,7 +4,7 @@
 가입 직후 승인 대기 상태를 안내하고, 세션/승인상태에 따라 전체 앱 접근을 제어한다.
 
 ## 작업 범위
-- 생성할 파일: `app/pending/page.tsx`, `middleware.ts`
+- 생성할 파일: `app/pending/page.tsx`, `proxy.ts (Next.js 16 컨벤션, 구 middleware.ts)`
 - 참고 파일: `features/FEAT-001-login/02-design.html`의 `view-pending`
 
 ## 완료 기준
