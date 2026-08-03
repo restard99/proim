@@ -1,0 +1,667 @@
+<title>태평염전 · 로그인 · 디자인 목업</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Song+Myung&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#14283A',
+          ink2: '#0F1F2E',
+          brine: '#1E6B72',
+          crimson: '#8B2942',
+          crimsond: '#6E1F33',
+          sand: '#C9B896',
+          salt: '#FAF8F3',
+          mist: '#EFEAE1',
+          inktext: '#1F2A33',
+          muted: '#5B6B74',
+        },
+        fontFamily: {
+          display: ['"Song Myung"', 'serif'],
+          sans: ['PretendardVariable', 'Pretendard', 'system-ui', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  body { font-family: 'PretendardVariable', 'Pretendard', system-ui, sans-serif; }
+
+  .saltpan-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 0.8fr 1.6fr 1fr 0.9fr 1.2fr;
+    grid-template-rows: 1fr 1.5fr 0.8fr 1.3fr 1fr;
+    gap: 2px;
+    position: absolute;
+    inset: 0;
+  }
+  .saltpan-cell {
+    background: linear-gradient(160deg, rgba(30,107,114,0.35), rgba(20,40,58,0.05));
+    border: 1px solid rgba(201,184,150,0.18);
+  }
+  .saltpan-cell.glow {
+    background: radial-gradient(circle at 30% 30%, rgba(201,184,150,0.55), rgba(30,107,114,0.25) 60%, rgba(20,40,58,0.05));
+  }
+  .saltpan-shimmer {
+    position: absolute;
+    inset: -20% -50%;
+    background: linear-gradient(75deg, transparent 40%, rgba(201,184,150,0.10) 50%, transparent 60%);
+    animation: shimmer 16s linear infinite;
+  }
+  @keyframes shimmer {
+    0% { transform: translateX(-15%); }
+    100% { transform: translateX(15%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .saltpan-shimmer { animation: none; }
+  }
+
+  .app-view.hidden { display: none; }
+  .switcher-btn { transition: background-color .15s ease, color .15s ease; }
+</style>
+
+<body class="bg-salt text-inktext antialiased">
+
+  <!-- 디자인 검토용 화면 전환 (실제 제품 UI 아님) -->
+  <div class="sticky top-0 z-50 border-b border-mist bg-salt/95 backdrop-blur px-4 py-2.5 overflow-x-auto">
+    <div class="flex items-center gap-2 min-w-max">
+      <span class="text-xs font-medium text-muted mr-1 shrink-0">화면 상태 미리보기 →</span>
+      <button data-target="view-login" onclick="showView('view-login')" class="switcher-btn bg-ink text-salt text-xs font-medium px-3 py-1.5 rounded-full">로그인</button>
+      <button data-target="view-login-loading" onclick="showView('view-login-loading')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">로그인 · 로딩</button>
+      <button data-target="view-login-error-cred" onclick="showView('view-login-error-cred')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">로그인 · 오류(비밀번호)</button>
+      <button data-target="view-login-error-pending" onclick="showView('view-login-error-pending')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">로그인 · 오류(미승인)</button>
+      <button data-target="view-signup" onclick="showView('view-signup')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">회원가입</button>
+      <button data-target="view-signup-error" onclick="showView('view-signup-error')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">회원가입 · 오류</button>
+      <button data-target="view-pending" onclick="showView('view-pending')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">가입완료 · 승인대기</button>
+      <button data-target="view-admin-list" onclick="showView('view-admin-list')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">관리자 · 승인목록</button>
+      <button data-target="view-admin-empty" onclick="showView('view-admin-empty')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">관리자 · 빈 상태</button>
+    </div>
+  </div>
+
+  <!-- ============ 1. 로그인 (기본) ============ -->
+  <div id="view-login" class="app-view">
+    <div class="min-h-[calc(100vh-49px)] flex">
+      <!-- 브랜드 패널 -->
+      <aside class="hidden lg:flex lg:w-[42%] relative flex-col justify-between overflow-hidden bg-ink text-salt px-12 py-10">
+        <div class="saltpan-grid" aria-hidden="true">
+          <div class="saltpan-cell"></div><div class="saltpan-cell glow"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell glow"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+        </div>
+        <div class="saltpan-shimmer" aria-hidden="true"></div>
+
+        <div class="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md shadow-black/20 w-fit">
+          <img src="assets/logo.png" alt="태평염전 로고" class="h-9 w-auto">
+        </div>
+
+        <div class="relative z-10 space-y-4">
+          <p class="font-display text-4xl leading-snug">팀의 하루가 모여<br>바다처럼 채워집니다</p>
+          <p class="text-sm text-sand/90">태평소금 · 태평염전 · 섬들채 통합 일일업무보고 시스템</p>
+        </div>
+
+        <p class="relative z-10 text-xs text-salt/40">© 태평염전. 사내 전용 시스템입니다.</p>
+      </aside>
+
+      <!-- 폼 영역 -->
+      <main class="flex-1 flex items-center justify-center px-6 py-16">
+        <div class="w-full max-w-sm">
+          <div class="lg:hidden mb-8 flex items-center gap-3">
+            <img src="assets/logo.png" alt="태평염전 로고" class="h-7 w-auto">
+          </div>
+
+          <h1 class="text-2xl font-semibold text-inktext">로그인</h1>
+          <p class="mt-1.5 text-sm text-muted">이름, 소속팀, 비밀번호를 입력하세요.</p>
+
+          <form class="mt-8 space-y-4" onsubmit="return false;">
+            <div>
+              <label for="login-name" class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+              <input id="login-name" type="text" placeholder="홍길동" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+              <p class="mt-1 text-xs text-muted">동명이인이 있을 수 있어 소속팀과 함께 계정을 구분합니다.</p>
+            </div>
+            <div>
+              <label for="login-team" class="block text-sm font-medium text-inktext mb-1.5">소속팀</label>
+              <select id="login-team" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+                <option>선택하세요</option>
+                <option>생산팀</option>
+                <option>회계팀</option>
+                <option>환경안전팀</option>
+                <option>영업채산팀</option>
+                <option>섬들채</option>
+                <option>증도지원팀</option>
+                <option>전략기획실</option>
+                <option>염전관리팀</option>
+              </select>
+            </div>
+            <div>
+              <label for="login-pw" class="block text-sm font-medium text-inktext mb-1.5">비밀번호</label>
+              <div class="relative">
+                <input id="login-pw" type="password" placeholder="••••••••" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+                <button type="button" onclick="const i=document.getElementById('login-pw'); i.type = i.type==='password' ? 'text' : 'password';" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted hover:text-inktext">표시</button>
+              </div>
+            </div>
+
+            <button type="button" onclick="showView('view-login-loading')" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors focus:outline-none focus:ring-2 focus:ring-crimson/40 focus:ring-offset-2">로그인</button>
+          </form>
+
+          <p class="mt-4 text-xs text-muted">비밀번호를 잊으셨다면 관리자에게 문의하세요.</p>
+
+          <div class="mt-8 pt-6 border-t border-mist text-sm text-center text-muted">
+            계정이 없으신가요?
+            <button onclick="showView('view-signup')" class="text-crimson font-medium hover:underline">회원가입</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ 2. 로그인 · 로딩 ============ -->
+  <div id="view-login-loading" class="app-view hidden">
+    <div class="min-h-[calc(100vh-49px)] flex">
+      <aside class="hidden lg:flex lg:w-[42%] relative flex-col justify-between overflow-hidden bg-ink text-salt px-12 py-10">
+        <div class="saltpan-grid" aria-hidden="true">
+          <div class="saltpan-cell"></div><div class="saltpan-cell glow"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell glow"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+        </div>
+        <div class="saltpan-shimmer" aria-hidden="true"></div>
+        <div class="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md shadow-black/20 w-fit">
+          <img src="assets/logo.png" alt="태평염전 로고" class="h-9 w-auto">
+        </div>
+        <div class="relative z-10 space-y-4">
+          <p class="font-display text-4xl leading-snug">팀의 하루가 모여<br>바다처럼 채워집니다</p>
+          <p class="text-sm text-sand/90">태평소금 · 태평염전 · 섬들채 통합 일일업무보고 시스템</p>
+        </div>
+        <p class="relative z-10 text-xs text-salt/40">© 태평염전. 사내 전용 시스템입니다.</p>
+      </aside>
+
+      <main class="flex-1 flex items-center justify-center px-6 py-16">
+        <div class="w-full max-w-sm">
+          <h1 class="text-2xl font-semibold text-inktext">로그인</h1>
+          <p class="mt-1.5 text-sm text-muted">이름, 소속팀, 비밀번호를 입력하세요.</p>
+
+          <form class="mt-8 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+              <input type="text" value="박서연" disabled class="w-full rounded-md border border-mist bg-mist/60 px-3.5 py-2.5 text-sm text-muted">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">소속팀</label>
+              <input type="text" value="회계팀" disabled class="w-full rounded-md border border-mist bg-mist/60 px-3.5 py-2.5 text-sm text-muted">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호</label>
+              <input type="password" value="********" disabled class="w-full rounded-md border border-mist bg-mist/60 px-3.5 py-2.5 text-sm text-muted">
+            </div>
+            <button type="button" disabled class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-crimson/70 text-salt text-sm font-medium py-2.5 cursor-not-allowed">
+              <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity="0.3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+              확인하는 중…
+            </button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ 3. 로그인 · 오류(비밀번호) ============ -->
+  <div id="view-login-error-cred" class="app-view hidden">
+    <div class="min-h-[calc(100vh-49px)] flex">
+      <aside class="hidden lg:flex lg:w-[42%] relative flex-col justify-between overflow-hidden bg-ink text-salt px-12 py-10">
+        <div class="saltpan-grid" aria-hidden="true">
+          <div class="saltpan-cell"></div><div class="saltpan-cell glow"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell glow"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+        </div>
+        <div class="saltpan-shimmer" aria-hidden="true"></div>
+        <div class="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md shadow-black/20 w-fit">
+          <img src="assets/logo.png" alt="태평염전 로고" class="h-9 w-auto">
+        </div>
+        <div class="relative z-10 space-y-4">
+          <p class="font-display text-4xl leading-snug">팀의 하루가 모여<br>바다처럼 채워집니다</p>
+          <p class="text-sm text-sand/90">태평소금 · 태평염전 · 섬들채 통합 일일업무보고 시스템</p>
+        </div>
+        <p class="relative z-10 text-xs text-salt/40">© 태평염전. 사내 전용 시스템입니다.</p>
+      </aside>
+
+      <main class="flex-1 flex items-center justify-center px-6 py-16">
+        <div class="w-full max-w-sm">
+          <h1 class="text-2xl font-semibold text-inktext">로그인</h1>
+          <p class="mt-1.5 text-sm text-muted">이름, 소속팀, 비밀번호를 입력하세요.</p>
+
+          <div class="mt-6 flex items-start gap-2.5 rounded-md bg-crimson/10 border border-crimson/30 px-3.5 py-3 text-sm text-crimsond">
+            <svg class="h-5 w-5 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-5a1 1 0 112 0 1 1 0 01-2 0zm1-9a1 1 0 00-1 1v4a1 1 0 002 0V5a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <span>이름, 소속팀 또는 비밀번호가 올바르지 않습니다. 다시 확인해주세요.</span>
+          </div>
+
+          <form class="mt-4 space-y-4" onsubmit="return false;">
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+              <input type="text" value="박서옌" class="w-full rounded-md border border-crimson/50 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-crimson focus:ring-2 focus:ring-crimson/30">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">소속팀</label>
+              <select class="w-full rounded-md border border-crimson/50 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-crimson focus:ring-2 focus:ring-crimson/30">
+                <option>회계팀</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호</label>
+              <input type="password" value="••••••" class="w-full rounded-md border border-crimson/50 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-crimson focus:ring-2 focus:ring-crimson/30">
+            </div>
+            <button type="button" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">로그인</button>
+          </form>
+
+          <p class="mt-4 text-xs text-muted">비밀번호를 잊으셨다면 관리자에게 문의하세요.</p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ 4. 로그인 · 오류(미승인) ============ -->
+  <div id="view-login-error-pending" class="app-view hidden">
+    <div class="min-h-[calc(100vh-49px)] flex">
+      <aside class="hidden lg:flex lg:w-[42%] relative flex-col justify-between overflow-hidden bg-ink text-salt px-12 py-10">
+        <div class="saltpan-grid" aria-hidden="true">
+          <div class="saltpan-cell"></div><div class="saltpan-cell glow"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell glow"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+        </div>
+        <div class="saltpan-shimmer" aria-hidden="true"></div>
+        <div class="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md shadow-black/20 w-fit">
+          <img src="assets/logo.png" alt="태평염전 로고" class="h-9 w-auto">
+        </div>
+        <div class="relative z-10 space-y-4">
+          <p class="font-display text-4xl leading-snug">팀의 하루가 모여<br>바다처럼 채워집니다</p>
+          <p class="text-sm text-sand/90">태평소금 · 태평염전 · 섬들채 통합 일일업무보고 시스템</p>
+        </div>
+        <p class="relative z-10 text-xs text-salt/40">© 태평염전. 사내 전용 시스템입니다.</p>
+      </aside>
+
+      <main class="flex-1 flex items-center justify-center px-6 py-16">
+        <div class="w-full max-w-sm">
+          <h1 class="text-2xl font-semibold text-inktext">로그인</h1>
+          <p class="mt-1.5 text-sm text-muted">이름, 소속팀, 비밀번호를 입력하세요.</p>
+
+          <div class="mt-6 flex items-start gap-2.5 rounded-md bg-sand/20 border border-sand/60 px-3.5 py-3 text-sm text-ink">
+            <svg class="h-5 w-5 mt-0.5 shrink-0 text-brine" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 00.3.7l2.5 2.5a1 1 0 001.4-1.4L11 10.6V7z" clip-rule="evenodd"/></svg>
+            <span>아직 관리자 승인이 완료되지 않았습니다. 승인 후 다시 로그인해주세요.</span>
+          </div>
+
+          <form class="mt-4 space-y-4" onsubmit="return false;">
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+              <input type="text" value="김도윤" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">소속팀</label>
+              <select class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+                <option>섬들채</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호</label>
+              <input type="password" value="••••••••" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+            </div>
+            <button type="button" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">로그인</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ 5. 회원가입 ============ -->
+  <div id="view-signup" class="app-view hidden">
+    <div class="min-h-[calc(100vh-49px)] flex">
+      <aside class="hidden lg:flex lg:w-[42%] relative flex-col justify-between overflow-hidden bg-ink text-salt px-12 py-10">
+        <div class="saltpan-grid" aria-hidden="true">
+          <div class="saltpan-cell"></div><div class="saltpan-cell glow"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell glow"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+        </div>
+        <div class="saltpan-shimmer" aria-hidden="true"></div>
+        <div class="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md shadow-black/20 w-fit">
+          <img src="assets/logo.png" alt="태평염전 로고" class="h-9 w-auto">
+        </div>
+        <div class="relative z-10 space-y-4">
+          <p class="font-display text-4xl leading-snug">처음 오셨다면<br>등록부터 시작하세요</p>
+          <p class="text-sm text-sand/90">가입 후 관리자 승인이 완료되면 이용할 수 있습니다.</p>
+        </div>
+        <p class="relative z-10 text-xs text-salt/40">© 태평염전. 사내 전용 시스템입니다.</p>
+      </aside>
+
+      <main class="flex-1 flex items-center justify-center px-6 py-14">
+        <div class="w-full max-w-sm">
+          <div class="lg:hidden mb-8 flex items-center gap-3">
+            <img src="assets/logo.png" alt="태평염전 로고" class="h-7 w-auto">
+          </div>
+
+          <h1 class="text-2xl font-semibold text-inktext">회원가입</h1>
+          <p class="mt-1.5 text-sm text-muted">이름, 소속팀, 직급을 입력하면 관리자 승인 후 이용할 수 있습니다.</p>
+
+          <form class="mt-7 space-y-4" onsubmit="return false;">
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+              <input type="text" placeholder="홍길동" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+              <p class="mt-1 text-xs text-muted">이름이 곧 로그인 아이디로 사용됩니다.</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">소속팀</label>
+              <select class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+                <option>선택하세요</option>
+                <option>생산팀</option>
+                <option>회계팀</option>
+                <option>환경안전팀</option>
+                <option>영업채산팀</option>
+                <option>섬들채</option>
+                <option>증도지원팀</option>
+                <option>전략기획실</option>
+                <option>염전관리팀</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">직급</label>
+              <div class="grid grid-cols-3 gap-2">
+                <label class="flex items-center justify-center gap-1.5 rounded-md border border-mist px-3 py-2.5 text-sm cursor-pointer has-[:checked]:border-crimson has-[:checked]:bg-crimson/5 has-[:checked]:text-crimsond">
+                  <input type="radio" name="role" class="accent-crimson"> 팀원
+                </label>
+                <label class="flex items-center justify-center gap-1.5 rounded-md border border-mist px-3 py-2.5 text-sm cursor-pointer has-[:checked]:border-crimson has-[:checked]:bg-crimson/5 has-[:checked]:text-crimsond">
+                  <input type="radio" name="role" class="accent-crimson"> 팀장
+                </label>
+                <label class="flex items-center justify-center gap-1.5 rounded-md border border-mist px-3 py-2.5 text-sm cursor-pointer has-[:checked]:border-crimson has-[:checked]:bg-crimson/5 has-[:checked]:text-crimsond">
+                  <input type="radio" name="role" class="accent-crimson"> 대표
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호</label>
+              <input type="password" placeholder="8자 이상" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호 확인</label>
+              <input type="password" placeholder="다시 입력하세요" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+            </div>
+
+            <button type="button" onclick="showView('view-pending')" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">가입 요청 보내기</button>
+          </form>
+
+          <div class="mt-6 text-sm text-center text-muted">
+            이미 계정이 있으신가요?
+            <button onclick="showView('view-login')" class="text-crimson font-medium hover:underline">로그인</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ 6. 회원가입 · 오류(검증) ============ -->
+  <div id="view-signup-error" class="app-view hidden">
+    <div class="min-h-[calc(100vh-49px)] flex">
+      <aside class="hidden lg:flex lg:w-[42%] relative flex-col justify-between overflow-hidden bg-ink text-salt px-12 py-10">
+        <div class="saltpan-grid" aria-hidden="true">
+          <div class="saltpan-cell"></div><div class="saltpan-cell glow"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell glow"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+        </div>
+        <div class="saltpan-shimmer" aria-hidden="true"></div>
+        <div class="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md shadow-black/20 w-fit">
+          <img src="assets/logo.png" alt="태평염전 로고" class="h-9 w-auto">
+        </div>
+        <div class="relative z-10 space-y-4">
+          <p class="font-display text-4xl leading-snug">처음 오셨다면<br>등록부터 시작하세요</p>
+          <p class="text-sm text-sand/90">가입 후 관리자 승인이 완료되면 이용할 수 있습니다.</p>
+        </div>
+        <p class="relative z-10 text-xs text-salt/40">© 태평염전. 사내 전용 시스템입니다.</p>
+      </aside>
+
+      <main class="flex-1 flex items-center justify-center px-6 py-14">
+        <div class="w-full max-w-sm">
+          <h1 class="text-2xl font-semibold text-inktext">회원가입</h1>
+          <p class="mt-1.5 text-sm text-muted">이름, 소속팀, 직급을 입력하면 관리자 승인 후 이용할 수 있습니다.</p>
+
+          <div class="mt-6 flex items-start gap-2.5 rounded-md bg-crimson/10 border border-crimson/30 px-3.5 py-3 text-sm text-crimsond">
+            <svg class="h-5 w-5 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-5a1 1 0 112 0 1 1 0 01-2 0zm1-9a1 1 0 00-1 1v4a1 1 0 002 0V5a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <span>이미 등록된 이름입니다. 동명이인이라면 관리자에게 문의해주세요.</span>
+          </div>
+
+          <form class="mt-4 space-y-4" onsubmit="return false;">
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+              <input type="text" value="이서준" class="w-full rounded-md border border-crimson/50 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-crimson focus:ring-2 focus:ring-crimson/30">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">소속팀</label>
+              <select class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+                <option>섬들채</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호</label>
+              <input type="password" value="1234" class="w-full rounded-md border border-crimson/50 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-crimson focus:ring-2 focus:ring-crimson/30">
+              <p class="mt-1 text-xs text-crimsond">비밀번호는 8자 이상이어야 합니다.</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호 확인</label>
+              <input type="password" value="12345" class="w-full rounded-md border border-crimson/50 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-crimson focus:ring-2 focus:ring-crimson/30">
+              <p class="mt-1 text-xs text-crimsond">비밀번호가 일치하지 않습니다.</p>
+            </div>
+            <button type="button" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">가입 요청 보내기</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ 7. 가입완료 · 승인대기 ============ -->
+  <div id="view-pending" class="app-view hidden">
+    <div class="min-h-[calc(100vh-49px)] flex">
+      <aside class="hidden lg:flex lg:w-[42%] relative flex-col justify-between overflow-hidden bg-ink text-salt px-12 py-10">
+        <div class="saltpan-grid" aria-hidden="true">
+          <div class="saltpan-cell"></div><div class="saltpan-cell glow"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell glow"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+          <div class="saltpan-cell"></div><div class="saltpan-cell"></div><div class="saltpan-cell"></div>
+        </div>
+        <div class="saltpan-shimmer" aria-hidden="true"></div>
+        <div class="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md shadow-black/20 w-fit">
+          <img src="assets/logo.png" alt="태평염전 로고" class="h-9 w-auto">
+        </div>
+        <div class="relative z-10 space-y-4">
+          <p class="font-display text-4xl leading-snug">거의 다 왔습니다</p>
+          <p class="text-sm text-sand/90">관리자 확인이 끝나면 바로 이용할 수 있어요.</p>
+        </div>
+        <p class="relative z-10 text-xs text-salt/40">© 태평염전. 사내 전용 시스템입니다.</p>
+      </aside>
+
+      <main class="flex-1 flex items-center justify-center px-6 py-16">
+        <div class="w-full max-w-sm text-center">
+          <div class="mx-auto h-14 w-14 rounded-full bg-brine/10 flex items-center justify-center">
+            <svg class="h-7 w-7 text-brine" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.3.7l2.5 2.5a1 1 0 001.4-1.4L11 10.6V6z" clip-rule="evenodd"/></svg>
+          </div>
+          <h1 class="mt-5 text-2xl font-semibold text-inktext">가입 요청을 보냈습니다</h1>
+          <p class="mt-2 text-sm text-muted leading-relaxed">관리자 승인 후 로그인할 수 있습니다.<br>승인은 보통 영업일 기준 1일 이내 처리됩니다.</p>
+
+          <div class="mt-6 rounded-md border border-mist bg-mist/40 px-4 py-3.5 text-sm text-left space-y-1.5">
+            <div class="flex justify-between"><span class="text-muted">이름</span><span class="font-medium">이서준</span></div>
+            <div class="flex justify-between"><span class="text-muted">소속팀</span><span class="font-medium">섬들채</span></div>
+            <div class="flex justify-between"><span class="text-muted">직급</span><span class="font-medium">팀원</span></div>
+            <div class="flex justify-between"><span class="text-muted">상태</span><span class="font-medium text-brine">승인 대기</span></div>
+          </div>
+
+          <button onclick="showView('view-login')" class="mt-7 w-full rounded-md border border-mist hover:bg-mist/50 text-inktext text-sm font-medium py-2.5 transition-colors">로그인 화면으로</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ 8. 관리자 · 승인대기 목록 ============ -->
+  <div id="view-admin-list" class="app-view hidden min-h-[calc(100vh-49px)] bg-salt">
+    <header class="border-b border-mist bg-white px-6 lg:px-10 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="assets/logo.png" alt="태평염전 로고" class="h-7 w-auto">
+        <span class="text-xs font-medium bg-ink text-salt px-2 py-0.5 rounded">관리자</span>
+      </div>
+      <div class="text-sm text-muted">시스템 관리자</div>
+    </header>
+
+    <div class="max-w-4xl mx-auto px-6 lg:px-10 py-10">
+      <div class="flex items-baseline gap-3">
+        <h1 class="text-xl font-semibold text-inktext">가입 승인 관리</h1>
+        <span class="text-xs font-medium text-crimsond bg-crimson/10 px-2 py-0.5 rounded-full">대기중 3건</span>
+      </div>
+      <p class="mt-1.5 text-sm text-muted">새로 가입한 계정을 확인하고 승인하거나 반려하세요.</p>
+
+      <div class="mt-6 rounded-lg border border-mist bg-white overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+              <th class="px-4 py-3 font-medium">이름</th>
+              <th class="px-4 py-3 font-medium">소속팀</th>
+              <th class="px-4 py-3 font-medium">직급</th>
+              <th class="px-4 py-3 font-medium">가입 요청일시</th>
+              <th class="px-4 py-3 font-medium text-right">처리</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-mist">
+            <tr>
+              <td class="px-4 py-3.5 font-medium">이서준</td>
+              <td class="px-4 py-3.5 text-muted">섬들채 · 전시교육</td>
+              <td class="px-4 py-3.5 text-muted">팀원</td>
+              <td class="px-4 py-3.5 text-muted font-mono text-xs">2026-08-03 09:41</td>
+              <td class="px-4 py-3.5">
+                <div class="flex justify-end gap-2">
+                  <button class="rounded-md bg-crimson hover:bg-crimsond text-salt text-xs font-medium px-3 py-1.5 transition-colors">승인</button>
+                  <button class="rounded-md border border-mist hover:bg-mist/50 text-inktext text-xs font-medium px-3 py-1.5 transition-colors">반려</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3.5 font-medium">최하윤</td>
+              <td class="px-4 py-3.5 text-muted">회계팀</td>
+              <td class="px-4 py-3.5 text-muted">팀원</td>
+              <td class="px-4 py-3.5 text-muted font-mono text-xs">2026-08-02 17:22</td>
+              <td class="px-4 py-3.5">
+                <div class="flex justify-end gap-2">
+                  <button class="rounded-md bg-crimson hover:bg-crimsond text-salt text-xs font-medium px-3 py-1.5 transition-colors">승인</button>
+                  <button class="rounded-md border border-mist hover:bg-mist/50 text-inktext text-xs font-medium px-3 py-1.5 transition-colors">반려</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3.5 font-medium">정민재</td>
+              <td class="px-4 py-3.5 text-muted">염전관리팀</td>
+              <td class="px-4 py-3.5 text-muted">팀장</td>
+              <td class="px-4 py-3.5 text-muted font-mono text-xs">2026-08-02 11:05</td>
+              <td class="px-4 py-3.5">
+                <div class="flex justify-end gap-2">
+                  <button class="rounded-md bg-crimson hover:bg-crimsond text-salt text-xs font-medium px-3 py-1.5 transition-colors">승인</button>
+                  <button class="rounded-md border border-mist hover:bg-mist/50 text-inktext text-xs font-medium px-3 py-1.5 transition-colors">반려</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <button onclick="showView('view-admin-empty')" class="mt-4 text-xs text-muted hover:text-inktext underline">→ 모두 처리했을 때 화면 보기</button>
+    </div>
+  </div>
+
+  <!-- ============ 9. 관리자 · 빈 상태 ============ -->
+  <div id="view-admin-empty" class="app-view hidden min-h-[calc(100vh-49px)] bg-salt">
+    <header class="border-b border-mist bg-white px-6 lg:px-10 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="assets/logo.png" alt="태평염전 로고" class="h-7 w-auto">
+        <span class="text-xs font-medium bg-ink text-salt px-2 py-0.5 rounded">관리자</span>
+      </div>
+      <div class="text-sm text-muted">시스템 관리자</div>
+    </header>
+
+    <div class="max-w-4xl mx-auto px-6 lg:px-10 py-10">
+      <div class="flex items-baseline gap-3">
+        <h1 class="text-xl font-semibold text-inktext">가입 승인 관리</h1>
+        <span class="text-xs font-medium text-brine bg-brine/10 px-2 py-0.5 rounded-full">대기중 0건</span>
+      </div>
+      <p class="mt-1.5 text-sm text-muted">새로 가입한 계정을 확인하고 승인하거나 반려하세요.</p>
+
+      <div class="mt-6 rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+        <div class="mx-auto h-12 w-12 rounded-full bg-mist flex items-center justify-center">
+          <svg class="h-6 w-6 text-muted" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+        </div>
+        <p class="mt-4 text-sm font-medium text-inktext">대기 중인 가입 요청이 없습니다</p>
+        <p class="mt-1 text-sm text-muted">새 가입 요청이 오면 이 목록에 표시됩니다.</p>
+      </div>
+
+      <button onclick="showView('view-admin-list')" class="mt-4 text-xs text-muted hover:text-inktext underline">← 대기 목록 화면 보기</button>
+    </div>
+  </div>
+
+  <script>
+    function showView(id) {
+      document.querySelectorAll('.app-view').forEach(function (v) { v.classList.add('hidden'); });
+      document.getElementById(id).classList.remove('hidden');
+      document.querySelectorAll('.switcher-btn').forEach(function (b) {
+        b.classList.remove('bg-ink', 'text-salt');
+        b.classList.add('bg-mist', 'text-inktext');
+      });
+      var active = document.querySelector('[data-target="' + id + '"]');
+      if (active) {
+        active.classList.remove('bg-mist', 'text-inktext');
+        active.classList.add('bg-ink', 'text-salt');
+      }
+      window.scrollTo(0, 0);
+    }
+  </script>
+</body>
