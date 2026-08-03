@@ -134,7 +134,15 @@ export async function signIn(_prevState: SignInState, formData: FormData): Promi
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase.from("profiles").select("status").eq("id", user!.id).single();
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("status")
+    .eq("id", user!.id)
+    .single();
+
+  if (profileError) {
+    console.error("signIn: failed to load profile status", profileError);
+  }
 
   if (!profile || profile.status !== "approved") {
     await supabase.auth.signOut();

@@ -62,12 +62,31 @@ CREATE INDEX ON profiles(tenant_id, status);
 -- (2) role/status를 사용자가 스스로 UPDATE해 관리자로 자기 승격할 수 있는 권한 상승 구멍을 만든다.
 -- SELECT 전용으로 좁히고, INSERT/관리자 UPDATE는 아래 전용 정책으로 분리한다.
 DROP POLICY IF EXISTS "profiles_tenant_isolation" ON profiles;
+DROP POLICY IF EXISTS "profiles_tenant_isolation_select" ON profiles;
+DROP POLICY IF EXISTS "tenants_tenant_isolation" ON tenants;
+
+-- 본인의 tenant_id 조회용 SECURITY DEFINER 함수.
+-- profiles 정책 안에서 profiles를 다시 셀프 서브쿼리로 조회하면 Postgres가
+-- 그 서브쿼리에도 같은 정책을 재적용하려다 "infinite recursion detected in
+-- policy for relation profiles" 오류를 낼 수 있다 (실사용 중 실제로 로그인 후
+-- 상태 조회가 실패해 "승인 대기"로 잘못 표시되는 형태로 나타났다).
+-- SECURITY DEFINER 함수는 내부적으로 RLS를 우회해 조회하므로 이 문제가 없다.
+CREATE OR REPLACE FUNCTION public.my_tenant_id()
+RETURNS UUID
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT tenant_id FROM profiles WHERE id = auth.uid();
+$$;
+REVOKE ALL ON FUNCTION public.my_tenant_id() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.my_tenant_id() TO authenticated;
 
 CREATE POLICY "profiles_tenant_isolation_select" ON profiles
   FOR SELECT
-  USING (
-    tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
-  );
+  USING ( tenant_id = public.my_tenant_id() );
+
+CREATE POLICY "tenants_tenant_isolation" ON tenants
+  FOR SELECT
+  USING ( id = public.my_tenant_id() );
 
 -- 신규 가입자가 자기 자신의 프로필만 생성할 수 있도록 허용 (부트스트랩)
 CREATE POLICY "profiles_self_insert" ON profiles
