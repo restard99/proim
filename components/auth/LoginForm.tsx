@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signIn, type SignInState } from "@/app/actions/auth";
-import { LOGIN_TEAMS } from "@/lib/auth/constants";
+import { TEAMS } from "@/lib/auth/constants";
 
 const initialState: SignInState = { status: "idle" };
 
@@ -62,13 +62,15 @@ export function LoginForm() {
             placeholder="홍길동"
             className={`w-full rounded-md border bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 ${borderClass(!!fieldErrors.fullName || isCredentialError)}`}
           />
-          <p className="mt-1 text-xs text-muted">동명이인이 있을 수 있어 소속팀과 함께 계정을 구분합니다.</p>
+          <p className="mt-1 text-xs text-muted">
+            동명이인이 있을 수 있어 소속팀과 함께 계정을 구분합니다. 관리자 계정은 이메일을 입력하세요.
+          </p>
           {fieldErrors.fullName && <p className="mt-1 text-xs text-crimsond">{fieldErrors.fullName}</p>}
         </div>
 
         <div>
           <label htmlFor="team" className="block text-sm font-medium text-inktext mb-1.5">
-            소속팀
+            소속팀 <span className="text-muted font-normal">(관리자는 선택하지 않아도 됩니다)</span>
           </label>
           <select
             id="team"
@@ -79,7 +81,7 @@ export function LoginForm() {
             <option value="" disabled>
               선택하세요
             </option>
-            {LOGIN_TEAMS.map((team) => (
+            {TEAMS.map((team) => (
               <option key={team} value={team}>
                 {team}
               </option>

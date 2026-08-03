@@ -84,14 +84,23 @@ export type SignInState =
   | { status: "error"; error: "invalid-credentials" }
   | { status: "error"; error: "pending-approval" };
 
+// 관리자는 소속팀이 없어 이름+소속팀 조합으로 계정을 특정할 수 없다.
+// "이름" 입력값에 이메일을 그대로 입력하면(관리자가 Supabase 대시보드에서
+// 직접 만든 실제 이메일) 소속팀 없이 그 이메일로 바로 로그인할 수 있게 한다.
+// 일반 직원은 이름+소속팀 조합으로만 로그인하므로 이 경로와 섞이지 않는다.
+function isEmailLike(value: string) {
+  return value.includes("@");
+}
+
 export async function signIn(_prevState: SignInState, formData: FormData): Promise<SignInState> {
   const fullName = String(formData.get("fullName") ?? "").trim();
   const team = String(formData.get("team") ?? "");
   const password = String(formData.get("password") ?? "");
+  const isAdminEmailLogin = isEmailLike(fullName);
 
   const fieldErrors: SignInFieldErrors = {};
   if (!fullName) fieldErrors.fullName = "이름을 입력하세요.";
-  if (!team) fieldErrors.team = "소속팀을 선택하세요.";
+  if (!isAdminEmailLogin && !team) fieldErrors.team = "소속팀을 선택하세요.";
   if (!password) fieldErrors.password = "비밀번호를 입력하세요.";
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -99,13 +108,19 @@ export async function signIn(_prevState: SignInState, formData: FormData): Promi
   }
 
   const supabase = await createClient();
-  const tenantId = process.env.DEFAULT_TENANT_ID!;
 
-  const { data: email } = await supabase.rpc("lookup_auth_email", {
-    p_tenant_id: tenantId,
-    p_full_name: fullName,
-    p_team: team,
-  });
+  let email: string | null;
+  if (isAdminEmailLogin) {
+    email = fullName;
+  } else {
+    const tenantId = process.env.DEFAULT_TENANT_ID!;
+    const { data } = await supabase.rpc("lookup_auth_email", {
+      p_tenant_id: tenantId,
+      p_full_name: fullName,
+      p_team: team,
+    });
+    email = data;
+  }
   if (!email) {
     return { status: "error", error: "invalid-credentials" };
   }
