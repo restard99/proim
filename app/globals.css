@@ -80,3 +80,50 @@ body {
     animation: none;
   }
 }
+
+/* FEAT-002-main-shell: 사이드바 탭 강조 (02-design.html 목업과 동일한 토큰) */
+.nav-link {
+  position: relative;
+  color: rgba(250, 248, 243, 0.55);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #faf8f3;
+}
+.nav-link.active {
+  background-color: rgba(255, 255, 255, 0.09);
+  color: #faf8f3;
+}
+.nav-accent {
+  position: absolute;
+  left: -0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1.15rem;
+  width: 3px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+.nav-link.active .nav-accent {
+  background: #c9b896;
+}
+.nav-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  width: 2rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(250, 248, 243, 0.6);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.nav-link.active .nav-icon-wrap {
+  background: #8b2942;
+  color: #faf8f3;
+}
+.nav-link:hover .nav-icon-wrap {
+  color: #faf8f3;
+}
