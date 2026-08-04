@@ -40,3 +40,13 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status,
   approved_by = EXCLUDED.approved_by,
   approved_at = EXCLUDED.approved_at;
+
+-- ============================================================
+-- FEAT-003-sales-department: 보고 라인 예외 시드
+-- 영업채산팀은 사장님이 아닌 영업팀장에게 업무보고가 올라간다.
+-- 행이 없는 다른 팀은 전부 사장님에게 직접 보고(기본값)로 간주된다.
+-- ============================================================
+INSERT INTO team_hierarchy (tenant_id, team, reports_to_team)
+VALUES ('a0000000-0000-4000-8000-000000000001', '영업채산팀', '영업팀')
+ON CONFLICT (tenant_id, team) DO UPDATE SET
+  reports_to_team = EXCLUDED.reports_to_team;

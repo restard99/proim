@@ -143,3 +143,116 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.profile_name_team_taken(UUID, TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.profile_name_team_taken(UUID, TEXT, TEXT) TO anon, authenticated;
+
+-- ============================================================
+-- FEAT-003-sales-department: 일일업무보고 취합/상신 + 연간 매출 목표
+-- ============================================================
+
+-- 팀 간 보고 라인. 행이 없는 팀은 사장님에게 직접 보고하는 것으로 간주(기본값).
+-- 예외만 행으로 추가한다 (예: 영업채산팀 → 영업팀).
+CREATE TABLE team_hierarchy (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        UUID NOT NULL REFERENCES tenants(id),
+  team             TEXT NOT NULL,
+  reports_to_team  TEXT,
+  UNIQUE (tenant_id, team)
+);
+
+-- 팀원 개인 일일업무보고 (하루 1건 원칙)
+CREATE TABLE daily_reports (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id),
+  author_id         UUID NOT NULL REFERENCES profiles(id),
+  team              TEXT NOT NULL,
+  report_date       DATE NOT NULL,
+  visited_customers TEXT,
+  content           TEXT,
+  notes             TEXT,
+  status            TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted')),
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, author_id, report_date)
+);
+
+-- 팀장 종합보고서 (팀원 보고를 취합·재작성한 결과물, 팀원 원본과 별개로 보존)
+CREATE TABLE team_daily_reports (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id),
+  team          TEXT NOT NULL,
+  author_id     UUID NOT NULL REFERENCES profiles(id),
+  report_date   DATE NOT NULL,
+  content       TEXT,
+  status        TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted')),
+  submitted_at  TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, team, report_date)
+);
+
+-- 연간 매출 목표 (Y-ERP에는 목표/quota 데이터가 없어 자체 관리)
+CREATE TABLE sales_targets (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id),
+  year          INT NOT NULL,
+  customer_code TEXT,  -- NULL이면 전체(영업부) 목표
+  target_amount NUMERIC NOT NULL,
+  UNIQUE (tenant_id, year, customer_code)
+);
+
+ALTER TABLE team_hierarchy ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_daily_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sales_targets ENABLE ROW LEVEL SECURITY;
+
+-- team_hierarchy: 같은 테넌트는 조회만, 쓰기는 관리자만
+CREATE POLICY "team_hierarchy_tenant_select" ON team_hierarchy
+  FOR SELECT USING ( tenant_id = public.my_tenant_id() );
+CREATE POLICY "team_hierarchy_admin_write" ON team_hierarchy
+  FOR ALL USING ( public.is_tenant_admin(tenant_id) ) WITH CHECK ( public.is_tenant_admin(tenant_id) );
+
+-- daily_reports: 본인 글은 본인이 쓰고, 본인 또는 소속팀 팀장/관리자가 조회
+CREATE POLICY "daily_reports_self_select" ON daily_reports
+  FOR SELECT USING ( author_id = auth.uid() );
+CREATE POLICY "daily_reports_leader_select" ON daily_reports
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid()
+        AND p.tenant_id = daily_reports.tenant_id
+        AND p.team = daily_reports.team
+        AND p.role IN ('leader', 'admin')
+    )
+  );
+CREATE POLICY "daily_reports_self_insert" ON daily_reports
+  FOR INSERT WITH CHECK ( author_id = auth.uid() AND tenant_id = public.my_tenant_id() );
+CREATE POLICY "daily_reports_self_update" ON daily_reports
+  FOR UPDATE USING ( author_id = auth.uid() ) WITH CHECK ( author_id = auth.uid() );
+
+-- team_daily_reports: 작성한 팀장 본인 + 상위 보고 대상 팀장(team_hierarchy 기준)만 조회
+CREATE POLICY "team_daily_reports_self_select" ON team_daily_reports
+  FOR SELECT USING ( author_id = auth.uid() );
+CREATE POLICY "team_daily_reports_upstream_select" ON team_daily_reports
+  FOR SELECT USING (
+    status = 'submitted'
+    AND EXISTS (
+      SELECT 1 FROM team_hierarchy th
+      JOIN profiles p ON p.id = auth.uid()
+      WHERE th.tenant_id = team_daily_reports.tenant_id
+        AND th.team = team_daily_reports.team
+        AND th.reports_to_team = p.team
+        AND p.role IN ('leader', 'admin')
+    )
+  );
+CREATE POLICY "team_daily_reports_self_insert" ON team_daily_reports
+  FOR INSERT WITH CHECK ( author_id = auth.uid() AND tenant_id = public.my_tenant_id() );
+CREATE POLICY "team_daily_reports_self_update" ON team_daily_reports
+  FOR UPDATE USING ( author_id = auth.uid() ) WITH CHECK ( author_id = auth.uid() );
+
+-- sales_targets: 같은 테넌트는 조회만, 쓰기는 관리자만
+CREATE POLICY "sales_targets_tenant_select" ON sales_targets
+  FOR SELECT USING ( tenant_id = public.my_tenant_id() );
+CREATE POLICY "sales_targets_admin_write" ON sales_targets
+  FOR ALL USING ( public.is_tenant_admin(tenant_id) ) WITH CHECK ( public.is_tenant_admin(tenant_id) );
+
+CREATE INDEX ON daily_reports(tenant_id, team, report_date);
+CREATE INDEX ON team_daily_reports(tenant_id, team, report_date);
