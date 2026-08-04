@@ -13,10 +13,12 @@ export function DailyReportForm({
   reportDate,
   initialReport,
   onSaved,
+  submitLabel = "제출하기",
 }: {
   reportDate: string;
   initialReport: DailyReportRow | null;
   onSaved: (row: DailyReportRow) => void;
+  submitLabel?: string;
 }) {
   const [visitedCustomers, setVisitedCustomers] = useState(initialReport?.visited_customers ?? "");
   const [content, setContent] = useState(initialReport?.content ?? "");
@@ -115,7 +117,7 @@ export function DailyReportForm({
           onClick={() => handleSave("submitted")}
           className="rounded-md bg-crimson px-4 py-2.5 text-sm font-medium text-salt transition-colors hover:bg-crimsond disabled:opacity-50"
         >
-          제출하기
+          {submitLabel}
         </button>
       </div>
     </div>

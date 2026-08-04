@@ -9,7 +9,13 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function MemberWorklogView({ initialReports }: { initialReports: DailyReportRow[] }) {
+export function MemberWorklogView({
+  initialReports,
+  submitLabel,
+}: {
+  initialReports: DailyReportRow[];
+  submitLabel?: string;
+}) {
   const [reports, setReports] = useState(initialReports);
   const [selectedDate, setSelectedDate] = useState(todayISO());
 
@@ -33,6 +39,7 @@ export function MemberWorklogView({ initialReports }: { initialReports: DailyRep
         reportDate={selectedDate}
         initialReport={selectedReport}
         onSaved={handleSaved}
+        submitLabel={submitLabel}
       />
     </div>
   );
