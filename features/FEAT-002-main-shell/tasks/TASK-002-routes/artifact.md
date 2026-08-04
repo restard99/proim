@@ -1,6 +1,6 @@
 # TASK-002: 라우트 연결 및 페이지 생성 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `app/(app)/` route group에 공통 레이아웃과 홈/일정관리/업무일지 3개 준비 중 화면을 연결했다. `AppLayout`이 로그인 사용자의 `profiles`(full_name, team)를 조회해 `AppShell`에 전달하고, 기존 middleware(`proxy.ts`)의 인증/승인 가드는 그대로 유지된다.
