@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+export type DailyReportAttachment = { id: string; path: string; name: string };
+
 export type DailyReportRow = {
   id: string;
   report_date: string;
@@ -10,8 +12,7 @@ export type DailyReportRow = {
   content: string | null;
   notes: string | null;
   status: "draft" | "submitted";
-  attachment_path: string | null;
-  attachment_name: string | null;
+  attachments: DailyReportAttachment[];
 };
 
 export type SaveResult = { ok: true } | { ok: false; message: string };
@@ -40,13 +41,23 @@ export async function getMyDailyReports(limit = 30): Promise<DailyReportRow[]> {
 
   const { data } = await supabase
     .from("daily_reports")
-    .select("id, report_date, visited_customers, content, notes, status, attachment_path, attachment_name")
+    .select(
+      "id, report_date, visited_customers, content, notes, status, daily_report_attachments(id, path, name)",
+    )
     .eq("author_id", self.userId)
     .order("report_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  return data ?? [];
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    report_date: r.report_date,
+    visited_customers: r.visited_customers,
+    content: r.content,
+    notes: r.notes,
+    status: r.status,
+    attachments: r.daily_report_attachments ?? [],
+  }));
 }
 
 export async function saveDailyReport(input: {
@@ -56,17 +67,10 @@ export async function saveDailyReport(input: {
   content: string;
   notes: string;
   status: "draft" | "submitted";
-  attachmentPath?: string | null;
-  attachmentName?: string | null;
 }): Promise<SaveReportResult> {
   const supabase = await createClient();
   const self = await getSelf(supabase);
   if (!self) return { ok: false, message: "로그인이 필요합니다." };
-
-  const attachmentFields = {
-    attachment_path: input.attachmentPath ?? null,
-    attachment_name: input.attachmentName ?? null,
-  };
 
   if (input.id) {
     const { error } = await supabase
@@ -77,7 +81,6 @@ export async function saveDailyReport(input: {
         content: input.content,
         notes: input.notes,
         status: input.status,
-        ...attachmentFields,
         updated_at: new Date().toISOString(),
       })
       .eq("id", input.id)
@@ -99,7 +102,6 @@ export async function saveDailyReport(input: {
       content: input.content,
       notes: input.notes,
       status: input.status,
-      ...attachmentFields,
     })
     .select("id")
     .single();

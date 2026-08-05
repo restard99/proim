@@ -258,16 +258,48 @@ CREATE INDEX ON daily_reports(tenant_id, team, report_date);
 CREATE INDEX ON team_daily_reports(tenant_id, team, report_date);
 
 -- ============================================================
--- FEAT-003-sales-department: 업무일지 첨부파일
+-- FEAT-003-sales-department: 업무일지 첨부파일 (여러 개 첨부 가능)
 -- ============================================================
 
+-- 먼저 시도했던 단일 컬럼 방식(attachment_path/attachment_name)은 파일 1개만
+-- 붙일 수 있어서 별도 테이블로 교체한다. 이미 실행했다면 아래에서 정리된다.
 ALTER TABLE daily_reports
-  ADD COLUMN attachment_path TEXT,
-  ADD COLUMN attachment_name TEXT;
+  DROP COLUMN IF EXISTS attachment_path,
+  DROP COLUMN IF EXISTS attachment_name;
+
+CREATE TABLE daily_report_attachments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id),
+  report_id   UUID NOT NULL REFERENCES daily_reports(id) ON DELETE CASCADE,
+  path        TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE daily_report_attachments ENABLE ROW LEVEL SECURITY;
+
+-- 본인 업무일지에 딸린 첨부파일은 본인이 전부(조회/추가/삭제) 관리
+CREATE POLICY "daily_report_attachments_self_all" ON daily_report_attachments
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM daily_reports d WHERE d.id = report_id AND d.author_id = auth.uid())
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM daily_reports d WHERE d.id = report_id AND d.author_id = auth.uid())
+  );
+
+-- 소속팀 팀장/관리자는 팀원 업무일지의 첨부파일 목록을 조회 가능 (daily_reports_leader_select와 동일 조건)
+CREATE POLICY "daily_report_attachments_leader_select" ON daily_report_attachments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM daily_reports d
+      JOIN profiles p ON p.id = auth.uid()
+      WHERE d.id = report_id AND p.tenant_id = d.tenant_id AND p.team = d.team AND p.role IN ('leader', 'admin')
+    )
+  );
+
+CREATE INDEX ON daily_report_attachments(report_id);
 
 -- 비공개 버킷: 본인 폴더(auth.uid())에만 업로드/삭제 가능, 로그인한 누구나 조회 가능
--- (daily_reports 테이블 자체의 RLS가 이미 "누가 이 글을 볼 수 있는지"를 걸러주므로,
---  파일 경로는 추측 불가능한 값이라 조회 정책은 인증 여부만 확인해도 충분하다)
+-- (실제 접근 가능 여부는 daily_report_attachments 테이블 RLS로 걸러지고,
+--  파일 경로 자체도 추측 불가능한 값이라 스토리지 조회 정책은 인증 여부만 확인해도 충분하다)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('worklog-attachments', 'worklog-attachments', false)
 ON CONFLICT (id) DO NOTHING;

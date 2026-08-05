@@ -1,11 +1,23 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { saveDailyReport, type DailyReportRow } from "@/app/actions/worklog";
-import { uploadWorklogAttachment, getAttachmentUrl } from "@/app/actions/attachments";
+import { saveDailyReport, type DailyReportRow, type DailyReportAttachment } from "@/app/actions/worklog";
+import { addReportAttachment, removeReportAttachment, getAttachmentUrl } from "@/app/actions/attachments";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function AttachmentIcon() {
+  return (
+    <svg className="h-4 w-4 shrink-0 text-muted" viewBox="0 0 20 20" fill="currentColor">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8 4a3 3 0 0 0-3 3v6a3 3 0 1 0 6 0V8a1 1 0 1 1 2 0v5a5 5 0 1 1-10 0V7a5 5 0 0 1 10 0v5a1 1 0 1 1-2 0V7a3 3 0 0 0-3-3Z"
+      />
+    </svg>
+  );
 }
 
 export function DailyReportForm({
@@ -17,6 +29,7 @@ export function DailyReportForm({
   onSaved: (row: DailyReportRow) => void;
   submitLabel?: string;
 }) {
+  const [reportId, setReportId] = useState<string | null>(report?.id ?? null);
   const [reportDate, setReportDate] = useState(report?.report_date ?? todayISO());
   const [visitedCustomers, setVisitedCustomers] = useState(report?.visited_customers ?? "");
   const [content, setContent] = useState(report?.content ?? "");
@@ -25,67 +38,83 @@ export function DailyReportForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-  const [attachmentPath, setAttachmentPath] = useState<string | null>(report?.attachment_path ?? null);
-  const [attachmentName, setAttachmentName] = useState<string | null>(report?.attachment_name ?? null);
-  const [isOpeningAttachment, setIsOpeningAttachment] = useState(false);
+  const [attachments, setAttachments] = useState<DailyReportAttachment[]>(report?.attachments ?? []);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setAttachmentFile(e.target.files?.[0] ?? null);
-  }
-
-  function handleRemoveAttachment() {
-    setAttachmentFile(null);
-    setAttachmentPath(null);
-    setAttachmentName(null);
+    const file = e.target.files?.[0];
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+
+    if (!reportId) {
+      setPendingFiles((prev) => [...prev, file]);
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    addReportAttachment(reportId, formData).then((result) => {
+      setIsUploading(false);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setAttachments((prev) => [...prev, result.attachment]);
+    });
   }
 
-  async function handleOpenAttachment() {
-    if (!attachmentPath) return;
-    setIsOpeningAttachment(true);
-    const url = await getAttachmentUrl(attachmentPath);
-    setIsOpeningAttachment(false);
+  function handleRemovePending(index: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleRemoveAttachment(attachment: DailyReportAttachment) {
+    setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+    removeReportAttachment(attachment.id, attachment.path);
+  }
+
+  async function handleOpenAttachment(attachment: DailyReportAttachment) {
+    setOpeningId(attachment.id);
+    const url = await getAttachmentUrl(attachment.path);
+    setOpeningId(null);
     if (url) window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function handleSave(nextStatus: "draft" | "submitted") {
     setError(null);
     startTransition(async () => {
-      let finalPath = attachmentPath;
-      let finalName = attachmentName;
-
-      if (attachmentFile) {
-        const formData = new FormData();
-        formData.append("file", attachmentFile);
-        const uploadResult = await uploadWorklogAttachment(formData);
-        if (!uploadResult.ok) {
-          setError(uploadResult.message);
-          return;
-        }
-        finalPath = uploadResult.path;
-        finalName = uploadResult.name;
-      }
-
       const result = await saveDailyReport({
-        id: report?.id,
+        id: reportId ?? undefined,
         reportDate,
         visitedCustomers,
         content,
         notes,
         status: nextStatus,
-        attachmentPath: finalPath,
-        attachmentName: finalName,
       });
       if (!result.ok) {
         setError(result.message);
         return;
       }
+
+      let finalAttachments = attachments;
+      if (!reportId && pendingFiles.length > 0) {
+        const uploaded: DailyReportAttachment[] = [];
+        for (const file of pendingFiles) {
+          const formData = new FormData();
+          formData.append("file", file);
+          const uploadResult = await addReportAttachment(result.id, formData);
+          if (uploadResult.ok) uploaded.push(uploadResult.attachment);
+        }
+        finalAttachments = [...attachments, ...uploaded];
+        setAttachments(finalAttachments);
+        setPendingFiles([]);
+      }
+
+      setReportId(result.id);
       setStatus(nextStatus);
-      setAttachmentFile(null);
-      setAttachmentPath(finalPath);
-      setAttachmentName(finalName);
       onSaved({
         id: result.id,
         report_date: reportDate,
@@ -93,8 +122,7 @@ export function DailyReportForm({
         content,
         notes,
         status: nextStatus,
-        attachment_path: finalPath,
-        attachment_name: finalName,
+        attachments: finalAttachments,
       });
     });
   }
@@ -154,41 +182,56 @@ export function DailyReportForm({
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-inktext">첨부 (선택)</label>
-          {attachmentName && (
-            <div className="mb-2 flex items-center gap-2 rounded-md border border-mist bg-salt px-3 py-2 text-sm">
-              <svg className="h-4 w-4 shrink-0 text-muted" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M8 4a3 3 0 0 0-3 3v6a3 3 0 1 0 6 0V8a1 1 0 1 1 2 0v5a5 5 0 1 1-10 0V7a5 5 0 0 1 10 0v5a1 1 0 1 1-2 0V7a3 3 0 0 0-3-3Z"
-                />
-              </svg>
-              <button
-                type="button"
-                onClick={handleOpenAttachment}
-                disabled={isOpeningAttachment || !attachmentPath}
-                className="min-w-0 flex-1 truncate text-left text-crimson hover:underline disabled:no-underline disabled:text-muted"
-              >
-                {attachmentFile ? attachmentName + " (저장 시 업로드됩니다)" : attachmentName}
-              </button>
-              <button
-                type="button"
-                onClick={handleRemoveAttachment}
-                className="shrink-0 text-xs font-medium text-muted hover:text-crimsond"
-              >
-                삭제
-              </button>
-            </div>
+          <label className="mb-1.5 block text-sm font-medium text-inktext">첨부 (선택, 여러 개 가능)</label>
+          {(attachments.length > 0 || pendingFiles.length > 0) && (
+            <ul className="mb-2 space-y-1.5">
+              {attachments.map((a) => (
+                <li key={a.id} className="flex items-center gap-2 rounded-md border border-mist bg-salt px-3 py-2 text-sm">
+                  <AttachmentIcon />
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAttachment(a)}
+                    disabled={openingId === a.id}
+                    className="min-w-0 flex-1 truncate text-left text-crimson hover:underline disabled:text-muted disabled:no-underline"
+                  >
+                    {a.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(a)}
+                    className="shrink-0 text-xs font-medium text-muted hover:text-crimsond"
+                  >
+                    삭제
+                  </button>
+                </li>
+              ))}
+              {pendingFiles.map((f, i) => (
+                <li
+                  key={`pending-${i}`}
+                  className="flex items-center gap-2 rounded-md border border-dashed border-mist bg-salt px-3 py-2 text-sm"
+                >
+                  <AttachmentIcon />
+                  <span className="min-w-0 flex-1 truncate text-muted">{f.name} (저장 시 업로드됩니다)</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePending(i)}
+                    className="shrink-0 text-xs font-medium text-muted hover:text-crimsond"
+                  >
+                    삭제
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-          {!attachmentName && (
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleFileChange}
-              className="w-full rounded-md border border-mist px-3.5 py-2.5 text-sm text-muted outline-none file:mr-3 file:rounded-md file:border-0 file:bg-mist file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-inktext"
-            />
-          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.hwp,.hwpx"
+            onChange={handleFileChange}
+            disabled={isUploading}
+            className="w-full rounded-md border border-mist px-3.5 py-2.5 text-sm text-muted outline-none file:mr-3 file:rounded-md file:border-0 file:bg-mist file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-inktext disabled:opacity-50"
+          />
+          {isUploading && <p className="mt-1 text-xs text-muted">업로드 중…</p>}
         </div>
       </div>
 
