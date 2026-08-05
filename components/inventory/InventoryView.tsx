@@ -23,7 +23,7 @@ function toYmd(dateInputValue: string) {
   return dateInputValue.replaceAll("-", "");
 }
 function formatWon(n: number) {
-  return Math.round(n).toLocaleString("ko-KR") + "원";
+  return Math.round(n).toLocaleString("ko-KR");
 }
 function formatQty(n: number) {
   return Math.round(n).toLocaleString("ko-KR");
