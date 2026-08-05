@@ -109,12 +109,8 @@ export function DailyReportForm({
           if (uploadResult.ok) uploaded.push(uploadResult.attachment);
         }
         finalAttachments = [...attachments, ...uploaded];
-        setAttachments(finalAttachments);
-        setPendingFiles([]);
       }
 
-      setReportId(result.id);
-      setStatus(nextStatus);
       onSaved({
         id: result.id,
         report_date: reportDate,
@@ -124,6 +120,25 @@ export function DailyReportForm({
         status: nextStatus,
         attachments: finalAttachments,
       });
+
+      if (report === null) {
+        // 새 항목을 저장한 경우: 이 항목을 계속 수정하는 모드로 남지 않고,
+        // 다음 항목을 바로 이어서 쓸 수 있도록 폼을 비운다.
+        setReportId(null);
+        setReportDate(todayISO());
+        setVisitedCustomers("");
+        setContent("");
+        setNotes("");
+        setStatus("draft");
+        setAttachments([]);
+        setPendingFiles([]);
+        return;
+      }
+
+      setReportId(result.id);
+      setStatus(nextStatus);
+      setAttachments(finalAttachments);
+      setPendingFiles([]);
     });
   }
 
