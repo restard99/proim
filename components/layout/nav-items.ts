@@ -26,8 +26,6 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const SALES_TEAMS = ["영업팀", "영업채산팀"];
-
 export const SALES_NAV_ITEMS: NavItem[] = [
   {
     href: "/sales",
@@ -43,3 +41,37 @@ export const SALES_NAV_ITEMS: NavItem[] = [
     evenOdd: true,
   },
 ];
+
+export const INVENTORY_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/inventory",
+    label: "재고현황",
+    iconPath:
+      "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
+    evenOdd: false,
+  },
+];
+
+// 거래처별 매출/수금현황: 영업팀 전체, 영업채산팀은 팀장만
+export function canViewSales(team: string | null | undefined, role: string | null | undefined): boolean {
+  if (role === "admin") return true;
+  if (team === "영업팀") return true;
+  if (team === "영업채산팀" && role === "leader") return true;
+  return false;
+}
+
+// 재고현황(부자재/완제품/3자물류): 영업채산팀 전체(팀장+팀원)
+export function canViewInventory(team: string | null | undefined, role: string | null | undefined): boolean {
+  if (role === "admin") return true;
+  return team === "영업채산팀";
+}
+
+export function getVisibleBusinessNavItems(
+  team: string | null | undefined,
+  role: string | null | undefined,
+): NavItem[] {
+  const items: NavItem[] = [];
+  if (canViewSales(team, role)) items.push(...SALES_NAV_ITEMS);
+  if (canViewInventory(team, role)) items.push(...INVENTORY_NAV_ITEMS);
+  return items;
+}

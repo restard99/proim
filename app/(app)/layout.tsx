@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/AppShell";
-import { SALES_TEAMS } from "@/components/layout/nav-items";
+import { getVisibleBusinessNavItems } from "@/components/layout/nav-items";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -18,10 +18,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .single();
   if (!profile) redirect("/login");
 
-  const showSalesSection = profile.role === "admin" || SALES_TEAMS.includes(profile.team ?? "");
+  const businessNavItems = getVisibleBusinessNavItems(profile.team, profile.role);
 
   return (
-    <AppShell userName={profile.full_name ?? ""} userTeam={profile.team ?? ""} showSalesSection={showSalesSection}>
+    <AppShell userName={profile.full_name ?? ""} userTeam={profile.team ?? ""} businessNavItems={businessNavItems}>
       {children}
     </AppShell>
   );

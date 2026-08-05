@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS, SALES_NAV_ITEMS } from "./nav-items";
+import { NAV_ITEMS, type NavItem } from "./nav-items";
 import { signOut } from "@/app/actions/auth";
 
 function isActive(pathname: string, href: string) {
@@ -24,7 +24,7 @@ function NavLinkRow({
   active,
   onNavigate,
 }: {
-  item: (typeof NAV_ITEMS)[number];
+  item: NavItem;
   active: boolean;
   onNavigate?: () => void;
 }) {
@@ -47,11 +47,11 @@ function NavLinkRow({
 
 function NavLinks({
   pathname,
-  showSalesSection,
+  businessNavItems,
   onNavigate,
 }: {
   pathname: string;
-  showSalesSection: boolean;
+  businessNavItems: NavItem[];
   onNavigate?: () => void;
 }) {
   return (
@@ -60,10 +60,10 @@ function NavLinks({
       {NAV_ITEMS.map((item) => (
         <NavLinkRow key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={onNavigate} />
       ))}
-      {showSalesSection && (
+      {businessNavItems.length > 0 && (
         <>
           <p className="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">영업부</p>
-          {SALES_NAV_ITEMS.map((item) => (
+          {businessNavItems.map((item) => (
             <NavLinkRow key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={onNavigate} />
           ))}
         </>
@@ -113,18 +113,18 @@ function ProfileFooter({ userName, userTeam, interactive }: { userName: string; 
 export function AppShell({
   userName,
   userTeam,
-  showSalesSection = false,
+  businessNavItems = [],
   children,
 }: {
   userName: string;
   userTeam: string;
-  showSalesSection?: boolean;
+  businessNavItems?: NavItem[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const currentLabel =
-    [...NAV_ITEMS, ...SALES_NAV_ITEMS].find((item) => isActive(pathname, item.href))?.label ?? "";
+    [...NAV_ITEMS, ...businessNavItems].find((item) => isActive(pathname, item.href))?.label ?? "";
 
   return (
     <div className="flex min-h-screen">
@@ -132,7 +132,7 @@ export function AppShell({
         <div className="border-b border-white/10 px-6 py-6">
           <LogoBadge />
         </div>
-        <NavLinks pathname={pathname} showSalesSection={showSalesSection} />
+        <NavLinks pathname={pathname} businessNavItems={businessNavItems} />
         <ProfileFooter userName={userName} userTeam={userTeam} interactive />
       </aside>
 
@@ -151,7 +151,7 @@ export function AppShell({
                 </svg>
               </button>
             </div>
-            <NavLinks pathname={pathname} showSalesSection={showSalesSection} onNavigate={() => setMobileOpen(false)} />
+            <NavLinks pathname={pathname} businessNavItems={businessNavItems} onNavigate={() => setMobileOpen(false)} />
             <ProfileFooter userName={userName} userTeam={userTeam} />
           </div>
           <button

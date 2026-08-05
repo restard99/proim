@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { canViewSales } from "@/components/layout/nav-items";
-import { SalesByCustomerView } from "@/components/sales/SalesByCustomerView";
+import { canViewInventory } from "@/components/layout/nav-items";
+import { InventoryView } from "@/components/inventory/InventoryView";
 
-export default async function SalesPage() {
+export default async function InventoryPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,7 +13,7 @@ export default async function SalesPage() {
   const { data: profile } = await supabase.from("profiles").select("team, role").eq("id", user.id).single();
   if (!profile) redirect("/login");
 
-  if (!canViewSales(profile.team, profile.role)) redirect("/");
+  if (!canViewInventory(profile.team, profile.role)) redirect("/");
 
-  return <SalesByCustomerView />;
+  return <InventoryView />;
 }
