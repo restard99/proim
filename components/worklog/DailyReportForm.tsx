@@ -102,13 +102,21 @@ export function DailyReportForm({
       let finalAttachments = attachments;
       if (!reportId && pendingFiles.length > 0) {
         const uploaded: DailyReportAttachment[] = [];
+        const failedNames: string[] = [];
         for (const file of pendingFiles) {
           const formData = new FormData();
           formData.append("file", file);
           const uploadResult = await addReportAttachment(result.id, formData);
-          if (uploadResult.ok) uploaded.push(uploadResult.attachment);
+          if (uploadResult.ok) {
+            uploaded.push(uploadResult.attachment);
+          } else {
+            failedNames.push(file.name);
+          }
         }
         finalAttachments = [...attachments, ...uploaded];
+        if (failedNames.length > 0) {
+          setError(`업무일지는 저장됐지만 다음 첨부파일 업로드에 실패했습니다: ${failedNames.join(", ")}`);
+        }
       }
 
       onSaved({
