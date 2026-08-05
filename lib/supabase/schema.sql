@@ -227,6 +227,9 @@ CREATE POLICY "daily_reports_self_insert" ON daily_reports
   FOR INSERT WITH CHECK ( author_id = auth.uid() AND tenant_id = public.my_tenant_id() );
 CREATE POLICY "daily_reports_self_update" ON daily_reports
   FOR UPDATE USING ( author_id = auth.uid() ) WITH CHECK ( author_id = auth.uid() );
+DROP POLICY IF EXISTS "daily_reports_self_delete" ON daily_reports;
+CREATE POLICY "daily_reports_self_delete" ON daily_reports
+  FOR DELETE USING ( author_id = auth.uid() );
 
 -- team_daily_reports: 작성한 팀장 본인 + 상위 보고 대상 팀장(team_hierarchy 기준)만 조회
 CREATE POLICY "team_daily_reports_self_select" ON team_daily_reports
