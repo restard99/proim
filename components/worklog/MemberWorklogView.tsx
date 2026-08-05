@@ -43,7 +43,6 @@ export function MemberWorklogView({
         selectedId={selectedId}
         onSelect={setSelectedId}
         onNew={() => setSelectedId(null)}
-        onDeleted={handleDeleted}
       />
       <DailyReportForm
         key={selectedId ?? "new"}
