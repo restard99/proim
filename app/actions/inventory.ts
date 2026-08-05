@@ -1,25 +1,30 @@
 "use server";
 
 import {
-  getInventoryBalance,
+  getInventoryLedger,
   getInventoryMovements,
   type InventoryCategory,
-  type InventoryBalanceRow,
+  type InventoryLedgerRow,
   type InventoryMovementRow,
 } from "@/lib/yerp/inventory";
 
 export type InventoryData = {
-  rows: InventoryBalanceRow[];
-  totalQuantity: number;
-  totalAmount: number;
+  rows: InventoryLedgerRow[];
+  totalBeginAmt: number;
+  totalInAmt: number;
+  totalOutAmt: number;
+  totalEndAmt: number;
   movements: InventoryMovementRow[];
 };
 
-export async function getInventoryData(category: InventoryCategory): Promise<InventoryData> {
-  const [balance, movements] = await Promise.all([
-    getInventoryBalance(category),
+export async function getInventoryData(
+  category: InventoryCategory,
+  period?: { start: string; end: string },
+): Promise<InventoryData> {
+  const [ledger, movements] = await Promise.all([
+    getInventoryLedger(category, period),
     getInventoryMovements(category),
   ]);
 
-  return { ...balance, movements };
+  return { ...ledger, movements };
 }

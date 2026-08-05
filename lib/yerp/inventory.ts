@@ -23,44 +23,108 @@ async function getStorageCodes(category: InventoryCategory): Promise<string[]> {
   return rows.map((r) => r.STORAGE_CD);
 }
 
-export type InventoryBalanceRow = { itemCode: string; itemName: string; quantity: number; amount: number };
+export type InventoryLedgerRow = {
+  itemCode: string;
+  itemName: string;
+  unitPrice: number;
+  beginQty: number;
+  beginAmt: number;
+  inQty: number;
+  inAmt: number;
+  outQty: number;
+  outAmt: number;
+  endQty: number;
+  endAmt: number;
+};
 
-export async function getInventoryBalance(
+export function currentMonthRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const lastDay = new Date(y, m, 0).getDate();
+  return { start: `${y}${pad(m)}01`, end: `${y}${pad(m)}${pad(lastDay)}` };
+}
+
+export async function getInventoryLedger(
   category: InventoryCategory,
-): Promise<{ rows: InventoryBalanceRow[]; totalQuantity: number; totalAmount: number }> {
+  period?: { start: string; end: string },
+): Promise<{
+  rows: InventoryLedgerRow[];
+  totalBeginAmt: number;
+  totalInAmt: number;
+  totalOutAmt: number;
+  totalEndAmt: number;
+}> {
   const storageCodes = await getStorageCodes(category);
-  if (storageCodes.length === 0) return { rows: [], totalQuantity: 0, totalAmount: 0 };
+  if (storageCodes.length === 0) {
+    return { rows: [], totalBeginAmt: 0, totalInAmt: 0, totalOutAmt: 0, totalEndAmt: 0 };
+  }
 
+  const { start: periodStart, end: periodEnd } = period ?? currentMonthRange();
   const storageIn = storageCodes.map((_, i) => `@s${i}`).join(", ");
   const storageParams = Object.fromEntries(storageCodes.map((c, i) => [`s${i}`, c]));
 
-  const rows = await yerpQuery<{ ITM_CD: string; ITM_NM: string | null; BAL_QTY: number | null; BAL_AMT: number | null }>(
+  const rows = await yerpQuery<{
+    ITM_CD: string;
+    ITM_NM: string | null;
+    BEGIN_QTY: number | null;
+    BEGIN_AMT: number | null;
+    IN_QTY: number | null;
+    IN_AMT: number | null;
+    OUT_QTY: number | null;
+    OUT_AMT: number | null;
+  }>(
     `
     SELECT q.ITM_CD, MAX(i.ITM_NM) AS ITM_NM,
-      SUM(CASE WHEN ioc.INOUT_SEC = '1' THEN q.QTY ELSE -q.QTY END) AS BAL_QTY,
-      SUM(CASE WHEN ioc.INOUT_SEC = '1' THEN q.AMT ELSE -q.AMT END) AS BAL_AMT
+      SUM(CASE WHEN q.QTY_DT < @periodStart THEN (CASE WHEN ioc.INOUT_SEC = '1' THEN q.QTY ELSE -q.QTY END) ELSE 0 END) AS BEGIN_QTY,
+      SUM(CASE WHEN q.QTY_DT < @periodStart THEN (CASE WHEN ioc.INOUT_SEC = '1' THEN q.AMT ELSE -q.AMT END) ELSE 0 END) AS BEGIN_AMT,
+      SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '1' THEN q.QTY ELSE 0 END) AS IN_QTY,
+      SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '1' THEN q.AMT ELSE 0 END) AS IN_AMT,
+      SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '2' THEN q.QTY ELSE 0 END) AS OUT_QTY,
+      SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '2' THEN q.AMT ELSE 0 END) AS OUT_AMT
     FROM SHUSER.PM_QTY_IO q
     JOIN SHUSER.PM_IO_CODE ioc ON ioc.IO_SEC = q.IO_SEC AND ioc.CORP_CODE = q.CORP_CODE
     LEFT JOIN SHUSER.PM_ITEM i ON i.CORP_CODE = q.CORP_CODE AND i.ITM_CD = q.ITM_CD
-    WHERE q.CORP_CODE = @corpCode AND q.STORAGE_CD IN (${storageIn})
+    WHERE q.CORP_CODE = @corpCode AND q.STORAGE_CD IN (${storageIn}) AND q.QTY_DT <= @periodEnd
     GROUP BY q.ITM_CD
-    HAVING SUM(CASE WHEN ioc.INOUT_SEC = '1' THEN q.QTY ELSE -q.QTY END) <> 0
-    ORDER BY BAL_QTY DESC
     `,
-    { corpCode: CORP_CODE, ...storageParams },
+    { corpCode: CORP_CODE, periodStart, periodEnd, ...storageParams },
   );
 
-  const mapped = rows.map((r) => ({
-    itemCode: r.ITM_CD,
-    itemName: r.ITM_NM ?? r.ITM_CD,
-    quantity: Number(r.BAL_QTY ?? 0),
-    amount: Number(r.BAL_AMT ?? 0),
-  }));
+  const mapped = rows
+    .map((r) => {
+      const beginQty = Number(r.BEGIN_QTY ?? 0);
+      const beginAmt = Number(r.BEGIN_AMT ?? 0);
+      const inQty = Number(r.IN_QTY ?? 0);
+      const inAmt = Number(r.IN_AMT ?? 0);
+      const outQty = Number(r.OUT_QTY ?? 0);
+      const outAmt = Number(r.OUT_AMT ?? 0);
+      const endQty = beginQty + inQty - outQty;
+      const endAmt = beginAmt + inAmt - outAmt;
+      return {
+        itemCode: r.ITM_CD,
+        itemName: r.ITM_NM ?? r.ITM_CD,
+        unitPrice: endQty !== 0 ? endAmt / endQty : 0,
+        beginQty,
+        beginAmt,
+        inQty,
+        inAmt,
+        outQty,
+        outAmt,
+        endQty,
+        endAmt,
+      };
+    })
+    .filter((r) => r.beginQty !== 0 || r.inQty !== 0 || r.outQty !== 0 || r.endQty !== 0)
+    .sort((a, b) => b.endAmt - a.endAmt);
 
   return {
     rows: mapped,
-    totalQuantity: mapped.reduce((sum, r) => sum + r.quantity, 0),
-    totalAmount: mapped.reduce((sum, r) => sum + r.amount, 0),
+    totalBeginAmt: mapped.reduce((sum, r) => sum + r.beginAmt, 0),
+    totalInAmt: mapped.reduce((sum, r) => sum + r.inAmt, 0),
+    totalOutAmt: mapped.reduce((sum, r) => sum + r.outAmt, 0),
+    totalEndAmt: mapped.reduce((sum, r) => sum + r.endAmt, 0),
   };
 }
 

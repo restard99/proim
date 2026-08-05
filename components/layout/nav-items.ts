@@ -45,7 +45,7 @@ export const SALES_NAV_ITEMS: NavItem[] = [
 export const INVENTORY_NAV_ITEMS: NavItem[] = [
   {
     href: "/inventory",
-    label: "영업채산팀",
+    label: "재고현황",
     iconPath:
       "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
     evenOdd: false,
