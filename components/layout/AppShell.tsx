@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS } from "./nav-items";
+import { NAV_ITEMS, SALES_NAV_ITEMS } from "./nav-items";
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -18,29 +18,55 @@ function LogoBadge() {
   );
 }
 
-function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function NavLinkRow({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: (typeof NAV_ITEMS)[number];
+  active: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={`nav-link flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium ${active ? "active" : ""}`}
+    >
+      <span className="nav-accent" />
+      <span className="nav-icon-wrap">
+        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path d={item.iconPath} fillRule={item.evenOdd ? "evenodd" : undefined} clipRule={item.evenOdd ? "evenodd" : undefined} />
+        </svg>
+      </span>
+      {item.label}
+    </Link>
+  );
+}
+
+function NavLinks({
+  pathname,
+  showSalesSection,
+  onNavigate,
+}: {
+  pathname: string;
+  showSalesSection: boolean;
+  onNavigate?: () => void;
+}) {
   return (
     <nav className="flex-1 px-6 py-6 space-y-1">
       <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
-      {NAV_ITEMS.map((item) => {
-        const active = isActive(pathname, item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            className={`nav-link flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium ${active ? "active" : ""}`}
-          >
-            <span className="nav-accent" />
-            <span className="nav-icon-wrap">
-              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path d={item.iconPath} fillRule={item.evenOdd ? "evenodd" : undefined} clipRule={item.evenOdd ? "evenodd" : undefined} />
-              </svg>
-            </span>
-            {item.label}
-          </Link>
-        );
-      })}
+      {NAV_ITEMS.map((item) => (
+        <NavLinkRow key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={onNavigate} />
+      ))}
+      {showSalesSection && (
+        <>
+          <p className="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">영업부</p>
+          {SALES_NAV_ITEMS.map((item) => (
+            <NavLinkRow key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={onNavigate} />
+          ))}
+        </>
+      )}
     </nav>
   );
 }
@@ -83,15 +109,18 @@ function ProfileFooter({ userName, userTeam, interactive }: { userName: string; 
 export function AppShell({
   userName,
   userTeam,
+  showSalesSection = false,
   children,
 }: {
   userName: string;
   userTeam: string;
+  showSalesSection?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const currentLabel = NAV_ITEMS.find((item) => isActive(pathname, item.href))?.label ?? "";
+  const currentLabel =
+    [...NAV_ITEMS, ...SALES_NAV_ITEMS].find((item) => isActive(pathname, item.href))?.label ?? "";
 
   return (
     <div className="flex min-h-screen">
@@ -99,7 +128,7 @@ export function AppShell({
         <div className="border-b border-white/10 px-6 py-6">
           <LogoBadge />
         </div>
-        <NavLinks pathname={pathname} />
+        <NavLinks pathname={pathname} showSalesSection={showSalesSection} />
         <ProfileFooter userName={userName} userTeam={userTeam} interactive />
       </aside>
 
@@ -118,7 +147,7 @@ export function AppShell({
                 </svg>
               </button>
             </div>
-            <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            <NavLinks pathname={pathname} showSalesSection={showSalesSection} onNavigate={() => setMobileOpen(false)} />
             <ProfileFooter userName={userName} userTeam={userTeam} />
           </div>
           <button

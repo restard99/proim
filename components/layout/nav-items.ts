@@ -25,3 +25,21 @@ export const NAV_ITEMS: NavItem[] = [
     evenOdd: true,
   },
 ];
+
+export const SALES_TEAMS = ["영업팀", "영업채산팀"];
+
+export const SALES_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/sales",
+    label: "거래처별 매출",
+    iconPath:
+      "M2 11a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-6ZM8 7a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V7ZM14 3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V3Z",
+  },
+  {
+    href: "/collections",
+    label: "수금현황",
+    iconPath:
+      "M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Zm7 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM5 7a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Zm10 0a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Z",
+    evenOdd: true,
+  },
+];
