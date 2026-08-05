@@ -111,3 +111,24 @@ export async function saveDailyReport(input: {
   revalidatePath("/worklog");
   return { ok: true, id: data.id };
 }
+
+export async function deleteDailyReport(id: string): Promise<SaveResult> {
+  const supabase = await createClient();
+  const self = await getSelf(supabase);
+  if (!self) return { ok: false, message: "로그인이 필요합니다." };
+
+  const { data: attachments } = await supabase
+    .from("daily_report_attachments")
+    .select("path")
+    .eq("report_id", id);
+
+  const { error } = await supabase.from("daily_reports").delete().eq("id", id).eq("author_id", self.userId);
+  if (error) return { ok: false, message: "삭제 중 오류가 발생했습니다." };
+
+  if (attachments && attachments.length > 0) {
+    await supabase.storage.from("worklog-attachments").remove(attachments.map((a) => a.path));
+  }
+
+  revalidatePath("/worklog");
+  return { ok: true };
+}

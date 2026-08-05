@@ -31,6 +31,11 @@ export function MemberWorklogView({
     // 전환되어, 이어서 또 새 항목을 쓰려는 사용자가 모르고 방금 저장한 항목을 덮어쓰게 된다.
   }
 
+  function handleDeleted(id: string) {
+    setReports((prev) => prev.filter((r) => r.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  }
+
   return (
     <div className="grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[380px_1fr] lg:px-8">
       <RecentReportList
@@ -38,11 +43,13 @@ export function MemberWorklogView({
         selectedId={selectedId}
         onSelect={setSelectedId}
         onNew={() => setSelectedId(null)}
+        onDeleted={handleDeleted}
       />
       <DailyReportForm
         key={selectedId ?? "new"}
         report={selectedReport}
         onSaved={handleSaved}
+        onDelete={handleDeleted}
         submitLabel={submitLabel}
       />
     </div>

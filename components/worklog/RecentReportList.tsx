@@ -1,20 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { DailyReportRow } from "@/app/actions/worklog";
+import { useMemo, useState, useTransition } from "react";
+import { deleteDailyReport, type DailyReportRow } from "@/app/actions/worklog";
 
 export function RecentReportList({
   reports,
   selectedId,
   onSelect,
   onNew,
+  onDeleted,
 }: {
   reports: DailyReportRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
+  onDeleted: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const q = query.trim();
@@ -26,6 +30,22 @@ export function RecentReportList({
         (r.content ?? "").includes(q),
     );
   }, [reports, query]);
+
+  function handleDelete(e: React.MouseEvent, id: string, dateLabel: string) {
+    e.stopPropagation();
+    if (!window.confirm(`${dateLabel} 업무일지를 삭제할까요? 첨부파일도 함께 삭제됩니다.`)) return;
+
+    setDeletingId(id);
+    startTransition(async () => {
+      const result = await deleteDailyReport(id);
+      setDeletingId(null);
+      if (!result.ok) {
+        window.alert(result.message);
+        return;
+      }
+      onDeleted(id);
+    });
+  }
 
   return (
     <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
@@ -66,15 +86,25 @@ export function RecentReportList({
               r.id === selectedId ? "border-l-2 border-crimson bg-crimson/5" : ""
             }`}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium text-inktext">{r.report_date}</span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                  r.status === "submitted" ? "bg-brine/10 text-brine" : "bg-mist text-muted"
-                }`}
-              >
-                {r.status === "submitted" ? "제출완료" : "임시저장"}
-              </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    r.status === "submitted" ? "bg-brine/10 text-brine" : "bg-mist text-muted"
+                  }`}
+                >
+                  {r.status === "submitted" ? "제출완료" : "임시저장"}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => handleDelete(e, r.id, r.report_date)}
+                  disabled={deletingId === r.id}
+                  className="text-xs font-medium text-muted hover:text-crimsond disabled:opacity-50"
+                >
+                  삭제
+                </button>
+              </div>
             </div>
             <p className="mt-1 line-clamp-2 text-xs text-muted">{r.visited_customers || r.content || "-"}</p>
           </li>

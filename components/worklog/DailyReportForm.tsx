@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { saveDailyReport, type DailyReportRow, type DailyReportAttachment } from "@/app/actions/worklog";
+import { saveDailyReport, deleteDailyReport, type DailyReportRow, type DailyReportAttachment } from "@/app/actions/worklog";
 import { addReportAttachment, removeReportAttachment, getAttachmentUrl } from "@/app/actions/attachments";
 
 function todayISO() {
@@ -23,10 +23,12 @@ function AttachmentIcon() {
 export function DailyReportForm({
   report,
   onSaved,
-  submitLabel = "제출하기",
+  onDelete,
+  submitLabel = "저장하기",
 }: {
   report: DailyReportRow | null;
   onSaved: (row: DailyReportRow) => void;
+  onDelete?: (id: string) => void;
   submitLabel?: string;
 }) {
   const [reportId, setReportId] = useState<string | null>(report?.id ?? null);
@@ -83,7 +85,7 @@ export function DailyReportForm({
     if (url) window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  function handleSave(nextStatus: "draft" | "submitted") {
+  function handleSave() {
     setError(null);
     startTransition(async () => {
       const result = await saveDailyReport({
@@ -92,7 +94,7 @@ export function DailyReportForm({
         visitedCustomers,
         content,
         notes,
-        status: nextStatus,
+        status: "submitted",
       });
       if (!result.ok) {
         setError(result.message);
@@ -125,7 +127,7 @@ export function DailyReportForm({
         visited_customers: visitedCustomers,
         content,
         notes,
-        status: nextStatus,
+        status: "submitted",
         attachments: finalAttachments,
       });
 
@@ -144,9 +146,33 @@ export function DailyReportForm({
       }
 
       setReportId(result.id);
-      setStatus(nextStatus);
+      setStatus("submitted");
       setAttachments(finalAttachments);
       setPendingFiles([]);
+    });
+  }
+
+  function handleDeleteOrClear() {
+    if (!reportId) {
+      setReportDate(todayISO());
+      setVisitedCustomers("");
+      setContent("");
+      setNotes("");
+      setAttachments([]);
+      setPendingFiles([]);
+      setError(null);
+      return;
+    }
+    if (!window.confirm("이 업무일지를 삭제할까요? 첨부파일도 함께 삭제됩니다.")) return;
+
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteDailyReport(reportId);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      onDelete?.(reportId);
     });
   }
 
@@ -162,7 +188,7 @@ export function DailyReportForm({
             status === "submitted" ? "bg-brine/10 text-brine" : "bg-mist text-muted"
           }`}
         >
-          {status === "submitted" ? "제출완료" : "임시저장"}
+          {status === "submitted" ? "제출완료" : "미저장"}
         </span>
       </div>
 
@@ -264,15 +290,15 @@ export function DailyReportForm({
         <button
           type="button"
           disabled={isPending}
-          onClick={() => handleSave("draft")}
-          className="rounded-md border border-mist px-4 py-2.5 text-sm font-medium text-inktext transition-colors hover:bg-mist/50 disabled:opacity-50"
+          onClick={handleDeleteOrClear}
+          className="rounded-md border border-mist px-4 py-2.5 text-sm font-medium text-crimsond transition-colors hover:bg-crimson/5 disabled:opacity-50"
         >
-          임시저장
+          삭제
         </button>
         <button
           type="button"
           disabled={isPending}
-          onClick={() => handleSave("submitted")}
+          onClick={handleSave}
           className="rounded-md bg-crimson px-4 py-2.5 text-sm font-medium text-salt transition-colors hover:bg-crimsond disabled:opacity-50"
         >
           {submitLabel}
