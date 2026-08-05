@@ -3,21 +3,18 @@
 import { useMemo, useState } from "react";
 import type { DailyReportRow } from "@/app/actions/worklog";
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function RecentReportList({
   reports,
-  selectedDate,
+  selectedId,
   onSelect,
+  onNew,
 }: {
   reports: DailyReportRow[];
-  selectedDate: string;
-  onSelect: (date: string) => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onNew: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const today = todayISO();
 
   const filtered = useMemo(() => {
     const q = query.trim();
@@ -30,12 +27,15 @@ export function RecentReportList({
     );
   }, [reports, query]);
 
-  const hasToday = reports.some((r) => r.report_date === today);
-
   return (
     <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
       <div className="border-b border-mist px-4 py-3.5">
-        <h2 className="mb-2.5 text-sm font-semibold text-inktext">최근 제출 내역</h2>
+        <div className="mb-2.5 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-inktext">최근 제출 내역</h2>
+          <button type="button" onClick={onNew} className="text-xs font-medium text-crimson hover:underline">
+            + 새 항목 작성
+          </button>
+        </div>
         <div className="relative">
           <svg
             className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
@@ -58,32 +58,16 @@ export function RecentReportList({
         </div>
       </div>
       <ul className="divide-y divide-mist">
-        {!hasToday && !query && (
-          <li
-            onClick={() => onSelect(today)}
-            className={`cursor-pointer px-4 py-3 ${
-              selectedDate === today ? "border-l-2 border-crimson bg-crimson/5" : ""
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-inktext">{today} (오늘)</span>
-              <span className="rounded-full bg-mist px-2 py-0.5 text-xs font-medium text-muted">작성 전</span>
-            </div>
-          </li>
-        )}
         {filtered.map((r) => (
           <li
-            key={r.report_date}
-            onClick={() => onSelect(r.report_date)}
+            key={r.id}
+            onClick={() => onSelect(r.id)}
             className={`cursor-pointer px-4 py-3 transition-colors hover:bg-mist/40 ${
-              r.report_date === selectedDate ? "border-l-2 border-crimson bg-crimson/5" : ""
+              r.id === selectedId ? "border-l-2 border-crimson bg-crimson/5" : ""
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-inktext">
-                {r.report_date}
-                {r.report_date === today ? " (오늘)" : ""}
-              </span>
+              <span className="text-sm font-medium text-inktext">{r.report_date}</span>
               <span
                 className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                   r.status === "submitted" ? "bg-brine/10 text-brine" : "bg-mist text-muted"
@@ -93,20 +77,12 @@ export function RecentReportList({
               </span>
             </div>
             <p className="mt-1 line-clamp-2 text-xs text-muted">{r.visited_customers || r.content || "-"}</p>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(r.report_date);
-              }}
-              className="mt-2 text-xs font-medium text-crimson hover:underline"
-            >
-              수정
-            </button>
           </li>
         ))}
-        {filtered.length === 0 && reports.length > 0 && (
-          <li className="px-4 py-6 text-center text-xs text-muted">검색 결과가 없습니다.</li>
+        {filtered.length === 0 && (
+          <li className="px-4 py-6 text-center text-xs text-muted">
+            {reports.length === 0 ? "작성한 업무일지가 없습니다." : "검색 결과가 없습니다."}
+          </li>
         )}
       </ul>
     </div>

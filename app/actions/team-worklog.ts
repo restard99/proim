@@ -9,11 +9,18 @@ export type RosterEntry =
   | { id: string; name: string; kind: "team"; team: string; submittedToday: boolean };
 
 export type RecentEntry = {
+  id: string;
   reportDate: string;
   status: "draft" | "submitted";
   content: string | null;
   visitedCustomers: string | null;
 };
+
+function sevenDaysAgoISO() {
+  const d = new Date();
+  d.setDate(d.getDate() - 6);
+  return d.toISOString().slice(0, 10);
+}
 
 export type TeamReportRow = {
   id: string;
@@ -143,15 +150,20 @@ export async function getPersonRecentEntries(
   const { data: target } = await supabase.from("profiles").select("team").eq("id", personId).single();
   if (!target?.team) return [];
 
+  const sinceDate = sevenDaysAgoISO();
+
   if (kind === "member") {
     if (target.team !== self.team) return [];
     const { data } = await supabase
       .from("daily_reports")
-      .select("report_date, status, content, visited_customers")
+      .select("id, report_date, status, content, visited_customers")
       .eq("author_id", personId)
+      .gte("report_date", sinceDate)
       .order("report_date", { ascending: false })
-      .limit(7);
+      .order("created_at", { ascending: false })
+      .limit(50);
     return (data ?? []).map((r) => ({
+      id: r.id,
       reportDate: r.report_date,
       status: r.status,
       content: r.content,
@@ -169,11 +181,13 @@ export async function getPersonRecentEntries(
 
   const { data } = await supabase
     .from("team_daily_reports")
-    .select("report_date, status, content")
+    .select("id, report_date, status, content")
     .eq("author_id", personId)
+    .gte("report_date", sinceDate)
     .order("report_date", { ascending: false })
     .limit(7);
   return (data ?? []).map((r) => ({
+    id: r.id,
     reportDate: r.report_date,
     status: r.status,
     content: r.content,

@@ -5,10 +5,6 @@ import { DailyReportForm } from "./DailyReportForm";
 import { RecentReportList } from "./RecentReportList";
 import type { DailyReportRow } from "@/app/actions/worklog";
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function MemberWorklogView({
   initialReports,
   submitLabel,
@@ -17,27 +13,33 @@ export function MemberWorklogView({
   submitLabel?: string;
 }) {
   const [reports, setReports] = useState(initialReports);
-  const [selectedDate, setSelectedDate] = useState(todayISO());
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selectedReport = useMemo(
-    () => reports.find((r) => r.report_date === selectedDate) ?? null,
-    [reports, selectedDate],
+    () => reports.find((r) => r.id === selectedId) ?? null,
+    [reports, selectedId],
   );
 
   function handleSaved(updated: DailyReportRow) {
     setReports((prev) => {
-      const others = prev.filter((r) => r.report_date !== updated.report_date);
-      return [updated, ...others].sort((a, b) => (a.report_date < b.report_date ? 1 : -1));
+      const exists = prev.some((r) => r.id === updated.id);
+      const next = exists ? prev.map((r) => (r.id === updated.id ? updated : r)) : [updated, ...prev];
+      return next.sort((a, b) => (a.report_date < b.report_date ? 1 : a.report_date > b.report_date ? -1 : 0));
     });
+    setSelectedId(updated.id);
   }
 
   return (
     <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[380px_1fr] lg:px-8">
-      <RecentReportList reports={reports} selectedDate={selectedDate} onSelect={setSelectedDate} />
+      <RecentReportList
+        reports={reports}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onNew={() => setSelectedId(null)}
+      />
       <DailyReportForm
-        key={selectedDate}
-        reportDate={selectedDate}
-        initialReport={selectedReport}
+        key={selectedId ?? "new"}
+        report={selectedReport}
         onSaved={handleSaved}
         submitLabel={submitLabel}
       />

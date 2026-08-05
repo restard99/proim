@@ -3,27 +3,24 @@
 import { useState, useTransition } from "react";
 import { saveDailyReport, type DailyReportRow } from "@/app/actions/worklog";
 
-function formatDateLabel(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  const days = ["일", "월", "화", "수", "목", "금", "토"];
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export function DailyReportForm({
-  reportDate,
-  initialReport,
+  report,
   onSaved,
   submitLabel = "제출하기",
 }: {
-  reportDate: string;
-  initialReport: DailyReportRow | null;
+  report: DailyReportRow | null;
   onSaved: (row: DailyReportRow) => void;
   submitLabel?: string;
 }) {
-  const [visitedCustomers, setVisitedCustomers] = useState(initialReport?.visited_customers ?? "");
-  const [content, setContent] = useState(initialReport?.content ?? "");
-  const [notes, setNotes] = useState(initialReport?.notes ?? "");
-  const [status, setStatus] = useState<"draft" | "submitted">(initialReport?.status ?? "draft");
+  const [reportDate, setReportDate] = useState(report?.report_date ?? todayISO());
+  const [visitedCustomers, setVisitedCustomers] = useState(report?.visited_customers ?? "");
+  const [content, setContent] = useState(report?.content ?? "");
+  const [notes, setNotes] = useState(report?.notes ?? "");
+  const [status, setStatus] = useState<"draft" | "submitted">(report?.status ?? "draft");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -31,6 +28,7 @@ export function DailyReportForm({
     setError(null);
     startTransition(async () => {
       const result = await saveDailyReport({
+        id: report?.id,
         reportDate,
         visitedCustomers,
         content,
@@ -43,7 +41,7 @@ export function DailyReportForm({
       }
       setStatus(nextStatus);
       onSaved({
-        id: initialReport?.id ?? reportDate,
+        id: result.id,
         report_date: reportDate,
         visited_customers: visitedCustomers,
         content,
@@ -57,8 +55,8 @@ export function DailyReportForm({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-inktext">{formatDateLabel(reportDate)}</h2>
-          <p className="mt-0.5 text-sm text-muted">오늘 업무 내용을 작성해 팀장에게 제출하세요.</p>
+          <h2 className="text-base font-semibold text-inktext">{report ? "업무일지 수정" : "새 업무일지 작성"}</h2>
+          <p className="mt-0.5 text-sm text-muted">날짜를 선택하고 업무 내용을 자유롭게 작성하세요.</p>
         </div>
         <span
           className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -71,7 +69,16 @@ export function DailyReportForm({
 
       <div className="space-y-4 rounded-lg border border-mist bg-white p-5">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-inktext">오늘 방문한 거래처</label>
+          <label className="mb-1.5 block text-sm font-medium text-inktext">날짜</label>
+          <input
+            type="date"
+            value={reportDate}
+            onChange={(e) => setReportDate(e.target.value)}
+            className="rounded-md border border-mist px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-inktext">방문한 거래처</label>
           <input
             type="text"
             value={visitedCustomers}

@@ -15,7 +15,7 @@ function todayISO() {
 }
 
 function toRecentEntry(row: TeamReportRow): RecentEntry {
-  return { reportDate: row.report_date, status: row.status, content: row.content, visitedCustomers: null };
+  return { id: row.id, reportDate: row.report_date, status: row.status, content: row.content, visitedCustomers: null };
 }
 
 export function LeaderAggregateView({
@@ -144,7 +144,7 @@ export function LeaderAggregateView({
           <ul>
             {panelEntries.map((entry) => (
               <RecentEntryAccordionItem
-                key={entry.reportDate}
+                key={entry.id}
                 entry={entry}
                 onAddSelected={(lines) => handleAddLines(entry.reportDate, lines)}
               />

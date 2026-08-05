@@ -158,7 +158,8 @@ CREATE TABLE team_hierarchy (
   UNIQUE (tenant_id, team)
 );
 
--- 팀원 개인 일일업무보고 (하루 1건 원칙)
+-- 팀원 개인 일일업무보고. 영업부는 주간 단위로 취합하므로 하루 1건으로 제한하지 않고
+-- 자유롭게 여러 건을 작성할 수 있다 (report_date는 "어느 날짜 업무인지" 표시용일 뿐, 유일키 아님).
 CREATE TABLE daily_reports (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id         UUID NOT NULL REFERENCES tenants(id),
@@ -170,8 +171,7 @@ CREATE TABLE daily_reports (
   notes             TEXT,
   status            TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted')),
   created_at        TIMESTAMPTZ DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (tenant_id, author_id, report_date)
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 팀장 종합보고서 (팀원 보고를 취합·재작성한 결과물, 팀원 원본과 별개로 보존)
