@@ -48,10 +48,12 @@ function NavLinkRow({
 function NavLinks({
   pathname,
   businessNavItems,
+  userTeam,
   onNavigate,
 }: {
   pathname: string;
   businessNavItems: NavItem[];
+  userTeam: string;
   onNavigate?: () => void;
 }) {
   return (
@@ -62,7 +64,7 @@ function NavLinks({
       ))}
       {businessNavItems.length > 0 && (
         <>
-          <p className="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">영업부</p>
+          <p className="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">{userTeam}</p>
           {businessNavItems.map((item) => (
             <NavLinkRow key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={onNavigate} />
           ))}
@@ -132,7 +134,7 @@ export function AppShell({
         <div className="border-b border-white/10 px-6 py-6">
           <LogoBadge />
         </div>
-        <NavLinks pathname={pathname} businessNavItems={businessNavItems} />
+        <NavLinks pathname={pathname} businessNavItems={businessNavItems} userTeam={userTeam} />
         <ProfileFooter userName={userName} userTeam={userTeam} interactive />
       </aside>
 
@@ -151,7 +153,12 @@ export function AppShell({
                 </svg>
               </button>
             </div>
-            <NavLinks pathname={pathname} businessNavItems={businessNavItems} onNavigate={() => setMobileOpen(false)} />
+            <NavLinks
+              pathname={pathname}
+              businessNavItems={businessNavItems}
+              userTeam={userTeam}
+              onNavigate={() => setMobileOpen(false)}
+            />
             <ProfileFooter userName={userName} userTeam={userTeam} />
           </div>
           <button
