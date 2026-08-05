@@ -256,3 +256,29 @@ CREATE POLICY "sales_targets_admin_write" ON sales_targets
 
 CREATE INDEX ON daily_reports(tenant_id, team, report_date);
 CREATE INDEX ON team_daily_reports(tenant_id, team, report_date);
+
+-- ============================================================
+-- FEAT-003-sales-department: 업무일지 첨부파일
+-- ============================================================
+
+ALTER TABLE daily_reports
+  ADD COLUMN attachment_path TEXT,
+  ADD COLUMN attachment_name TEXT;
+
+-- 비공개 버킷: 본인 폴더(auth.uid())에만 업로드/삭제 가능, 로그인한 누구나 조회 가능
+-- (daily_reports 테이블 자체의 RLS가 이미 "누가 이 글을 볼 수 있는지"를 걸러주므로,
+--  파일 경로는 추측 불가능한 값이라 조회 정책은 인증 여부만 확인해도 충분하다)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('worklog-attachments', 'worklog-attachments', false)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "worklog_attachments_insert_own" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'worklog-attachments' AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+CREATE POLICY "worklog_attachments_select_authenticated" ON storage.objects
+  FOR SELECT USING ( bucket_id = 'worklog-attachments' AND auth.role() = 'authenticated' );
+CREATE POLICY "worklog_attachments_delete_own" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'worklog-attachments' AND (storage.foldername(name))[1] = auth.uid()::text
+  );

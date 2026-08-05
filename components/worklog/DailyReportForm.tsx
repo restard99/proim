@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { saveDailyReport, type DailyReportRow } from "@/app/actions/worklog";
+import { uploadWorklogAttachment, getAttachmentUrl } from "@/app/actions/attachments";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -24,9 +25,49 @@ export function DailyReportForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentPath, setAttachmentPath] = useState<string | null>(report?.attachment_path ?? null);
+  const [attachmentName, setAttachmentName] = useState<string | null>(report?.attachment_name ?? null);
+  const [isOpeningAttachment, setIsOpeningAttachment] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setAttachmentFile(e.target.files?.[0] ?? null);
+  }
+
+  function handleRemoveAttachment() {
+    setAttachmentFile(null);
+    setAttachmentPath(null);
+    setAttachmentName(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleOpenAttachment() {
+    if (!attachmentPath) return;
+    setIsOpeningAttachment(true);
+    const url = await getAttachmentUrl(attachmentPath);
+    setIsOpeningAttachment(false);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   function handleSave(nextStatus: "draft" | "submitted") {
     setError(null);
     startTransition(async () => {
+      let finalPath = attachmentPath;
+      let finalName = attachmentName;
+
+      if (attachmentFile) {
+        const formData = new FormData();
+        formData.append("file", attachmentFile);
+        const uploadResult = await uploadWorklogAttachment(formData);
+        if (!uploadResult.ok) {
+          setError(uploadResult.message);
+          return;
+        }
+        finalPath = uploadResult.path;
+        finalName = uploadResult.name;
+      }
+
       const result = await saveDailyReport({
         id: report?.id,
         reportDate,
@@ -34,12 +75,17 @@ export function DailyReportForm({
         content,
         notes,
         status: nextStatus,
+        attachmentPath: finalPath,
+        attachmentName: finalName,
       });
       if (!result.ok) {
         setError(result.message);
         return;
       }
       setStatus(nextStatus);
+      setAttachmentFile(null);
+      setAttachmentPath(finalPath);
+      setAttachmentName(finalName);
       onSaved({
         id: result.id,
         report_date: reportDate,
@@ -47,6 +93,8 @@ export function DailyReportForm({
         content,
         notes,
         status: nextStatus,
+        attachment_path: finalPath,
+        attachment_name: finalName,
       });
     });
   }
@@ -104,6 +152,43 @@ export function DailyReportForm({
             placeholder="공유할 특이사항이 있다면 적어주세요"
             className="w-full rounded-md border border-mist px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
           />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-inktext">첨부 (선택)</label>
+          {attachmentName && (
+            <div className="mb-2 flex items-center gap-2 rounded-md border border-mist bg-salt px-3 py-2 text-sm">
+              <svg className="h-4 w-4 shrink-0 text-muted" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M8 4a3 3 0 0 0-3 3v6a3 3 0 1 0 6 0V8a1 1 0 1 1 2 0v5a5 5 0 1 1-10 0V7a5 5 0 0 1 10 0v5a1 1 0 1 1-2 0V7a3 3 0 0 0-3-3Z"
+                />
+              </svg>
+              <button
+                type="button"
+                onClick={handleOpenAttachment}
+                disabled={isOpeningAttachment || !attachmentPath}
+                className="min-w-0 flex-1 truncate text-left text-crimson hover:underline disabled:no-underline disabled:text-muted"
+              >
+                {attachmentFile ? attachmentName + " (저장 시 업로드됩니다)" : attachmentName}
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveAttachment}
+                className="shrink-0 text-xs font-medium text-muted hover:text-crimsond"
+              >
+                삭제
+              </button>
+            </div>
+          )}
+          {!attachmentName && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileChange}
+              className="w-full rounded-md border border-mist px-3.5 py-2.5 text-sm text-muted outline-none file:mr-3 file:rounded-md file:border-0 file:bg-mist file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-inktext"
+            />
+          )}
         </div>
       </div>
 
