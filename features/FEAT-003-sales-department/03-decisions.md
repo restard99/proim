@@ -83,10 +83,11 @@ ALTER TABLE sales_targets ENABLE ROW LEVEL SECURITY;
 
 ### Y-ERP (SMARTE_DB, 읽기 전용 — 새 테이블 아님, 기존 테이블 조회만)
 
-1단계에서 확인한 테이블을 그대로 사용한다.
+1단계에서 처음 확인했던 `PM_IO_DAILY_CUST`/`PM_RCB_COLLECT_MGMT`는 실제 태평소금(`CORP_CODE = '0460'`) 기준으로 데이터가 거의 없어(각각 0건, 1건) TASK-005/006 착수 시점에 실제 사용 중인 테이블로 다시 확인했다.
 
-- 거래처별 매출: `SHUSER.PM_IO_DAILY_CUST` (`IO_YMD`, `CUST_CD`, `OUT_AMT_SUM` 등)
-- 수금현황: `SHUSER.PM_RCB_COLLECT_MGMT` / `PM_RCB_COLLECT_DTL` (`CL_NO`, `CL_DT`, `CUST_CD`, `CL_AMT` 등), 잔액 요약은 `PM_AR_CUST` 활용
+- **회사 코드**: 영업부 매출·수금 데이터는 전부 `CORP_CODE = '0460'`(태평소금 법인) 기준. 부서 구분 없이 회사 전체 거래처 매출을 다룬다 (`DEPT_EMP_CD`는 부서가 아니라 입력한 직원 코드였음).
+- 거래처별 매출: `SHUSER.AC_PURC_SALE_T` — `PURC_SALE_SEC = '1'`(매출), `SLIP_DT`(전표일자, `YYYYMMDD` 문자열), `CUST_CD`/`CUST_NM`(거래처, 테이블 자체에 이름 포함), 금액은 `SPLY_PRC`(공급가액) + `VAT`
+- 수금현황: `SHUSER.PM_AR_CUST` — `YM_AR`(년월, `YYYYMM` 문자열) · `CUST_CD` 단위 월별 채권 테이블. `CURRENT_AR`(당월매출), `CURRENT_RCP`(당월수금), `FR_AR_AMT`(잔액). 거래처명은 `SH_CUST_T`(`CORP_CODE`+`CUST_CD`)와 조인해서 가져온다. 일자별이 아닌 월 단위 데이터라 화면의 "수금일"은 월 단위로 표시한다.
 - 접속: `mssql` 패키지로 서버 사이드에서만 연결. 접속 정보(`MSSQL_HOST`, `MSSQL_PORT`, `MSSQL_DATABASE`, `MSSQL_USER`, `MSSQL_PASSWORD`)는 `.env.local`(로컬)과 Vercel 환경변수(배포)에만 저장하고 코드/git에는 절대 포함하지 않는다. 접속 계정은 `SELECT`만 가능한 읽기 전용이라 쓰기 실수 위험은 없다.
 
 ## 컴포넌트 구조

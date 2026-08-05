@@ -5,7 +5,7 @@ Y-ERP 데이터를 기반으로 거래처별 매출을 주간/월간/월누적/�
 
 ## 작업 범위
 - 생성할 파일:
-  - `lib/yerp/sales.ts` (`PM_IO_DAILY_CUST` 기준 기간별 집계 쿼리 함수)
+  - `lib/yerp/sales.ts` (`AC_PURC_SALE_T`, `PURC_SALE_SEC='1'`, `CORP_CODE='0460'` 기준 기간별 집계 쿼리 함수)
   - `app/(app)/sales/page.tsx`
   - `components/sales/SalesByCustomerView.tsx` (기간 탭, 비교기준 드롭다운, 표, 연간목표대비 진행률)
   - `app/actions/sales-targets.ts` (연간 목표 조회/등록 — `sales_targets` 테이블)
