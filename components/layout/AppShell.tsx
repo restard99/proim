@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, SALES_NAV_ITEMS } from "./nav-items";
+import { signOut } from "@/app/actions/auth";
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -86,7 +87,7 @@ function ProfileFooter({ userName, userTeam, interactive }: { userName: string; 
           <path
             fillRule="evenodd"
             clipRule="evenodd"
-            d="M5.2 7.2a1 1 0 0 1 1.4 0L10 10.6l3.4-3.4a1 1 0 1 1 1.4 1.4l-4.1 4.1a1 1 0 0 1-1.4 0L5.2 8.6a1 1 0 0 1 0-1.4Z"
+            d="M3 3a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H5v12h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1V3Zm10.3 3.3a1 1 0 0 1 1.4 0l3 3a1 1 0 0 1 0 1.4l-3 3a1 1 0 1 1-1.4-1.4L14.58 11H8a1 1 0 1 1 0-2h6.58l-1.28-1.3a1 1 0 0 1 0-1.4Z"
           />
         </svg>
       )}
@@ -95,12 +96,15 @@ function ProfileFooter({ userName, userTeam, interactive }: { userName: string; 
 
   if (interactive) {
     return (
-      <button
-        type="button"
-        className="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/5"
-      >
-        {body}
-      </button>
+      <form action={signOut} className="mx-3 mb-3">
+        <button
+          type="submit"
+          title="로그아웃"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/5"
+        >
+          {body}
+        </button>
+      </form>
     );
   }
   return <div className="mx-3 mb-3 flex items-center gap-3 px-3 py-3">{body}</div>;
