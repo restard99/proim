@@ -65,55 +65,66 @@ export async function getInventoryLedger(
   const storageIn = storageCodes.map((_, i) => `@s${i}`).join(", ");
   const storageParams = Object.fromEntries(storageCodes.map((c, i) => [`s${i}`, c]));
 
-  const rows = await yerpQuery<{
-    ITM_CD: string;
-    ITM_NM: string | null;
-    BEGIN_QTY: number | null;
-    BEGIN_AMT: number | null;
-    IN_QTY: number | null;
-    IN_AMT: number | null;
-    OUT_QTY: number | null;
-    OUT_AMT: number | null;
-  }>(
-    `
-    SELECT q.ITM_CD, MAX(i.ITM_NM) AS ITM_NM,
-      SUM(CASE WHEN q.QTY_DT < @periodStart THEN (CASE WHEN ioc.INOUT_SEC = '1' THEN q.QTY ELSE -q.QTY END) ELSE 0 END) AS BEGIN_QTY,
-      SUM(CASE WHEN q.QTY_DT < @periodStart THEN (CASE WHEN ioc.INOUT_SEC = '1' THEN q.AMT ELSE -q.AMT END) ELSE 0 END) AS BEGIN_AMT,
-      SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '1' THEN q.QTY ELSE 0 END) AS IN_QTY,
-      SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '1' THEN q.AMT ELSE 0 END) AS IN_AMT,
-      SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '2' THEN q.QTY ELSE 0 END) AS OUT_QTY,
-      SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '2' THEN q.AMT ELSE 0 END) AS OUT_AMT
-    FROM SHUSER.PM_QTY_IO q
-    JOIN SHUSER.PM_IO_CODE ioc ON ioc.IO_SEC = q.IO_SEC AND ioc.CORP_CODE = q.CORP_CODE
-    LEFT JOIN SHUSER.PM_ITEM i ON i.CORP_CODE = q.CORP_CODE AND i.ITM_CD = q.ITM_CD
-    WHERE q.CORP_CODE = @corpCode AND q.STORAGE_CD IN (${storageIn}) AND q.QTY_DT <= @periodEnd
-    GROUP BY q.ITM_CD
-    `,
-    { corpCode: CORP_CODE, periodStart, periodEnd, ...storageParams },
-  );
+  // PM_QTY_IO.AMT는 거래 유형에 따라 비어있는 경우가 많아(특히 생산 관련 출고),
+  // 금액을 그대로 합산하면 "출고금액 = 단가 × 수량"이 어긋난다.
+  // 대신 수량만 집계하고, 단가는 가장 최근 입고성 거래의 UC(단가)로 별도 산출해
+  // 모든 금액(기초/입고/출고/기말)을 "단가 × 수량"으로 일관되게 계산한다.
+  const [qtyRows, ucRows] = await Promise.all([
+    yerpQuery<{
+      ITM_CD: string;
+      ITM_NM: string | null;
+      BEGIN_QTY: number | null;
+      IN_QTY: number | null;
+      OUT_QTY: number | null;
+    }>(
+      `
+      SELECT q.ITM_CD, MAX(i.ITM_NM) AS ITM_NM,
+        SUM(CASE WHEN q.QTY_DT < @periodStart THEN (CASE WHEN ioc.INOUT_SEC = '1' THEN q.QTY ELSE -q.QTY END) ELSE 0 END) AS BEGIN_QTY,
+        SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '1' THEN q.QTY ELSE 0 END) AS IN_QTY,
+        SUM(CASE WHEN q.QTY_DT BETWEEN @periodStart AND @periodEnd AND ioc.INOUT_SEC = '2' THEN q.QTY ELSE 0 END) AS OUT_QTY
+      FROM SHUSER.PM_QTY_IO q
+      JOIN SHUSER.PM_IO_CODE ioc ON ioc.IO_SEC = q.IO_SEC AND ioc.CORP_CODE = q.CORP_CODE
+      LEFT JOIN SHUSER.PM_ITEM i ON i.CORP_CODE = q.CORP_CODE AND i.ITM_CD = q.ITM_CD
+      WHERE q.CORP_CODE = @corpCode AND q.STORAGE_CD IN (${storageIn}) AND q.QTY_DT <= @periodEnd
+      GROUP BY q.ITM_CD
+      `,
+      { corpCode: CORP_CODE, periodStart, periodEnd, ...storageParams },
+    ),
+    yerpQuery<{ ITM_CD: string; UC: number }>(
+      `
+      SELECT ITM_CD, UC FROM (
+        SELECT q.ITM_CD, q.UC, ROW_NUMBER() OVER (PARTITION BY q.ITM_CD ORDER BY q.QTY_DT DESC) AS rn
+        FROM SHUSER.PM_QTY_IO q
+        JOIN SHUSER.PM_IO_CODE ioc ON ioc.IO_SEC = q.IO_SEC AND ioc.CORP_CODE = q.CORP_CODE
+        WHERE q.CORP_CODE = @corpCode AND q.STORAGE_CD IN (${storageIn})
+          AND ioc.INOUT_SEC = '1' AND q.UC IS NOT NULL AND q.UC <> 0 AND q.QTY_DT <= @periodEnd
+      ) t WHERE rn = 1
+      `,
+      { corpCode: CORP_CODE, periodEnd, ...storageParams },
+    ),
+  ]);
 
-  const mapped = rows
+  const unitPriceByItem = new Map(ucRows.map((r) => [r.ITM_CD, Number(r.UC)]));
+
+  const mapped = qtyRows
     .map((r) => {
       const beginQty = Number(r.BEGIN_QTY ?? 0);
-      const beginAmt = Number(r.BEGIN_AMT ?? 0);
       const inQty = Number(r.IN_QTY ?? 0);
-      const inAmt = Number(r.IN_AMT ?? 0);
       const outQty = Number(r.OUT_QTY ?? 0);
-      const outAmt = Number(r.OUT_AMT ?? 0);
       const endQty = beginQty + inQty - outQty;
-      const endAmt = beginAmt + inAmt - outAmt;
+      const unitPrice = unitPriceByItem.get(r.ITM_CD) ?? 0;
       return {
         itemCode: r.ITM_CD,
         itemName: r.ITM_NM ?? r.ITM_CD,
-        unitPrice: endQty !== 0 ? endAmt / endQty : 0,
+        unitPrice,
         beginQty,
-        beginAmt,
+        beginAmt: beginQty * unitPrice,
         inQty,
-        inAmt,
+        inAmt: inQty * unitPrice,
         outQty,
-        outAmt,
+        outAmt: outQty * unitPrice,
         endQty,
-        endAmt,
+        endAmt: endQty * unitPrice,
       };
     })
     .filter((r) => r.beginQty !== 0 || r.inQty !== 0 || r.outQty !== 0 || r.endQty !== 0)

@@ -9,16 +9,18 @@ const CATEGORIES: InventoryCategory[] = ["부자재", "완제품", "3자물류"]
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
-function todayMonthValue() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+function toDateInputValue(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-function monthRange(monthValue: string) {
-  const [y, m] = monthValue.split("-").map(Number);
-  const start = `${y}${pad(m)}01`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const end = `${y}${pad(m)}${pad(lastDay)}`;
-  return { start, end };
+function firstOfThisMonth() {
+  const d = new Date();
+  return toDateInputValue(new Date(d.getFullYear(), d.getMonth(), 1));
+}
+function todayDateValue() {
+  return toDateInputValue(new Date());
+}
+function toYmd(dateInputValue: string) {
+  return dateInputValue.replaceAll("-", "");
 }
 function formatWon(n: number) {
   return Math.round(n).toLocaleString("ko-KR") + "원";
@@ -33,11 +35,12 @@ function formatDate(ymd: string) {
 
 export function InventoryView() {
   const [category, setCategory] = useState<InventoryCategory>("부자재");
-  const [monthValue, setMonthValue] = useState(todayMonthValue);
+  const [startDate, setStartDate] = useState(firstOfThisMonth);
+  const [endDate, setEndDate] = useState(todayDateValue);
   const [data, setData] = useState<InventoryData | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const period = useMemo(() => monthRange(monthValue), [monthValue]);
+  const period = useMemo(() => ({ start: toYmd(startDate), end: toYmd(endDate) }), [startDate, endDate]);
 
   useEffect(() => {
     startTransition(async () => {
@@ -66,11 +69,20 @@ export function InventoryView() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm text-muted">기간</label>
+          <label className="text-sm text-muted">조회기간</label>
           <input
-            type="month"
-            value={monthValue}
-            onChange={(e) => setMonthValue(e.target.value)}
+            type="date"
+            value={startDate}
+            max={endDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+          />
+          <span className="text-sm text-muted">~</span>
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => setEndDate(e.target.value)}
             className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
           />
         </div>
@@ -97,55 +109,67 @@ export function InventoryView() {
 
       <div className="overflow-hidden rounded-lg border border-mist bg-white">
         <div className="border-b border-mist px-4 py-3.5 text-sm font-semibold text-inktext">
-          재고 수불부 ({monthValue})
+          재고 수불부 ({startDate} ~ {endDate})
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full min-w-[900px] table-fixed text-sm">
+            <colgroup>
+              <col className="w-[220px]" />
+              <col className="w-[100px]" />
+              <col className="w-[90px]" />
+              <col className="w-[110px]" />
+              <col className="w-[90px]" />
+              <col className="w-[110px]" />
+              <col className="w-[90px]" />
+              <col className="w-[110px]" />
+              <col className="w-[90px]" />
+              <col className="w-[110px]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-mist bg-mist/40 text-center text-xs text-muted">
-                <th rowSpan={2} className="whitespace-nowrap px-4 py-3 text-left font-medium">
+                <th rowSpan={2} className="px-4 py-2.5 text-left font-medium">
                   품명
                 </th>
-                <th rowSpan={2} className="whitespace-nowrap px-4 py-3 text-right font-medium">
+                <th rowSpan={2} className="px-4 py-2.5 text-right font-medium">
                   단가
                 </th>
-                <th colSpan={2} className="border-l border-mist px-4 py-2 font-medium">
+                <th colSpan={2} className="border-l border-mist px-4 py-2.5 font-medium">
                   기초재고
                 </th>
-                <th colSpan={2} className="border-l border-mist px-4 py-2 font-medium">
+                <th colSpan={2} className="border-l border-mist px-4 py-2.5 font-medium">
                   입고
                 </th>
-                <th colSpan={2} className="border-l border-mist px-4 py-2 font-medium">
+                <th colSpan={2} className="border-l border-mist px-4 py-2.5 font-medium">
                   출고
                 </th>
-                <th colSpan={2} className="border-l border-mist px-4 py-2 font-medium">
+                <th colSpan={2} className="border-l border-mist px-4 py-2.5 font-medium">
                   기말재고
                 </th>
               </tr>
               <tr className="border-b border-mist bg-mist/40 text-right text-xs text-muted">
-                <th className="border-l border-mist px-4 py-2 font-medium">수량</th>
-                <th className="px-4 py-2 font-medium">금액</th>
-                <th className="border-l border-mist px-4 py-2 font-medium">수량</th>
-                <th className="px-4 py-2 font-medium">금액</th>
-                <th className="border-l border-mist px-4 py-2 font-medium">수량</th>
-                <th className="px-4 py-2 font-medium">금액</th>
-                <th className="border-l border-mist px-4 py-2 font-medium">수량</th>
-                <th className="px-4 py-2 font-medium">금액</th>
+                <th className="border-l border-mist px-4 py-2.5 font-medium">수량</th>
+                <th className="px-4 py-2.5 font-medium">금액</th>
+                <th className="border-l border-mist px-4 py-2.5 font-medium">수량</th>
+                <th className="px-4 py-2.5 font-medium">금액</th>
+                <th className="border-l border-mist px-4 py-2.5 font-medium">수량</th>
+                <th className="px-4 py-2.5 font-medium">금액</th>
+                <th className="border-l border-mist px-4 py-2.5 font-medium">수량</th>
+                <th className="px-4 py-2.5 font-medium">금액</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-mist">
               {(data?.rows ?? []).map((row) => (
                 <tr key={row.itemCode}>
-                  <td className="whitespace-nowrap px-4 py-3.5 font-medium">{row.itemName}</td>
-                  <td className="px-4 py-3.5 text-right font-mono text-xs text-muted">{formatWon(row.unitPrice)}</td>
-                  <td className="border-l border-mist px-4 py-3.5 text-right font-mono">{formatQty(row.beginQty)}</td>
-                  <td className="px-4 py-3.5 text-right font-mono">{formatWon(row.beginAmt)}</td>
-                  <td className="border-l border-mist px-4 py-3.5 text-right font-mono text-brine">{formatQty(row.inQty)}</td>
-                  <td className="px-4 py-3.5 text-right font-mono text-brine">{formatWon(row.inAmt)}</td>
-                  <td className="border-l border-mist px-4 py-3.5 text-right font-mono text-crimsond">{formatQty(row.outQty)}</td>
-                  <td className="px-4 py-3.5 text-right font-mono text-crimsond">{formatWon(row.outAmt)}</td>
-                  <td className="border-l border-mist px-4 py-3.5 text-right font-mono font-semibold">{formatQty(row.endQty)}</td>
-                  <td className="px-4 py-3.5 text-right font-mono font-semibold">{formatWon(row.endAmt)}</td>
+                  <td className="truncate px-4 py-3 font-medium">{row.itemName}</td>
+                  <td className="px-4 py-3 text-right font-mono text-xs text-muted">{formatWon(row.unitPrice)}</td>
+                  <td className="border-l border-mist px-4 py-3 text-right font-mono">{formatQty(row.beginQty)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatWon(row.beginAmt)}</td>
+                  <td className="border-l border-mist px-4 py-3 text-right font-mono text-brine">{formatQty(row.inQty)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-brine">{formatWon(row.inAmt)}</td>
+                  <td className="border-l border-mist px-4 py-3 text-right font-mono text-crimsond">{formatQty(row.outQty)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-crimsond">{formatWon(row.outAmt)}</td>
+                  <td className="border-l border-mist px-4 py-3 text-right font-mono font-semibold">{formatQty(row.endQty)}</td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold">{formatWon(row.endAmt)}</td>
                 </tr>
               ))}
               {!isPending && (data?.rows.length ?? 0) === 0 && (
@@ -162,45 +186,47 @@ export function InventoryView() {
 
       <div className="overflow-hidden rounded-lg border border-mist bg-white">
         <div className="border-b border-mist px-4 py-3.5 text-sm font-semibold text-inktext">최근 입출고 내역</div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-mist bg-mist/40 text-left text-xs text-muted">
-              <th className="px-4 py-3 font-medium">일자</th>
-              <th className="px-4 py-3 font-medium">품목</th>
-              <th className="px-4 py-3 font-medium">창고</th>
-              <th className="px-4 py-3 font-medium">구분</th>
-              <th className="px-4 py-3 text-right font-medium">수량</th>
-              <th className="px-4 py-3 text-right font-medium">금액</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-mist">
-            {(data?.movements ?? []).map((m, i) => (
-              <tr key={i}>
-                <td className="px-4 py-3.5 font-mono text-xs text-muted">{formatDate(m.date)}</td>
-                <td className="px-4 py-3.5 font-medium">{m.itemName}</td>
-                <td className="px-4 py-3.5 text-muted">{m.storageName}</td>
-                <td className="px-4 py-3.5">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      m.direction === "in" ? "bg-brine/10 text-brine" : "bg-crimson/10 text-crimsond"
-                    }`}
-                  >
-                    {m.ioSecName}
-                  </span>
-                </td>
-                <td className="px-4 py-3.5 text-right font-mono">{formatQty(m.quantity)}</td>
-                <td className="px-4 py-3.5 text-right font-mono">{formatWon(m.amount)}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+                <th className="px-4 py-2.5 font-medium">일자</th>
+                <th className="px-4 py-2.5 font-medium">품목</th>
+                <th className="px-4 py-2.5 font-medium">창고</th>
+                <th className="px-4 py-2.5 font-medium">구분</th>
+                <th className="px-4 py-2.5 text-right font-medium">수량</th>
+                <th className="px-4 py-2.5 text-right font-medium">금액</th>
               </tr>
-            ))}
-            {!isPending && (data?.movements.length ?? 0) === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted">
-                  입출고 내역이 없습니다.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-mist">
+              {(data?.movements ?? []).map((m, i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3 font-mono text-xs text-muted">{formatDate(m.date)}</td>
+                  <td className="px-4 py-3 font-medium">{m.itemName}</td>
+                  <td className="px-4 py-3 text-muted">{m.storageName}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        m.direction === "in" ? "bg-brine/10 text-brine" : "bg-crimson/10 text-crimsond"
+                      }`}
+                    >
+                      {m.ioSecName}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">{formatQty(m.quantity)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatWon(m.amount)}</td>
+                </tr>
+              ))}
+              {!isPending && (data?.movements.length ?? 0) === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted">
+                    입출고 내역이 없습니다.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
