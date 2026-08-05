@@ -267,7 +267,7 @@ ALTER TABLE daily_reports
   DROP COLUMN IF EXISTS attachment_path,
   DROP COLUMN IF EXISTS attachment_name;
 
-CREATE TABLE daily_report_attachments (
+CREATE TABLE IF NOT EXISTS daily_report_attachments (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id),
   report_id   UUID NOT NULL REFERENCES daily_reports(id) ON DELETE CASCADE,
@@ -278,6 +278,7 @@ CREATE TABLE daily_report_attachments (
 ALTER TABLE daily_report_attachments ENABLE ROW LEVEL SECURITY;
 
 -- 본인 업무일지에 딸린 첨부파일은 본인이 전부(조회/추가/삭제) 관리
+DROP POLICY IF EXISTS "daily_report_attachments_self_all" ON daily_report_attachments;
 CREATE POLICY "daily_report_attachments_self_all" ON daily_report_attachments
   FOR ALL USING (
     EXISTS (SELECT 1 FROM daily_reports d WHERE d.id = report_id AND d.author_id = auth.uid())
@@ -286,6 +287,7 @@ CREATE POLICY "daily_report_attachments_self_all" ON daily_report_attachments
   );
 
 -- 소속팀 팀장/관리자는 팀원 업무일지의 첨부파일 목록을 조회 가능 (daily_reports_leader_select와 동일 조건)
+DROP POLICY IF EXISTS "daily_report_attachments_leader_select" ON daily_report_attachments;
 CREATE POLICY "daily_report_attachments_leader_select" ON daily_report_attachments
   FOR SELECT USING (
     EXISTS (
@@ -295,7 +297,7 @@ CREATE POLICY "daily_report_attachments_leader_select" ON daily_report_attachmen
     )
   );
 
-CREATE INDEX ON daily_report_attachments(report_id);
+CREATE INDEX IF NOT EXISTS daily_report_attachments_report_id_idx ON daily_report_attachments(report_id);
 
 -- 비공개 버킷: 본인 폴더(auth.uid())에만 업로드/삭제 가능, 로그인한 누구나 조회 가능
 -- (실제 접근 가능 여부는 daily_report_attachments 테이블 RLS로 걸러지고,
@@ -304,12 +306,15 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('worklog-attachments', 'worklog-attachments', false)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "worklog_attachments_insert_own" ON storage.objects;
 CREATE POLICY "worklog_attachments_insert_own" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'worklog-attachments' AND (storage.foldername(name))[1] = auth.uid()::text
   );
+DROP POLICY IF EXISTS "worklog_attachments_select_authenticated" ON storage.objects;
 CREATE POLICY "worklog_attachments_select_authenticated" ON storage.objects
   FOR SELECT USING ( bucket_id = 'worklog-attachments' AND auth.role() = 'authenticated' );
+DROP POLICY IF EXISTS "worklog_attachments_delete_own" ON storage.objects;
 CREATE POLICY "worklog_attachments_delete_own" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'worklog-attachments' AND (storage.foldername(name))[1] = auth.uid()::text
