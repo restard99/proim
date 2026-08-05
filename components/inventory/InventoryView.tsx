@@ -179,6 +179,17 @@ export function InventoryView() {
           </table>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-12 text-center">
+          <p className="text-sm font-medium text-inktext">안전재고 관리</p>
+          <p className="mt-1 text-sm text-muted">품목별 안전재고 기준 대비 현황이 이 자리에 추가될 예정입니다.</p>
+        </div>
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-12 text-center">
+          <p className="text-sm font-medium text-inktext">발주관리</p>
+          <p className="mt-1 text-sm text-muted">부족 품목 발주 요청·현황 관리가 이 자리에 추가될 예정입니다.</p>
+        </div>
+      </div>
     </div>
   );
 }
