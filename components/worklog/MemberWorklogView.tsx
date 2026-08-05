@@ -30,7 +30,7 @@ export function MemberWorklogView({
   }
 
   return (
-    <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[380px_1fr] lg:px-8">
+    <div className="grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[380px_1fr] lg:px-8">
       <RecentReportList
         reports={reports}
         selectedId={selectedId}

@@ -78,7 +78,7 @@ export function DailyReportForm({
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-inktext">방문한 거래처</label>
+          <label className="mb-1.5 block text-sm font-medium text-inktext">제목</label>
           <input
             type="text"
             value={visitedCustomers}

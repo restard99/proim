@@ -74,7 +74,7 @@ export function LeaderAggregateView({
   }
 
   return (
-    <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[220px_300px_1fr] lg:px-8">
+    <div className="grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[220px_300px_1fr] lg:px-8">
       {/* 왼쪽: 제출 현황 */}
       <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
         <div className="border-b border-mist px-4 py-3.5">
