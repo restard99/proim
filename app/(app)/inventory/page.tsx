@@ -15,5 +15,8 @@ export default async function InventoryPage() {
 
   if (!canViewInventory(profile.team, profile.role)) redirect("/");
 
-  return <InventoryView />;
+  const canUploadProductionRequest =
+    profile.role === "admin" || (profile.team === "영업채산팀" && profile.role === "leader");
+
+  return <InventoryView canUploadProductionRequest={canUploadProductionRequest} />;
 }

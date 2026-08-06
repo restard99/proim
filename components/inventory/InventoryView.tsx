@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { getInventoryData, type InventoryData } from "@/app/actions/inventory";
 import type { InventoryCategory } from "@/lib/yerp/inventory";
+import { ProductionRequestView } from "./ProductionRequestView";
 
 const CATEGORIES: InventoryCategory[] = ["부자재", "완제품", "3자물류"];
+const TOP_TABS = ["재고현황", "생산의뢰서"] as const;
+type TopTab = (typeof TOP_TABS)[number];
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -29,7 +32,8 @@ function formatQty(n: number) {
   return Math.round(n).toLocaleString("ko-KR");
 }
 
-export function InventoryView() {
+export function InventoryView({ canUploadProductionRequest }: { canUploadProductionRequest: boolean }) {
+  const [topTab, setTopTab] = useState<TopTab>("재고현황");
   const [category, setCategory] = useState<InventoryCategory>("부자재");
   const [startDate, setStartDate] = useState(firstOfThisMonth);
   const [endDate, setEndDate] = useState(todayDateValue);
@@ -49,6 +53,25 @@ export function InventoryView() {
 
   return (
     <div className="max-w-7xl space-y-5 px-5 py-8 lg:px-8">
+      <div className="inline-flex flex-wrap gap-1 rounded-lg border border-mist bg-white p-1">
+        {TOP_TABS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTopTab(t)}
+            className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              topTab === t ? "bg-crimson text-salt" : "text-muted"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {topTab === "생산의뢰서" && <ProductionRequestView canUpload={canUploadProductionRequest} />}
+
+      {topTab === "재고현황" && (
+        <>
       <div className="flex flex-wrap items-center gap-3">
         <div className="inline-flex flex-wrap gap-1 rounded-lg border border-mist bg-white p-1">
           {CATEGORIES.map((c) => (
@@ -190,6 +213,8 @@ export function InventoryView() {
           <p className="mt-1 text-sm text-muted">부족 품목 발주 요청·현황 관리가 이 자리에 추가될 예정입니다.</p>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
