@@ -237,3 +237,20 @@ export async function saveTeamReport(input: {
   revalidatePath("/worklog");
   return { ok: true };
 }
+
+export async function deleteTeamReport(reportDate: string): Promise<SaveResult> {
+  const supabase = await createClient();
+  const self = await getLeaderSelf(supabase);
+  if (!self) return { ok: false, message: "권한이 없습니다." };
+
+  const { error } = await supabase
+    .from("team_daily_reports")
+    .delete()
+    .eq("author_id", self.userId)
+    .eq("report_date", reportDate);
+
+  if (error) return { ok: false, message: "삭제 중 오류가 발생했습니다." };
+
+  revalidatePath("/worklog");
+  return { ok: true };
+}

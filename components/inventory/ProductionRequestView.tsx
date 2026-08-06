@@ -20,6 +20,12 @@ function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+function formatNumberText(v: string): string {
+  if (v.trim() === "") return v;
+  const n = Number(v.replace(/,/g, ""));
+  if (Number.isNaN(n)) return v;
+  return n.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+}
 
 const COLUMNS: { key: ProductionRequestFieldKey; label: string; align: "left" | "right" }[] = [
   { key: "name", label: "제품명", align: "left" },
@@ -294,7 +300,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                                     c.key === "name" ? "font-medium text-inktext" : ""
                                   } ${isMergeStart ? "text-center align-middle text-inktext" : ""}`}
                                 >
-                                  {item[c.key]}
+                                  {c.align === "right" && !isMergeStart ? formatNumberText(item[c.key]) : item[c.key]}
                                 </td>
                               );
                             })}
@@ -336,11 +342,11 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                     <tfoot>
                       <tr className="border-t border-mist bg-mist/40 font-semibold text-inktext">
                         <td className={CELL_CLASS}>소계</td>
-                        <td className={`${CELL_CLASS} text-right font-mono`}>{detail.totals.count}</td>
+                        <td className={`${CELL_CLASS} text-right font-mono`}>{formatNumberText(detail.totals.count)}</td>
                         <td className={CELL_CLASS} />
                         <td className={CELL_CLASS} />
-                        <td className={`${CELL_CLASS} text-right font-mono`}>{detail.totals.weightKg}</td>
-                        <td className={`${CELL_CLASS} text-right font-mono`}>{detail.totals.pl}</td>
+                        <td className={`${CELL_CLASS} text-right font-mono`}>{formatNumberText(detail.totals.weightKg)}</td>
+                        <td className={`${CELL_CLASS} text-right font-mono`}>{formatNumberText(detail.totals.pl)}</td>
                         <td colSpan={5} className={CELL_CLASS} />
                       </tr>
                     </tfoot>
@@ -366,7 +372,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                       {detail.sub_items.map((s, i) => (
                         <tr key={i}>
                           <td className={`${CELL_CLASS} text-inktext`}>{s.name}</td>
-                          <td className={`${CELL_CLASS} text-right font-mono`}>{s.amountKg}</td>
+                          <td className={`${CELL_CLASS} text-right font-mono`}>{formatNumberText(s.amountKg)}</td>
                         </tr>
                       ))}
                     </tbody>

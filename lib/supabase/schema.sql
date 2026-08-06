@@ -250,6 +250,9 @@ CREATE POLICY "team_daily_reports_self_insert" ON team_daily_reports
   FOR INSERT WITH CHECK ( author_id = auth.uid() AND tenant_id = public.my_tenant_id() );
 CREATE POLICY "team_daily_reports_self_update" ON team_daily_reports
   FOR UPDATE USING ( author_id = auth.uid() ) WITH CHECK ( author_id = auth.uid() );
+DROP POLICY IF EXISTS "team_daily_reports_self_delete" ON team_daily_reports;
+CREATE POLICY "team_daily_reports_self_delete" ON team_daily_reports
+  FOR DELETE USING ( author_id = auth.uid() );
 
 -- sales_targets: 같은 테넌트는 조회만, 쓰기는 관리자만
 CREATE POLICY "sales_targets_tenant_select" ON sales_targets

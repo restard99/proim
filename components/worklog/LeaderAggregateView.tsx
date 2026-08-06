@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
+  deleteTeamReport,
   getPersonRecentEntries,
   saveTeamReport,
   type RosterEntry,
@@ -34,8 +35,10 @@ export function LeaderAggregateView({
 
   const [content, setContent] = useState(ownToday?.content ?? "");
   const [status, setStatus] = useState<"draft" | "submitted">(ownToday?.status ?? "draft");
+  const [hasSaved, setHasSaved] = useState(Boolean(ownToday));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaveTransition] = useTransition();
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const [selectedPerson, setSelectedPerson] = useState<RosterEntry | null>(null);
   const [ownEntries] = useState<RecentEntry[]>(initialOwnTeamReports.map(toRecentEntry));
@@ -61,15 +64,37 @@ export function LeaderAggregateView({
     setContent((prev) => `${prev}${prev ? "\n\n" : ""}[${who} · ${entryDate}]\n${lines.join("\n")}`);
   }
 
-  function handleSave(nextStatus: "draft" | "submitted") {
+  function handleSave() {
     setError(null);
     startSaveTransition(async () => {
-      const result = await saveTeamReport({ reportDate: today, content, status: nextStatus });
+      const result = await saveTeamReport({ reportDate: today, content, status: "submitted" });
       if (!result.ok) {
         setError(result.message);
         return;
       }
-      setStatus(nextStatus);
+      setStatus("submitted");
+      setHasSaved(true);
+    });
+  }
+
+  function handleDeleteOrClear() {
+    if (!hasSaved) {
+      setContent("");
+      setError(null);
+      return;
+    }
+    if (!window.confirm("오늘 작성한 종합 보고서를 삭제할까요?")) return;
+
+    setError(null);
+    startDeleteTransition(async () => {
+      const result = await deleteTeamReport(today);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setContent("");
+      setStatus("draft");
+      setHasSaved(false);
     });
   }
 
@@ -165,7 +190,7 @@ export function LeaderAggregateView({
                 status === "submitted" ? "bg-brine/10 text-brine" : "bg-mist text-muted"
               }`}
             >
-              {status === "submitted" ? "상신완료" : "임시저장"}
+              {status === "submitted" ? "상신완료" : "미저장"}
             </span>
           </div>
           <textarea
@@ -200,16 +225,16 @@ export function LeaderAggregateView({
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            disabled={isSaving}
-            onClick={() => handleSave("draft")}
-            className="rounded-md border border-mist px-4 py-2.5 text-sm font-medium text-inktext transition-colors hover:bg-mist/50 disabled:opacity-50"
+            disabled={isSaving || isDeleting}
+            onClick={handleDeleteOrClear}
+            className="rounded-md border border-mist px-4 py-2.5 text-sm font-medium text-crimsond transition-colors hover:bg-crimson/5 disabled:opacity-50"
           >
-            임시저장
+            삭제
           </button>
           <button
             type="button"
-            disabled={isSaving}
-            onClick={() => handleSave("submitted")}
+            disabled={isSaving || isDeleting}
+            onClick={handleSave}
             className="rounded-md bg-crimson px-4 py-2.5 text-sm font-medium text-salt transition-colors hover:bg-crimsond disabled:opacity-50"
           >
             {reportsToTeam ? `${reportsToTeam}장에게 상신` : "사장님에게 최종 상신"}
