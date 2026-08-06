@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -38,6 +38,58 @@ function ToolbarButton({
     >
       {children}
     </button>
+  );
+}
+
+const ALIGN_OPTIONS = [
+  { value: "left", label: "왼쪽 정렬", icon: "≡◤" },
+  { value: "center", label: "가운데 정렬", icon: "≡◆" },
+  { value: "right", label: "오른쪽 정렬", icon: "≡◢" },
+] as const;
+
+function AlignDropdown({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutsideClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [open]);
+
+  const current = ALIGN_OPTIONS.find((o) => editor.isActive({ textAlign: o.value })) ?? ALIGN_OPTIONS[0];
+
+  return (
+    <div ref={containerRef} className="relative">
+      <ToolbarButton label="글자 정렬" onClick={() => setOpen((v) => !v)}>
+        {current.icon} ▾
+      </ToolbarButton>
+      {open && (
+        <div className="absolute left-0 top-full z-10 mt-1 w-28 rounded-md border border-mist bg-white py-1 shadow-md">
+          {ALIGN_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => {
+                editor.chain().focus().setTextAlign(o.value).run();
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
+                editor.isActive({ textAlign: o.value }) ? "bg-mist font-medium text-inktext" : "text-inktext hover:bg-mist"
+              }`}
+            >
+              <span>{o.icon}</span>
+              <span>{o.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -87,27 +139,7 @@ function Toolbar({ editor }: { editor: Editor }) {
           className="h-6 w-8 shrink-0 cursor-pointer rounded border border-mist bg-white p-0.5"
         />
       </span>
-      <ToolbarButton
-        label="왼쪽 정렬"
-        active={editor.isActive({ textAlign: "left" })}
-        onClick={() => editor.chain().focus().setTextAlign("left").run()}
-      >
-        ≡◤
-      </ToolbarButton>
-      <ToolbarButton
-        label="가운데 정렬"
-        active={editor.isActive({ textAlign: "center" })}
-        onClick={() => editor.chain().focus().setTextAlign("center").run()}
-      >
-        ≡◆
-      </ToolbarButton>
-      <ToolbarButton
-        label="오른쪽 정렬"
-        active={editor.isActive({ textAlign: "right" })}
-        onClick={() => editor.chain().focus().setTextAlign("right").run()}
-      >
-        ≡◢
-      </ToolbarButton>
+      <AlignDropdown editor={editor} />
       <span className="mx-1 h-4 w-px bg-mist" />
       <ToolbarButton
         label="표 삽입"
