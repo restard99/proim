@@ -76,22 +76,16 @@ function Toolbar({ editor }: { editor: Editor }) {
         1.≡
       </ToolbarButton>
       <span className="mx-1 h-4 w-px bg-mist" />
-      <label
-        title="글자 색상"
-        className="relative flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-bold text-inktext hover:bg-mist"
-      >
-        A
-        <span
-          className="pointer-events-none absolute inset-x-1 bottom-0.5 h-1 rounded-sm"
-          style={{ backgroundColor: editor.getAttributes("textStyle").color || "#00000000" }}
-        />
+      <span className="flex items-center gap-1 px-1">
+        <span className="text-xs font-medium text-muted">글자색</span>
         <input
           type="color"
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          title="글자 색상"
           value={editor.getAttributes("textStyle").color || "#000000"}
           onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+          className="h-6 w-8 shrink-0 cursor-pointer rounded border border-mist bg-white p-0.5"
         />
-      </label>
+      </span>
       <ToolbarButton label="색상 지우기" onClick={() => editor.chain().focus().unsetColor().run()}>
         지우기
       </ToolbarButton>
