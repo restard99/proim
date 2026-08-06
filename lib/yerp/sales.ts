@@ -24,14 +24,13 @@ export async function getSalesByCustomer(params: {
     LAST_DT: string | null;
   }>(
     `
-    SELECT s.CUST_CD, c.CUST_NM, SUM(s.SPLY_PRC + s.VAT) AS AMOUNT, MAX(s.SLIP_DT) AS LAST_DT
-    FROM SHUSER.AC_PURC_SALE_T s
-    LEFT JOIN SHUSER.SH_CUST_T c ON c.CORP_CODE = s.CORP_CODE AND c.CUST_CD = s.CUST_CD
-    WHERE s.CORP_CODE = @corpCode
-      AND s.PURC_SALE_SEC = '1'
-      AND s.SLIP_DT BETWEEN @startDate AND @endDate
+    SELECT m.CUST_CD, c.CUST_NM, SUM(m.SALES_AMT_SUM) AS AMOUNT, MAX(m.SALES_DT) AS LAST_DT
+    FROM SHUSER.PM_SALES_MGMT m
+    LEFT JOIN SHUSER.SH_CUST_T c ON c.CORP_CODE = m.CORP_CODE AND c.CUST_CD = m.CUST_CD
+    WHERE m.CORP_CODE = @corpCode
+      AND m.SALES_DT BETWEEN @startDate AND @endDate
       ${searchClause}
-    GROUP BY s.CUST_CD, c.CUST_NM
+    GROUP BY m.CUST_CD, c.CUST_NM
     ORDER BY AMOUNT DESC
     `,
     {
@@ -56,11 +55,10 @@ export async function getSalesTotal(params: {
 }): Promise<{ total: number; customerCount: number }> {
   const rows = await yerpQuery<{ TOTAL: number | null; CUST_COUNT: number }>(
     `
-    SELECT SUM(s.SPLY_PRC + s.VAT) AS TOTAL, COUNT(DISTINCT s.CUST_CD) AS CUST_COUNT
-    FROM SHUSER.AC_PURC_SALE_T s
-    WHERE s.CORP_CODE = @corpCode
-      AND s.PURC_SALE_SEC = '1'
-      AND s.SLIP_DT BETWEEN @startDate AND @endDate
+    SELECT SUM(m.SALES_AMT_SUM) AS TOTAL, COUNT(DISTINCT m.CUST_CD) AS CUST_COUNT
+    FROM SHUSER.PM_SALES_MGMT m
+    WHERE m.CORP_CODE = @corpCode
+      AND m.SALES_DT BETWEEN @startDate AND @endDate
     `,
     { corpCode: CORP_CODE, startDate: params.startDate, endDate: params.endDate },
   );
