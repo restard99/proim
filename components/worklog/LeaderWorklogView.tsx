@@ -53,6 +53,7 @@ export function LeaderWorklogView({
           teamLabel={teamLabel}
           reportsToTeam={reportsToTeam}
           initialRoster={initialRoster}
+          initialOwnDailyReports={initialOwnDailyReports}
           initialOwnTeamReports={initialOwnTeamReports}
         />
       )}

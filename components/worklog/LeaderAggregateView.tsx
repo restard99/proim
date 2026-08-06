@@ -14,19 +14,20 @@ import {
   type TeamReportRow,
 } from "@/app/actions/team-worklog";
 import { getAttachmentUrl } from "@/app/actions/attachments";
+import type { DailyReportRow } from "@/app/actions/worklog";
 import { RecentEntryAccordionItem } from "./RecentEntryAccordionItem";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function toRecentEntry(row: TeamReportRow): RecentEntry {
+function toRecentEntryFromDaily(row: DailyReportRow): RecentEntry {
   return {
     id: row.id,
     reportDate: row.report_date,
     status: row.status,
     content: row.content,
-    visitedCustomers: null,
+    visitedCustomers: row.visited_customers,
     attachments: row.attachments,
   };
 }
@@ -49,11 +50,13 @@ export function LeaderAggregateView({
   teamLabel,
   reportsToTeam,
   initialRoster,
+  initialOwnDailyReports,
   initialOwnTeamReports,
 }: {
   teamLabel: string;
   reportsToTeam: string | null;
   initialRoster: RosterEntry[];
+  initialOwnDailyReports: DailyReportRow[];
   initialOwnTeamReports: TeamReportRow[];
 }) {
   const today = todayISO();
@@ -70,12 +73,18 @@ export function LeaderAggregateView({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
 
+  // 제출내역(종합보고서 상신 기록): 작성 중인 오늘자 보고서와는 별개로, 지금까지의
+  // 제출 이력을 그대로 보여준다. 가운데 "최근 제출 내역" 패널과는 다른 목적.
+  const [submissionHistory, setSubmissionHistory] = useState<TeamReportRow[]>(initialOwnTeamReports);
+
   const [selectedPerson, setSelectedPerson] = useState<RosterEntry | null>(null);
-  const [ownEntries, setOwnEntries] = useState<RecentEntry[]>(initialOwnTeamReports.map(toRecentEntry));
+  // 가운데 패널은 "인용할 원본 업무일지"를 고르는 곳이라, 본인을 선택했을 때도
+  // (종합보고서가 아니라) 본인이 직접 쓴 개인 업무일지 목록을 보여준다.
+  const [ownEntries] = useState<RecentEntry[]>(initialOwnDailyReports.map(toRecentEntryFromDaily));
   const [personEntries, setPersonEntries] = useState<RecentEntry[]>([]);
   const [isLoadingPerson, startPersonTransition] = useTransition();
 
-  const panelTitle = selectedPerson ? `${selectedPerson.name} · 최근 제출내역(1주)` : "최근 제출 내역";
+  const panelTitle = selectedPerson ? `${selectedPerson.name} · 최근 제출내역(1주)` : "내 업무일지";
   const panelEntries = selectedPerson ? personEntries : ownEntries;
 
   const memberCount = initialRoster.filter((r) => r.kind === "member").length;
@@ -132,18 +141,17 @@ export function LeaderAggregateView({
         }
       }
 
-      const savedEntry: RecentEntry = {
+      const savedRow: TeamReportRow = {
         id: result.id,
-        reportDate: today,
+        report_date: today,
         status: "submitted",
         content,
-        visitedCustomers: null,
         attachments: finalAttachments,
       };
-      setOwnEntries((prev) => {
-        const exists = prev.some((e) => e.reportDate === today);
-        const next = exists ? prev.map((e) => (e.reportDate === today ? savedEntry : e)) : [savedEntry, ...prev];
-        return next.sort((a, b) => (a.reportDate < b.reportDate ? 1 : a.reportDate > b.reportDate ? -1 : 0));
+      setSubmissionHistory((prev) => {
+        const exists = prev.some((r) => r.report_date === today);
+        const next = exists ? prev.map((r) => (r.report_date === today ? savedRow : r)) : [savedRow, ...prev];
+        return next.sort((a, b) => (a.report_date < b.report_date ? 1 : a.report_date > b.report_date ? -1 : 0));
       });
     });
   }
@@ -192,7 +200,7 @@ export function LeaderAggregateView({
       setHasSaved(false);
       setAttachments([]);
       setPendingAttachments([]);
-      setOwnEntries((prev) => prev.filter((e) => e.reportDate !== today));
+      setSubmissionHistory((prev) => prev.filter((r) => r.report_date !== today));
     });
   }
 
@@ -245,7 +253,7 @@ export function LeaderAggregateView({
         </ul>
       </div>
 
-      {/* 가운데: 최근 제출 내역 */}
+      {/* 가운데: 인용할 업무일지 (본인 또는 팀원) */}
       <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
         <div className="flex items-center justify-between border-b border-mist px-4 py-3.5">
           <span className="text-sm font-semibold text-inktext">{panelTitle}</span>
@@ -255,14 +263,16 @@ export function LeaderAggregateView({
               onClick={() => setSelectedPerson(null)}
               className="text-xs font-medium text-crimson hover:underline"
             >
-              ← 내 제출내역
+              ← 내 업무일지
             </button>
           )}
         </div>
         {isLoadingPerson ? (
           <p className="px-4 py-6 text-center text-xs text-muted">불러오는 중…</p>
         ) : panelEntries.length === 0 ? (
-          <p className="px-4 py-6 text-center text-xs text-muted">최근 제출 내역이 없습니다.</p>
+          <p className="px-4 py-6 text-center text-xs text-muted">
+            {selectedPerson ? "최근 제출 내역이 없습니다." : "작성한 업무일지가 없습니다."}
+          </p>
         ) : (
           <ul>
             {panelEntries.map((entry) => (
@@ -276,7 +286,7 @@ export function LeaderAggregateView({
         )}
       </div>
 
-      {/* 오른쪽: 종합 보고서 */}
+      {/* 오른쪽: 종합 보고서 + 제출내역 */}
       <div className="space-y-4">
         <div className="rounded-lg border border-mist bg-white p-5">
           <div className="mb-3 flex items-center justify-between">
@@ -379,6 +389,29 @@ export function LeaderAggregateView({
           >
             {reportsToTeam ? `${reportsToTeam}장에게 상신` : "사장님에게 최종 상신"}
           </button>
+        </div>
+
+        {/* 제출내역: 종합보고서 상신 이력 (위 작성 중인 오늘자 보고서와는 별도 목록) */}
+        <div className="overflow-hidden rounded-lg border border-mist bg-white">
+          <div className="border-b border-mist px-4 py-3.5 text-sm font-semibold text-inktext">제출내역</div>
+          {submissionHistory.length === 0 ? (
+            <p className="px-4 py-6 text-center text-xs text-muted">제출한 종합 보고서가 없습니다.</p>
+          ) : (
+            <ul className="divide-y divide-mist">
+              {submissionHistory.map((r) => (
+                <li key={r.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                  <span className="text-inktext">{r.report_date}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      r.status === "submitted" ? "bg-brine/10 text-brine" : "bg-mist text-muted"
+                    }`}
+                  >
+                    {r.status === "submitted" ? "상신완료" : "미저장"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
