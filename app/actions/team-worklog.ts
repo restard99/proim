@@ -8,12 +8,15 @@ export type RosterEntry =
   | { id: string; name: string; kind: "member"; submittedToday: boolean }
   | { id: string; name: string; kind: "team"; team: string; submittedToday: boolean };
 
+export type RecentEntryAttachment = { id: string; path: string; name: string };
+
 export type RecentEntry = {
   id: string;
   reportDate: string;
   status: "draft" | "submitted";
   content: string | null;
   visitedCustomers: string | null;
+  attachments: RecentEntryAttachment[];
 };
 
 function sevenDaysAgoISO() {
@@ -156,7 +159,7 @@ export async function getPersonRecentEntries(
     if (target.team !== self.team) return [];
     const { data } = await supabase
       .from("daily_reports")
-      .select("id, report_date, status, content, visited_customers")
+      .select("id, report_date, status, content, visited_customers, daily_report_attachments(id, path, name)")
       .eq("author_id", personId)
       .gte("report_date", sinceDate)
       .order("report_date", { ascending: false })
@@ -168,6 +171,7 @@ export async function getPersonRecentEntries(
       status: r.status,
       content: r.content,
       visitedCustomers: r.visited_customers,
+      attachments: r.daily_report_attachments ?? [],
     }));
   }
 
@@ -192,6 +196,7 @@ export async function getPersonRecentEntries(
     status: r.status,
     content: r.content,
     visitedCustomers: null,
+    attachments: [],
   }));
 }
 

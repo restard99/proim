@@ -16,7 +16,14 @@ function todayISO() {
 }
 
 function toRecentEntry(row: TeamReportRow): RecentEntry {
-  return { id: row.id, reportDate: row.report_date, status: row.status, content: row.content, visitedCustomers: null };
+  return {
+    id: row.id,
+    reportDate: row.report_date,
+    status: row.status,
+    content: row.content,
+    visitedCustomers: null,
+    attachments: [],
+  };
 }
 
 export function LeaderAggregateView({
