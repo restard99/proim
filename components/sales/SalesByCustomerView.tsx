@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { getSalesPeriodData, type SalesPeriodData } from "@/app/actions/sales";
 import { getYearlyProgress, type YearlyProgress } from "@/app/actions/sales-targets";
 
-type PeriodType = "weekly" | "monthly" | "mtd" | "yearly";
+type PeriodType = "weekly" | "monthly" | "mtd" | "custom" | "yearly";
 type CompareBasis = "prev-week" | "prev-month" | "prev-year";
 
 const PERIOD_TABS: { type: PeriodType; label: string }[] = [
   { type: "weekly", label: "주간" },
   { type: "monthly", label: "월간" },
   { type: "mtd", label: "월누적" },
+  { type: "custom", label: "기간지정" },
   { type: "yearly", label: "연간목표대비" },
 ];
 
@@ -19,6 +20,13 @@ function pad(n: number) {
 }
 function toYmd(d: Date) {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+}
+function toDateInputValue(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function parseDateInputValue(v: string) {
+  const [y, m, d] = v.split("-").map(Number);
+  return new Date(y, m - 1, d);
 }
 function formatDot(d: Date) {
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
@@ -44,6 +52,8 @@ export function SalesByCustomerView() {
   const [period, setPeriod] = useState<PeriodType>("weekly");
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today));
   const [monthValue, setMonthValue] = useState(() => `${today.getFullYear()}-${pad(today.getMonth() + 1)}`);
+  const [customStart, setCustomStart] = useState(() => toDateInputValue(addDays(today, -6)));
+  const [customEnd, setCustomEnd] = useState(() => toDateInputValue(today));
   const [year, setYear] = useState(today.getFullYear());
   const [compareBasis, setCompareBasis] = useState<CompareBasis>("prev-week");
   const [search, setSearch] = useState("");
@@ -54,15 +64,20 @@ export function SalesByCustomerView() {
 
   const currentRange = useMemo(() => {
     if (period === "weekly") return { start: weekStart, end: addDays(weekStart, 6) };
+    if (period === "custom") {
+      const start = parseDateInputValue(customStart);
+      const end = parseDateInputValue(customEnd);
+      return start <= end ? { start, end } : { start: end, end: start };
+    }
     const [y, m] = monthValue.split("-").map(Number);
     const monthStart = new Date(y, m - 1, 1);
     const monthEnd = new Date(y, m, 0);
     if (period === "mtd") {
       const isCurrentMonth = y === today.getFullYear() && m === today.getMonth() + 1;
-      return { start: monthStart, end: isCurrentMonth ? today : monthEnd };
+      return { start: new Date(y, 0, 1), end: isCurrentMonth ? today : monthEnd };
     }
     return { start: monthStart, end: monthEnd };
-  }, [period, weekStart, monthValue, today]);
+  }, [period, weekStart, monthValue, customStart, customEnd, today]);
 
   const compareRange = useMemo(() => {
     if (compareBasis === "prev-week") {
@@ -108,8 +123,21 @@ export function SalesByCustomerView() {
   }, [period, startYmd, endYmd, compareStartYmd, compareEndYmd, search, year]);
 
   const card1Label =
-    period === "weekly" ? "이번 주 매출 합계" : period === "monthly" ? "이번 달 매출 합계" : "이번 달 누적 매출";
-  const tableColLabel = period === "weekly" ? "주간 매출액" : period === "monthly" ? "월간 매출액" : "월누적 매출액";
+    period === "weekly"
+      ? "이번 주 매출 합계"
+      : period === "monthly"
+        ? "이번 달 매출 합계"
+        : period === "mtd"
+          ? "연초 누적 매출"
+          : "선택 기간 매출 합계";
+  const tableColLabel =
+    period === "weekly"
+      ? "주간 매출액"
+      : period === "monthly"
+        ? "월간 매출액"
+        : period === "mtd"
+          ? "월누적 매출액"
+          : "매출액";
   const compareLabel =
     compareBasis === "prev-week" ? "전주 대비" : compareBasis === "prev-month" ? "전월 대비" : "전년 동기 대비";
 
@@ -185,7 +213,27 @@ export function SalesByCustomerView() {
               onChange={(e) => setMonthValue(e.target.value)}
               className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
             />
-            {period === "mtd" && <span className="text-xs text-muted">해당월 1일 ~ 선택일 누적</span>}
+            {period === "mtd" && <span className="text-xs text-muted">연초 1월 1일 ~ 선택월(오늘) 누적</span>}
+          </div>
+        )}
+        {period === "custom" && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted">조회기간</label>
+            <input
+              type="date"
+              value={customStart}
+              max={customEnd}
+              onChange={(e) => setCustomStart(e.target.value)}
+              className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+            />
+            <span className="text-sm text-muted">~</span>
+            <input
+              type="date"
+              value={customEnd}
+              min={customStart}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+            />
           </div>
         )}
         {period === "yearly" && (
