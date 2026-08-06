@@ -19,7 +19,7 @@ export function LeaderWorklogView({
   initialRoster: RosterEntry[];
   initialOwnTeamReports: TeamReportRow[];
 }) {
-  const [tab, setTab] = useState<"write" | "aggregate">("aggregate");
+  const [tab, setTab] = useState<"write" | "aggregate">("write");
 
   return (
     <div>
