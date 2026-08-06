@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { TeamReportRow } from "@/app/actions/team-worklog";
 import { getAttachmentUrl } from "@/app/actions/attachments";
+import { FormattedText } from "./FormattedText";
 
 function AttachmentIcon() {
   return (
@@ -99,7 +100,7 @@ export function SubmissionHistoryList({ rows }: { rows: TeamReportRow[] }) {
                 {open && (
                   <div className="px-4 pb-3">
                     <p className="whitespace-pre-wrap border-t border-mist pt-2 text-xs text-inktext">
-                      {r.content || "(내용 없음)"}
+                      {r.content ? <FormattedText text={r.content} /> : "(내용 없음)"}
                     </p>
                     {r.attachments.length > 0 && (
                       <ul className="mt-2 space-y-1">

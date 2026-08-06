@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { RecentEntry, RecentEntryAttachment } from "@/app/actions/team-worklog";
 import { getAttachmentUrl } from "@/app/actions/attachments";
+import { FormattedText } from "./FormattedText";
 
 function AttachmentIcon() {
   return (
@@ -79,7 +80,9 @@ export function WorklogEntryCard({
                 checked={checkedLines[i]}
                 onChange={() => toggleLine(i)}
               />
-              <span>{line}</span>
+              <span>
+                <FormattedText text={line} />
+              </span>
             </label>
           ))}
         </div>

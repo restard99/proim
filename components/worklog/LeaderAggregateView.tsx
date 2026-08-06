@@ -106,7 +106,7 @@ export function LeaderAggregateView({
     title: string | null,
   ) {
     if (lines.length > 0) {
-      const block = title ? `${title}(${entryDate})\n${lines.join("\n")}` : `${lines.join("\n")}\n(${entryDate})`;
+      const block = title ? `**${title}**(${entryDate})\n${lines.join("\n")}` : `${lines.join("\n")}\n(${entryDate})`;
       setContent((prev) => `${prev}${prev ? "\n\n" : ""}${block}`);
     }
     if (selectedAttachments.length > 0) {
