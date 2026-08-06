@@ -52,6 +52,8 @@ export function SalesByCustomerView() {
   const [period, setPeriod] = useState<PeriodType>("weekly");
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today));
   const [monthValue, setMonthValue] = useState(() => `${today.getFullYear()}-${pad(today.getMonth() + 1)}`);
+  const [mtdStart, setMtdStart] = useState(() => toDateInputValue(new Date(today.getFullYear(), 0, 1)));
+  const [mtdEnd, setMtdEnd] = useState(() => toDateInputValue(today));
   const [customStart, setCustomStart] = useState(() => toDateInputValue(addDays(today, -6)));
   const [customEnd, setCustomEnd] = useState(() => toDateInputValue(today));
   const [year, setYear] = useState(today.getFullYear());
@@ -64,20 +66,17 @@ export function SalesByCustomerView() {
 
   const currentRange = useMemo(() => {
     if (period === "weekly") return { start: weekStart, end: addDays(weekStart, 6) };
-    if (period === "custom") {
-      const start = parseDateInputValue(customStart);
-      const end = parseDateInputValue(customEnd);
+    if (period === "custom" || period === "mtd") {
+      const [rawStart, rawEnd] = period === "mtd" ? [mtdStart, mtdEnd] : [customStart, customEnd];
+      const start = parseDateInputValue(rawStart);
+      const end = parseDateInputValue(rawEnd);
       return start <= end ? { start, end } : { start: end, end: start };
     }
     const [y, m] = monthValue.split("-").map(Number);
     const monthStart = new Date(y, m - 1, 1);
     const monthEnd = new Date(y, m, 0);
-    if (period === "mtd") {
-      const isCurrentMonth = y === today.getFullYear() && m === today.getMonth() + 1;
-      return { start: new Date(y, 0, 1), end: isCurrentMonth ? today : monthEnd };
-    }
     return { start: monthStart, end: monthEnd };
-  }, [period, weekStart, monthValue, customStart, customEnd, today]);
+  }, [period, weekStart, monthValue, mtdStart, mtdEnd, customStart, customEnd]);
 
   const compareRange = useMemo(() => {
     if (compareBasis === "prev-week") {
@@ -211,7 +210,7 @@ export function SalesByCustomerView() {
             </button>
           </div>
         )}
-        {(period === "monthly" || period === "mtd") && (
+        {period === "monthly" && (
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted">월</label>
             <input
@@ -220,7 +219,27 @@ export function SalesByCustomerView() {
               onChange={(e) => setMonthValue(e.target.value)}
               className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
             />
-            {period === "mtd" && <span className="text-xs text-muted">연초 1월 1일 ~ 선택월(오늘) 누적</span>}
+          </div>
+        )}
+        {period === "mtd" && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted">조회기간</label>
+            <input
+              type="date"
+              value={mtdStart}
+              max={mtdEnd}
+              onChange={(e) => setMtdStart(e.target.value)}
+              className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+            />
+            <span className="text-sm text-muted">~</span>
+            <input
+              type="date"
+              value={mtdEnd}
+              min={mtdStart}
+              onChange={(e) => setMtdEnd(e.target.value)}
+              className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+            />
+            <span className="text-xs text-muted">기본값: 연초 ~ 오늘</span>
           </div>
         )}
         {period === "custom" && (
