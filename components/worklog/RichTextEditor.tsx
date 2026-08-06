@@ -11,6 +11,7 @@ import TableCell from "@tiptap/extension-table-cell";
 import TextStyle from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import TextAlign from "@tiptap/extension-text-align";
+import { FontSize } from "./rte-font-size";
 
 function ToolbarButton({
   onClick,
@@ -41,13 +42,7 @@ function ToolbarButton({
   );
 }
 
-const ALIGN_OPTIONS = [
-  { value: "left", label: "왼쪽 정렬", icon: "≡◤" },
-  { value: "center", label: "가운데 정렬", icon: "≡◆" },
-  { value: "right", label: "오른쪽 정렬", icon: "≡◢" },
-] as const;
-
-function AlignDropdown({ editor }: { editor: Editor }) {
+function useDropdown() {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +56,18 @@ function AlignDropdown({ editor }: { editor: Editor }) {
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [open]);
+
+  return { open, setOpen, containerRef };
+}
+
+const ALIGN_OPTIONS = [
+  { value: "left", label: "왼쪽 정렬", icon: "≡◤" },
+  { value: "center", label: "가운데 정렬", icon: "≡◆" },
+  { value: "right", label: "오른쪽 정렬", icon: "≡◢" },
+] as const;
+
+function AlignDropdown({ editor }: { editor: Editor }) {
+  const { open, setOpen, containerRef } = useDropdown();
 
   const current = ALIGN_OPTIONS.find((o) => editor.isActive({ textAlign: o.value })) ?? ALIGN_OPTIONS[0];
 
@@ -85,6 +92,51 @@ function AlignDropdown({ editor }: { editor: Editor }) {
             >
               <span>{o.icon}</span>
               <span>{o.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const FONT_SIZE_OPTIONS = [
+  { value: null, label: "기본" },
+  { value: "12px", label: "작게" },
+  { value: "16px", label: "보통" },
+  { value: "20px", label: "크게" },
+  { value: "24px", label: "아주 크게" },
+] as const;
+
+function FontSizeDropdown({ editor }: { editor: Editor }) {
+  const { open, setOpen, containerRef } = useDropdown();
+
+  const currentSize = (editor.getAttributes("textStyle").fontSize as string | null) ?? null;
+  const current = FONT_SIZE_OPTIONS.find((o) => o.value === currentSize) ?? FONT_SIZE_OPTIONS[0];
+
+  function applySize(value: (typeof FONT_SIZE_OPTIONS)[number]["value"]) {
+    if (value) editor.chain().focus().setFontSize(value).run();
+    else editor.chain().focus().unsetFontSize().run();
+    setOpen(false);
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <ToolbarButton label="글자 크기" onClick={() => setOpen((v) => !v)}>
+        {current.label} ▾
+      </ToolbarButton>
+      {open && (
+        <div className="absolute left-0 top-full z-10 mt-1 w-28 rounded-md border border-mist bg-white py-1 shadow-md">
+          {FONT_SIZE_OPTIONS.map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              onClick={() => applySize(o.value)}
+              className={`block w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                o.value === currentSize ? "bg-mist font-medium text-inktext" : "text-inktext hover:bg-mist"
+              }`}
+            >
+              {o.label}
             </button>
           ))}
         </div>
@@ -129,6 +181,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         1.≡
       </ToolbarButton>
       <span className="mx-1 h-4 w-px bg-mist" />
+      <FontSizeDropdown editor={editor} />
       <span className="flex items-center gap-1 px-1">
         <span className="text-xs font-medium text-muted">글자색</span>
         <input
@@ -193,6 +246,7 @@ export function RichTextEditor({ value, onChange }: { value: string; onChange: (
       Underline,
       TextStyle,
       Color,
+      FontSize,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Table.configure({ resizable: true }),
       TableRow,
