@@ -81,8 +81,8 @@ function ProfileFooter({ userName, userTeam, interactive }: { userName: string; 
         {userName.slice(0, 1)}
       </div>
       <div className="min-w-0 text-left">
-        <p className="text-sm font-medium text-salt truncate">{userName}</p>
-        <p className="text-xs text-salt/50 truncate">{userTeam}</p>
+        <p className="text-sm font-medium text-salt">{userName}</p>
+        <p className="text-xs text-salt/50">{userTeam}</p>
       </div>
       {interactive && (
         <svg className="h-4 w-4 text-salt/40 ml-auto shrink-0" viewBox="0 0 20 20" fill="currentColor">
