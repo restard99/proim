@@ -23,7 +23,7 @@ export function AuthBrandPanel({ headline, tagline, className = "" }: AuthBrandP
       </div>
       <div className="saltpan-shimmer" aria-hidden="true" />
 
-      <div className="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-1.5 shadow-md shadow-black/20 w-fit">
+      <div className="relative z-10 inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md shadow-black/20 w-fit">
         <Image src="/logo.png" alt="태평염전 로고" width={403} height={143} className="h-9 w-auto" priority />
       </div>
 
