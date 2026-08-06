@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import {
   deleteProductionRequest,
   getProductionMaterialStatus,
@@ -65,6 +65,63 @@ function MaterialStatusDot({ status }: { status: ProductMaterialStatus | undefin
   );
 }
 
+function MaterialStatusDetail({ status }: { status: ProductMaterialStatus | undefined }) {
+  if (!status || status.matchType === "unmatched") {
+    return <p className="text-sm text-muted">Y-ERP 품목과 매칭되지 않아 부자재 현황을 확인할 수 없습니다.</p>;
+  }
+  if (status.matchType === "ambiguous") {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-muted">
+          품목명 후보가 여러 개라 자동으로 판단할 수 없습니다. Y-ERP 품목명 중 하나로 확인해주세요.
+        </p>
+        <ul className="list-inside list-disc text-sm text-inktext">
+          {status.candidateNames.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  if (status.materials.length === 0) {
+    return (
+      <div className="space-y-1">
+        <p className="text-xs text-muted">매칭된 품목: {status.matchedItemName}</p>
+        <p className="text-sm text-muted">등록된 부자재 BOM이 없습니다.</p>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <p className="mb-2 text-xs text-muted">매칭된 품목: {status.matchedItemName}</p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-mist text-left text-xs text-muted">
+            <th className="py-2 font-medium">부자재명</th>
+            <th className="py-2 text-right font-medium">소요량</th>
+            <th className="py-2 text-right font-medium">재고</th>
+            <th className="py-2 text-center font-medium">상태</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-mist">
+          {status.materials.map((m) => (
+            <tr key={m.itemCode}>
+              <td className="py-2">{m.itemName}</td>
+              <td className="py-2 text-right font-mono">{formatQty(m.requiredQty)}</td>
+              <td className="py-2 text-right font-mono">{formatQty(m.availableQty)}</td>
+              <td className="py-2 text-center">
+                <span className={`inline-block h-2.5 w-2.5 rounded-full ${m.sufficient ? "bg-brine" : "bg-crimson"}`} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const TOTAL_COLUMN_COUNT = COLUMNS.length + 2; // + 부자재, 비고
+
 export function ProductionRequestView({ canManage }: { canManage: boolean }) {
   const [list, setList] = useState<ProductionRequestListRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -83,7 +140,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
   const [draftItems, setDraftItems] = useState<ProductionRequestItem[]>([]);
 
   const [materialMap, setMaterialMap] = useState<Record<string, ProductMaterialStatus>>({});
-  const [materialModalName, setMaterialModalName] = useState<string | null>(null);
+  const [expandedItemIndex, setExpandedItemIndex] = useState<number | null>(null);
 
   function refreshList(selectAfter?: string) {
     startListTransition(async () => {
@@ -101,6 +158,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
     startDetailTransition(async () => {
       setIsEditing(false);
       setMaterialMap({});
+      setExpandedItemIndex(null);
       if (!selectedId) {
         setDetail(null);
         return;
@@ -314,7 +372,8 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                       {detail.items.map((item, i) => {
                         const rowRedClass = item.isRed ? "text-crimsond font-semibold" : "text-inktext";
                         return (
-                          <tr key={i} className={rowRedClass}>
+                          <Fragment key={i}>
+                          <tr className={rowRedClass}>
                             {COLUMNS.map((c) => {
                               if (item.mergeSkip.includes(c.key)) return null;
                               const isMergeStart = item.merge?.field === c.key;
@@ -330,7 +389,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                                   {c.key === "name" ? (
                                     <button
                                       type="button"
-                                      onClick={() => setMaterialModalName(item.name)}
+                                      onClick={() => setExpandedItemIndex((prev) => (prev === i ? null : i))}
                                       className="text-crimson hover:underline"
                                     >
                                       {item.name}
@@ -353,6 +412,14 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                               {item.remark}
                             </td>
                           </tr>
+                          {expandedItemIndex === i && (
+                            <tr>
+                              <td colSpan={TOTAL_COLUMN_COUNT} className="border-l border-mist bg-salt px-4 py-4">
+                                <MaterialStatusDetail status={materialMap[item.name]} />
+                              </td>
+                            </tr>
+                          )}
+                          </Fragment>
                         );
                       })}
                     </tbody>
@@ -433,89 +500,6 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
           </>
         )}
       </div>
-
-      {materialModalName && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setMaterialModalName(null)}
-        >
-          <div
-            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-inktext">{materialModalName} — 부자재 현황</h3>
-              <button
-                type="button"
-                onClick={() => setMaterialModalName(null)}
-                className="text-muted hover:text-inktext"
-                aria-label="닫기"
-              >
-                ✕
-              </button>
-            </div>
-            {(() => {
-              const status = materialMap[materialModalName];
-              if (!status || status.matchType === "unmatched") {
-                return (
-                  <p className="text-sm text-muted">Y-ERP 품목과 매칭되지 않아 부자재 현황을 확인할 수 없습니다.</p>
-                );
-              }
-              if (status.matchType === "ambiguous") {
-                return (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted">
-                      품목명 후보가 여러 개라 자동으로 판단할 수 없습니다. Y-ERP 품목명 중 하나로 확인해주세요.
-                    </p>
-                    <ul className="list-inside list-disc text-sm text-inktext">
-                      {status.candidateNames.map((n) => (
-                        <li key={n}>{n}</li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              }
-              if (status.materials.length === 0) {
-                return (
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted">매칭된 품목: {status.matchedItemName}</p>
-                    <p className="text-sm text-muted">등록된 부자재 BOM이 없습니다.</p>
-                  </div>
-                );
-              }
-              return (
-                <>
-                <p className="mb-2 text-xs text-muted">매칭된 품목: {status.matchedItemName}</p>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-mist text-left text-xs text-muted">
-                      <th className="py-2 font-medium">부자재명</th>
-                      <th className="py-2 text-right font-medium">소요량</th>
-                      <th className="py-2 text-right font-medium">재고</th>
-                      <th className="py-2 text-center font-medium">상태</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-mist">
-                    {status.materials.map((m) => (
-                      <tr key={m.itemCode}>
-                        <td className="py-2">{m.itemName}</td>
-                        <td className="py-2 text-right font-mono">{formatQty(m.requiredQty)}</td>
-                        <td className="py-2 text-right font-mono">{formatQty(m.availableQty)}</td>
-                        <td className="py-2 text-center">
-                          <span
-                            className={`inline-block h-2.5 w-2.5 rounded-full ${m.sufficient ? "bg-brine" : "bg-crimson"}`}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
