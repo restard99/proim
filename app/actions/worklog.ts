@@ -19,6 +19,10 @@ export type SaveResult = { ok: true } | { ok: false; message: string };
 export type SaveReportResult = { ok: true; id: string } | { ok: false; message: string };
 export type SaveDailyReportResult = { ok: true; report: DailyReportRow } | { ok: false; message: string };
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 async function getSelf(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
@@ -127,7 +131,10 @@ export async function saveDailyReport(input: {
     .maybeSingle();
 
   if (existing) {
-    const mergedContent = existing.content ? `${existing.content}${input.content}` : input.content;
+    const addedBlock = input.visitedCustomers
+      ? `<p><strong>${escapeHtml(input.visitedCustomers)}</strong>(${input.reportDate})</p>${input.content}`
+      : `<p>(${input.reportDate})</p>${input.content}`;
+    const mergedContent = existing.content ? `${existing.content}${addedBlock}` : addedBlock;
     const mergedNotes = [existing.notes, input.notes].filter(Boolean).join("\n");
 
     const { error } = await supabase
