@@ -7,16 +7,11 @@ import type { CustomerLedger } from "@/lib/yerp/collections";
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
-function todayMonthValue() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+function toDateInputValue(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-function monthRange(monthValue: string) {
-  const [y, m] = monthValue.split("-").map(Number);
-  const start = `${y}${pad(m)}01`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const end = `${y}${pad(m)}${pad(lastDay)}`;
-  return { start, end };
+function toYmd(dateInputValue: string) {
+  return dateInputValue.replaceAll("-", "");
 }
 function formatWon(n: number) {
   return Math.round(n).toLocaleString("ko-KR") + "원";
@@ -30,7 +25,9 @@ function formatSlipDate(ymd: string) {
 }
 
 export function CollectionsView() {
-  const [monthValue, setMonthValue] = useState(todayMonthValue);
+  const today = useMemo(() => new Date(), []);
+  const [startDate, setStartDate] = useState(() => toDateInputValue(new Date(today.getFullYear(), 0, 1)));
+  const [endDate, setEndDate] = useState(() => toDateInputValue(today));
   const [search, setSearch] = useState("");
   const [data, setData] = useState<CollectionsData | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -39,7 +36,8 @@ export function CollectionsView() {
   const [ledgerCache, setLedgerCache] = useState<Record<string, CustomerLedger>>({});
   const [isLoadingLedger, startLedgerTransition] = useTransition();
 
-  const { start, end } = useMemo(() => monthRange(monthValue), [monthValue]);
+  const start = toYmd(startDate);
+  const end = toYmd(endDate);
 
   useEffect(() => {
     startTransition(async () => {
@@ -68,11 +66,20 @@ export function CollectionsView() {
     <div className="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-sm text-muted">기준월</label>
+          <label className="text-sm text-muted">조회기간</label>
           <input
-            type="month"
-            value={monthValue}
-            onChange={(e) => setMonthValue(e.target.value)}
+            type="date"
+            value={startDate}
+            max={endDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+          />
+          <span className="text-sm text-muted">~</span>
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => setEndDate(e.target.value)}
             className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
           />
         </div>
@@ -90,7 +97,7 @@ export function CollectionsView() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-mist bg-white p-4">
-          <p className="text-xs text-muted">이 달 수금액</p>
+          <p className="text-xs text-muted">기간 수금액</p>
           <p className="mt-1 text-xl font-semibold text-inktext">{formatWon(data?.totalReceipt ?? 0)}</p>
         </div>
         <div className="rounded-lg border border-mist bg-white p-4">
@@ -204,7 +211,7 @@ export function CollectionsView() {
             {!isPending && (data?.rows.length ?? 0) === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted">
-                  해당 월 수금 데이터가 없습니다.
+                  해당 기간 수금 데이터가 없습니다.
                 </td>
               </tr>
             )}
