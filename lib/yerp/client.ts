@@ -56,6 +56,13 @@ export async function yerpQuery<T = Record<string, unknown>>(
       request.input(name, value);
     }
   }
-  const result = await request.query<T>(queryText);
-  return result.recordset;
+  try {
+    const result = await request.query<T>(queryText);
+    return result.recordset;
+  } catch (err) {
+    // 커넥션 풀 안의 연결이 죽어있는 채로 남아있으면 이후 요청도 계속 타임아웃날 수 있어,
+    // 실패 시 풀을 버리고 다음 요청에서 새로 연결하도록 한다.
+    if (pool === connectedPool) pool = null;
+    throw err;
+  }
 }

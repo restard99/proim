@@ -4,14 +4,13 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { getSalesPeriodData, type SalesPeriodData } from "@/app/actions/sales";
 import { getYearlyProgress, type YearlyProgress } from "@/app/actions/sales-targets";
 
-type PeriodType = "weekly" | "monthly" | "mtd" | "custom" | "yearly";
+type PeriodType = "weekly" | "monthly" | "mtd" | "yearly";
 type CompareBasis = "prev-week" | "prev-month" | "prev-year";
 
 const PERIOD_TABS: { type: PeriodType; label: string }[] = [
   { type: "weekly", label: "주간" },
   { type: "monthly", label: "월간" },
   { type: "mtd", label: "월누적" },
-  { type: "custom", label: "기간지정" },
   { type: "yearly", label: "연간목표대비" },
 ];
 
@@ -54,29 +53,27 @@ export function SalesByCustomerView() {
   const [monthValue, setMonthValue] = useState(() => `${today.getFullYear()}-${pad(today.getMonth() + 1)}`);
   const [mtdStart, setMtdStart] = useState(() => toDateInputValue(new Date(today.getFullYear(), 0, 1)));
   const [mtdEnd, setMtdEnd] = useState(() => toDateInputValue(today));
-  const [customStart, setCustomStart] = useState(() => toDateInputValue(addDays(today, -6)));
-  const [customEnd, setCustomEnd] = useState(() => toDateInputValue(today));
   const [year, setYear] = useState(today.getFullYear());
   const [compareBasis, setCompareBasis] = useState<CompareBasis>("prev-week");
   const [search, setSearch] = useState("");
 
   const [data, setData] = useState<SalesPeriodData | null>(null);
   const [yearlyData, setYearlyData] = useState<YearlyProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const currentRange = useMemo(() => {
     if (period === "weekly") return { start: weekStart, end: addDays(weekStart, 6) };
-    if (period === "custom" || period === "mtd") {
-      const [rawStart, rawEnd] = period === "mtd" ? [mtdStart, mtdEnd] : [customStart, customEnd];
-      const start = parseDateInputValue(rawStart);
-      const end = parseDateInputValue(rawEnd);
+    if (period === "mtd") {
+      const start = parseDateInputValue(mtdStart);
+      const end = parseDateInputValue(mtdEnd);
       return start <= end ? { start, end } : { start: end, end: start };
     }
     const [y, m] = monthValue.split("-").map(Number);
     const monthStart = new Date(y, m - 1, 1);
     const monthEnd = new Date(y, m, 0);
     return { start: monthStart, end: monthEnd };
-  }, [period, weekStart, monthValue, mtdStart, mtdEnd, customStart, customEnd]);
+  }, [period, weekStart, monthValue, mtdStart, mtdEnd]);
 
   const compareRange = useMemo(() => {
     if (compareBasis === "prev-week") {
@@ -104,20 +101,30 @@ export function SalesByCustomerView() {
   function runQuery() {
     if (period === "yearly") {
       startTransition(async () => {
-        const result = await getYearlyProgress(year);
-        setYearlyData(result);
+        try {
+          const result = await getYearlyProgress(year);
+          setYearlyData(result);
+          setError(null);
+        } catch {
+          setError("조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        }
       });
       return;
     }
     startTransition(async () => {
-      const result = await getSalesPeriodData({
-        startDate: startYmd,
-        endDate: endYmd,
-        compareStartDate: compareStartYmd,
-        compareEndDate: compareEndYmd,
-        search: search || undefined,
-      });
-      setData(result);
+      try {
+        const result = await getSalesPeriodData({
+          startDate: startYmd,
+          endDate: endYmd,
+          compareStartDate: compareStartYmd,
+          compareEndDate: compareEndYmd,
+          search: search || undefined,
+        });
+        setData(result);
+        setError(null);
+      } catch {
+        setError("조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      }
     });
   }
 
@@ -129,21 +136,9 @@ export function SalesByCustomerView() {
   }, [period]);
 
   const card1Label =
-    period === "weekly"
-      ? "이번 주 매출 합계"
-      : period === "monthly"
-        ? "이번 달 매출 합계"
-        : period === "mtd"
-          ? "연초 누적 매출"
-          : "선택 기간 매출 합계";
+    period === "weekly" ? "이번 주 매출 합계" : period === "monthly" ? "이번 달 매출 합계" : "연초 누적 매출";
   const tableColLabel =
-    period === "weekly"
-      ? "주간 매출액"
-      : period === "monthly"
-        ? "월간 매출액"
-        : period === "mtd"
-          ? "월누적 매출액"
-          : "매출액";
+    period === "weekly" ? "주간 매출액" : period === "monthly" ? "월간 매출액" : "월누적 매출액";
   const compareLabel =
     compareBasis === "prev-week" ? "전주 대비" : compareBasis === "prev-month" ? "전월 대비" : "전년 동기 대비";
 
@@ -242,26 +237,6 @@ export function SalesByCustomerView() {
             <span className="text-xs text-muted">기본값: 연초 ~ 오늘</span>
           </div>
         )}
-        {period === "custom" && (
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted">조회기간</label>
-            <input
-              type="date"
-              value={customStart}
-              max={customEnd}
-              onChange={(e) => setCustomStart(e.target.value)}
-              className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
-            />
-            <span className="text-sm text-muted">~</span>
-            <input
-              type="date"
-              value={customEnd}
-              min={customStart}
-              onChange={(e) => setCustomEnd(e.target.value)}
-              className="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
-            />
-          </div>
-        )}
         {period === "yearly" && (
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted">연도</label>
@@ -317,6 +292,8 @@ export function SalesByCustomerView() {
           검색
         </button>
       </div>
+
+      {error && <p className="text-sm text-crimsond">{error}</p>}
 
       {period !== "yearly" ? (
         <>
