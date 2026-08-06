@@ -102,7 +102,7 @@ export function SalesByCustomerView() {
   const compareStartYmd = toYmd(compareRange.start);
   const compareEndYmd = toYmd(compareRange.end);
 
-  useEffect(() => {
+  function runQuery() {
     if (period === "yearly") {
       startTransition(async () => {
         const result = await getYearlyProgress(year);
@@ -120,7 +120,14 @@ export function SalesByCustomerView() {
       });
       setData(result);
     });
-  }, [period, startYmd, endYmd, compareStartYmd, compareEndYmd, search, year]);
+  }
+
+  // 탭을 바꾸면 그 탭의 기본 조회 조건으로 바로 조회한다.
+  // 날짜/비교기준/검색어 등 세부 조건 변경은 "검색" 버튼을 눌러야 반영된다.
+  useEffect(() => {
+    runQuery();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period]);
 
   const card1Label =
     period === "weekly"
@@ -274,11 +281,22 @@ export function SalesByCustomerView() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runQuery();
+              }}
               placeholder="거래처명"
               className="flex-1 rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
             />
           </div>
         )}
+        <button
+          type="button"
+          onClick={runQuery}
+          disabled={isPending}
+          className="rounded-md bg-crimson px-4 py-2 text-sm font-medium text-salt transition-colors hover:bg-crimsond disabled:opacity-50"
+        >
+          검색
+        </button>
       </div>
 
       {period !== "yearly" ? (
