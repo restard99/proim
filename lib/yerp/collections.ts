@@ -156,7 +156,7 @@ export async function getCustomerLedger(params: {
         (SELECT TOP 1 s2.ACC_SBJ_NM
          FROM SHUSER.AC_GNR_SLIP_T g2
          JOIN SHUSER.AC_ACC_SBJ_T s2 ON s2.ACC_SBJ_CD = g2.ACC_SBJ_CD AND s2.CORP_CODE = g2.CORP_CODE
-         WHERE g2.CORP_CODE = g.CORP_CODE AND g2.SLIP_NO = g.SLIP_NO
+         WHERE g2.CORP_CODE = g.CORP_CODE AND g2.SLIP_NO = g.SLIP_NO AND g2.SLIP_DT = g.SLIP_DT
            AND g2.DEB_CRD <> g.DEB_CRD AND g2.ACC_SBJ_CD NOT IN ('0108', '0110')
         ) AS COUNTER_ACCT
       FROM SHUSER.AC_GNR_SLIP_T g
