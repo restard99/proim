@@ -412,3 +412,44 @@ CREATE POLICY "production_requests_delete_own" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'production-requests' AND (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ============================================================
+-- FEAT-003-sales-department: 종합보고서에 팀원 업무일지 첨부파일을 그대로 연결
+-- ============================================================
+
+-- 새 파일을 업로드하는 게 아니라, 팀원이 이미 올려둔 첨부파일(worklog-attachments의
+-- 동일 경로)을 종합보고서에서도 참조할 수 있도록 연결만 저장한다.
+CREATE TABLE IF NOT EXISTS team_daily_report_attachments (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      UUID NOT NULL REFERENCES tenants(id),
+  team_report_id UUID NOT NULL REFERENCES team_daily_reports(id) ON DELETE CASCADE,
+  path           TEXT NOT NULL,
+  name           TEXT NOT NULL,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE team_daily_report_attachments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "team_daily_report_attachments_self_all" ON team_daily_report_attachments;
+CREATE POLICY "team_daily_report_attachments_self_all" ON team_daily_report_attachments
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM team_daily_reports t WHERE t.id = team_report_id AND t.author_id = auth.uid())
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM team_daily_reports t WHERE t.id = team_report_id AND t.author_id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "team_daily_report_attachments_upstream_select" ON team_daily_report_attachments;
+CREATE POLICY "team_daily_report_attachments_upstream_select" ON team_daily_report_attachments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM team_daily_reports t
+      JOIN team_hierarchy th ON th.tenant_id = t.tenant_id AND th.team = t.team
+      JOIN profiles p ON p.id = auth.uid()
+      WHERE t.id = team_report_id
+        AND t.status = 'submitted'
+        AND th.reports_to_team = p.team
+        AND p.role IN ('leader', 'admin')
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS team_daily_report_attachments_report_id_idx
+  ON team_daily_report_attachments(team_report_id);

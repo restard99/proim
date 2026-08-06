@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { RecentEntry } from "@/app/actions/team-worklog";
+import type { RecentEntry, RecentEntryAttachment } from "@/app/actions/team-worklog";
 import { getAttachmentUrl } from "@/app/actions/attachments";
 
 function AttachmentIcon() {
@@ -21,15 +21,20 @@ export function RecentEntryAccordionItem({
   onAddSelected,
 }: {
   entry: RecentEntry;
-  onAddSelected: (lines: string[]) => void;
+  onAddSelected: (lines: string[], attachments: RecentEntryAttachment[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const lines = (entry.content ?? "").split("\n").filter((line) => line.trim().length > 0);
-  const [checked, setChecked] = useState<boolean[]>(() => lines.map(() => false));
+  const [checkedLines, setCheckedLines] = useState<boolean[]>(() => lines.map(() => false));
+  const [checkedAttachments, setCheckedAttachments] = useState<boolean[]>(() => entry.attachments.map(() => false));
   const [openingId, setOpeningId] = useState<string | null>(null);
 
   function toggleLine(i: number) {
-    setChecked((prev) => prev.map((v, idx) => (idx === i ? !v : v)));
+    setCheckedLines((prev) => prev.map((v, idx) => (idx === i ? !v : v)));
+  }
+
+  function toggleAttachment(i: number) {
+    setCheckedAttachments((prev) => prev.map((v, idx) => (idx === i ? !v : v)));
   }
 
   async function handleOpenAttachment(path: string, id: string) {
@@ -40,9 +45,10 @@ export function RecentEntryAccordionItem({
   }
 
   function handleAdd() {
-    const selected = lines.filter((_, i) => checked[i]);
-    if (selected.length === 0) return;
-    onAddSelected(selected);
+    const selectedLines = lines.filter((_, i) => checkedLines[i]);
+    const selectedAttachments = entry.attachments.filter((_, i) => checkedAttachments[i]);
+    if (selectedLines.length === 0 && selectedAttachments.length === 0) return;
+    onAddSelected(selectedLines, selectedAttachments);
   }
 
   const summary = entry.visitedCustomers || lines[0] || "";
@@ -79,7 +85,7 @@ export function RecentEntryAccordionItem({
                 <input
                   type="checkbox"
                   className="mt-0.5 accent-crimson"
-                  checked={checked[i]}
+                  checked={checkedLines[i]}
                   onChange={() => toggleLine(i)}
                 />
                 <span>{line}</span>
@@ -88,8 +94,14 @@ export function RecentEntryAccordionItem({
           </div>
           {entry.attachments.length > 0 && (
             <ul className="mb-2 space-y-1">
-              {entry.attachments.map((a) => (
-                <li key={a.id} className="flex items-center gap-1.5 text-xs">
+              {entry.attachments.map((a, i) => (
+                <li key={a.id} className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    className="accent-crimson"
+                    checked={checkedAttachments[i]}
+                    onChange={() => toggleAttachment(i)}
+                  />
                   <AttachmentIcon />
                   <button
                     type="button"

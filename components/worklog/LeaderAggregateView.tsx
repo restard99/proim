@@ -4,11 +4,16 @@ import { useState, useTransition } from "react";
 import {
   deleteTeamReport,
   getPersonRecentEntries,
+  linkTeamReportAttachment,
   saveTeamReport,
+  unlinkTeamReportAttachment,
   type RosterEntry,
   type RecentEntry,
+  type RecentEntryAttachment,
+  type TeamReportAttachment,
   type TeamReportRow,
 } from "@/app/actions/team-worklog";
+import { getAttachmentUrl } from "@/app/actions/attachments";
 import { RecentEntryAccordionItem } from "./RecentEntryAccordionItem";
 
 function todayISO() {
@@ -22,8 +27,22 @@ function toRecentEntry(row: TeamReportRow): RecentEntry {
     status: row.status,
     content: row.content,
     visitedCustomers: null,
-    attachments: [],
+    attachments: row.attachments,
   };
+}
+
+type PendingAttachment = { path: string; name: string };
+
+function AttachmentIcon() {
+  return (
+    <svg className="h-4 w-4 shrink-0 text-muted" viewBox="0 0 20 20" fill="currentColor">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8 4a3 3 0 0 0-3 3v6a3 3 0 1 0 6 0V8a1 1 0 1 1 2 0v5a5 5 0 1 1-10 0V7a5 5 0 0 1 10 0v5a1 1 0 1 1-2 0V7a3 3 0 0 0-3-3Z"
+      />
+    </svg>
+  );
 }
 
 export function LeaderAggregateView({
@@ -43,9 +62,13 @@ export function LeaderAggregateView({
   const [content, setContent] = useState(ownToday?.content ?? "");
   const [status, setStatus] = useState<"draft" | "submitted">(ownToday?.status ?? "draft");
   const [hasSaved, setHasSaved] = useState(Boolean(ownToday));
+  const [attachments, setAttachments] = useState<TeamReportAttachment[]>(ownToday?.attachments ?? []);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaveTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
 
   const [selectedPerson, setSelectedPerson] = useState<RosterEntry | null>(null);
   const [ownEntries] = useState<RecentEntry[]>(initialOwnTeamReports.map(toRecentEntry));
@@ -66,9 +89,19 @@ export function LeaderAggregateView({
     });
   }
 
-  function handleAddLines(entryDate: string, lines: string[]) {
-    const who = selectedPerson ? selectedPerson.name : "나";
-    setContent((prev) => `${prev}${prev ? "\n\n" : ""}[${who} · ${entryDate}]\n${lines.join("\n")}`);
+  function handleAddSelected(entryDate: string, lines: string[], selectedAttachments: RecentEntryAttachment[]) {
+    if (lines.length > 0) {
+      setContent((prev) => `${prev}${prev ? "\n\n" : ""}${lines.join("\n")}\n(${entryDate})`);
+    }
+    if (selectedAttachments.length > 0) {
+      setPendingAttachments((prev) => {
+        const existingPaths = new Set([...attachments.map((a) => a.path), ...prev.map((a) => a.path)]);
+        const additions = selectedAttachments
+          .filter((a) => !existingPaths.has(a.path))
+          .map((a) => ({ path: a.path, name: a.name }));
+        return [...prev, ...additions];
+      });
+    }
   }
 
   function handleSave() {
@@ -81,16 +114,55 @@ export function LeaderAggregateView({
       }
       setStatus("submitted");
       setHasSaved(true);
+
+      if (pendingAttachments.length > 0) {
+        const linked: TeamReportAttachment[] = [];
+        const failedNames: string[] = [];
+        for (const p of pendingAttachments) {
+          const linkResult = await linkTeamReportAttachment(result.id, p.path, p.name);
+          if (linkResult.ok) linked.push(linkResult.attachment);
+          else failedNames.push(p.name);
+        }
+        setAttachments((prev) => [...prev, ...linked]);
+        setPendingAttachments([]);
+        if (failedNames.length > 0) {
+          setError(`보고서는 저장됐지만 다음 첨부파일 연결에 실패했습니다: ${failedNames.join(", ")}`);
+        }
+      }
     });
+  }
+
+  function handleRemovePending(index: number) {
+    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleRemoveAttachment(attachment: TeamReportAttachment) {
+    setRemovingId(attachment.id);
+    unlinkTeamReportAttachment(attachment.id).then((result) => {
+      setRemovingId(null);
+      if (!result.ok) {
+        window.alert(result.message);
+        return;
+      }
+      setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+    });
+  }
+
+  async function handleOpenAttachment(path: string, id: string) {
+    setOpeningId(id);
+    const url = await getAttachmentUrl(path);
+    setOpeningId(null);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function handleDeleteOrClear() {
     if (!hasSaved) {
       setContent("");
+      setPendingAttachments([]);
       setError(null);
       return;
     }
-    if (!window.confirm("오늘 작성한 종합 보고서를 삭제할까요?")) return;
+    if (!window.confirm("오늘 작성한 종합 보고서를 삭제할까요? 연결된 첨부파일 참조도 함께 삭제됩니다.")) return;
 
     setError(null);
     startDeleteTransition(async () => {
@@ -102,6 +174,8 @@ export function LeaderAggregateView({
       setContent("");
       setStatus("draft");
       setHasSaved(false);
+      setAttachments([]);
+      setPendingAttachments([]);
     });
   }
 
@@ -178,7 +252,7 @@ export function LeaderAggregateView({
               <RecentEntryAccordionItem
                 key={entry.id}
                 entry={entry}
-                onAddSelected={(lines) => handleAddLines(entry.reportDate, lines)}
+                onAddSelected={(lines, atts) => handleAddSelected(entry.reportDate, lines, atts)}
               />
             ))}
           </ul>
@@ -206,6 +280,48 @@ export function LeaderAggregateView({
             onChange={(e) => setContent(e.target.value)}
             className="w-full rounded-md border border-mist px-3.5 py-3 text-sm leading-relaxed outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
           />
+
+          {(attachments.length > 0 || pendingAttachments.length > 0) && (
+            <ul className="mt-3 space-y-1.5">
+              {attachments.map((a) => (
+                <li key={a.id} className="flex items-center gap-2 rounded-md border border-mist bg-salt px-3 py-2 text-sm">
+                  <AttachmentIcon />
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAttachment(a.path, a.id)}
+                    disabled={openingId === a.id}
+                    className="min-w-0 flex-1 truncate text-left text-crimson hover:underline disabled:text-muted disabled:no-underline"
+                  >
+                    {a.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(a)}
+                    disabled={removingId === a.id}
+                    className="shrink-0 text-xs font-medium text-muted hover:text-crimsond disabled:opacity-50"
+                  >
+                    삭제
+                  </button>
+                </li>
+              ))}
+              {pendingAttachments.map((p, i) => (
+                <li
+                  key={`pending-${i}`}
+                  className="flex items-center gap-2 rounded-md border border-dashed border-mist bg-salt px-3 py-2 text-sm"
+                >
+                  <AttachmentIcon />
+                  <span className="min-w-0 flex-1 truncate text-muted">{p.name} (저장 시 연결됩니다)</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePending(i)}
+                    className="shrink-0 text-xs font-medium text-muted hover:text-crimsond"
+                  >
+                    삭제
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5 rounded-lg border border-sand/60 bg-sand/10 px-4 py-3.5 text-sm text-inktext">
