@@ -208,7 +208,7 @@ export function DailyReportForm({
             type="text"
             value={visitedCustomers}
             onChange={(e) => setVisitedCustomers(e.target.value)}
-            className="w-full rounded-md border border-mist px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+            className="w-full rounded-md border border-mist px-3.5 py-2.5 text-center text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
           />
         </div>
         <div>
@@ -217,7 +217,7 @@ export function DailyReportForm({
             rows={6}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full rounded-md border border-mist px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+            className="w-full rounded-md border border-mist px-3.5 py-2.5 text-center text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
           />
         </div>
         <div>
