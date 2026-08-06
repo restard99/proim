@@ -71,7 +71,7 @@ export function LeaderAggregateView({
   const [openingId, setOpeningId] = useState<string | null>(null);
 
   const [selectedPerson, setSelectedPerson] = useState<RosterEntry | null>(null);
-  const [ownEntries] = useState<RecentEntry[]>(initialOwnTeamReports.map(toRecentEntry));
+  const [ownEntries, setOwnEntries] = useState<RecentEntry[]>(initialOwnTeamReports.map(toRecentEntry));
   const [personEntries, setPersonEntries] = useState<RecentEntry[]>([]);
   const [isLoadingPerson, startPersonTransition] = useTransition();
 
@@ -115,6 +115,7 @@ export function LeaderAggregateView({
       setStatus("submitted");
       setHasSaved(true);
 
+      let finalAttachments = attachments;
       if (pendingAttachments.length > 0) {
         const linked: TeamReportAttachment[] = [];
         const failedNames: string[] = [];
@@ -123,12 +124,27 @@ export function LeaderAggregateView({
           if (linkResult.ok) linked.push(linkResult.attachment);
           else failedNames.push(p.name);
         }
-        setAttachments((prev) => [...prev, ...linked]);
+        finalAttachments = [...attachments, ...linked];
+        setAttachments(finalAttachments);
         setPendingAttachments([]);
         if (failedNames.length > 0) {
           setError(`보고서는 저장됐지만 다음 첨부파일 연결에 실패했습니다: ${failedNames.join(", ")}`);
         }
       }
+
+      const savedEntry: RecentEntry = {
+        id: result.id,
+        reportDate: today,
+        status: "submitted",
+        content,
+        visitedCustomers: null,
+        attachments: finalAttachments,
+      };
+      setOwnEntries((prev) => {
+        const exists = prev.some((e) => e.reportDate === today);
+        const next = exists ? prev.map((e) => (e.reportDate === today ? savedEntry : e)) : [savedEntry, ...prev];
+        return next.sort((a, b) => (a.reportDate < b.reportDate ? 1 : a.reportDate > b.reportDate ? -1 : 0));
+      });
     });
   }
 
@@ -176,6 +192,7 @@ export function LeaderAggregateView({
       setHasSaved(false);
       setAttachments([]);
       setPendingAttachments([]);
+      setOwnEntries((prev) => prev.filter((e) => e.reportDate !== today));
     });
   }
 
