@@ -1,6 +1,11 @@
 "use server";
 
-import { getCollectionsByCustomer, getCollectionsSummary, type CustomerCollection } from "@/lib/yerp/collections";
+import {
+  getCollectionsByCustomer,
+  getCustomerLedger,
+  type CustomerCollection,
+  type CustomerLedger,
+} from "@/lib/yerp/collections";
 
 export type CollectionsData = {
   rows: CustomerCollection[];
@@ -14,10 +19,23 @@ export async function getCollectionsData(input: {
   endDate: string;
   search?: string;
 }): Promise<CollectionsData> {
-  const [rows, summary] = await Promise.all([
-    getCollectionsByCustomer({ startDate: input.startDate, endDate: input.endDate, search: input.search }),
-    getCollectionsSummary({ startDate: input.startDate, endDate: input.endDate }),
-  ]);
+  const rows = await getCollectionsByCustomer({
+    startDate: input.startDate,
+    endDate: input.endDate,
+    search: input.search,
+  });
 
-  return { rows, ...summary };
+  const totalReceipt = rows.reduce((sum, r) => sum + r.periodReceipt, 0);
+  const totalBalance = rows.reduce((sum, r) => sum + r.balance, 0);
+  const outstandingCustomerCount = rows.filter((r) => r.balance > 0).length;
+
+  return { rows, totalReceipt, totalBalance, outstandingCustomerCount };
+}
+
+export async function getCustomerLedgerData(input: {
+  customerCode: string;
+  startDate: string;
+  endDate: string;
+}): Promise<CustomerLedger> {
+  return getCustomerLedger(input);
 }
