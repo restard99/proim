@@ -17,6 +17,7 @@ import { getAttachmentUrl } from "@/app/actions/attachments";
 import type { DailyReportRow } from "@/app/actions/worklog";
 import { WorklogEntryCard } from "./WorklogEntryCard";
 import { SubmissionHistoryList } from "./SubmissionHistoryList";
+import { RichTextEditor } from "./RichTextEditor";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -28,6 +29,7 @@ function toRecentEntryFromDaily(row: DailyReportRow): RecentEntry {
     reportDate: row.report_date,
     status: row.status,
     content: row.content,
+    contentFormat: "text",
     visitedCustomers: row.visited_customers,
     attachments: row.attachments,
   };
@@ -99,15 +101,9 @@ export function LeaderAggregateView({
     });
   }
 
-  function handleAddSelected(
-    entryDate: string,
-    lines: string[],
-    selectedAttachments: RecentEntryAttachment[],
-    title: string | null,
-  ) {
-    if (lines.length > 0) {
-      const block = title ? `**${title}**(${entryDate})\n${lines.join("\n")}` : `${lines.join("\n")}\n(${entryDate})`;
-      setContent((prev) => `${prev}${prev ? "\n\n" : ""}${block}`);
+  function handleAddBlock(html: string, selectedAttachments: RecentEntryAttachment[]) {
+    if (html) {
+      setContent((prev) => `${prev}${html}`);
     }
     if (selectedAttachments.length > 0) {
       setPendingAttachments((prev) => {
@@ -212,7 +208,7 @@ export function LeaderAggregateView({
   }
 
   return (
-    <div className="grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[220px_300px_1fr] lg:px-8">
+    <div className="grid max-w-[1700px] grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[200px_260px_1fr] lg:px-8">
       {/* 왼쪽: 제출 현황 */}
       <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
         <div className="border-b border-mist px-4 py-3.5">
@@ -283,11 +279,7 @@ export function LeaderAggregateView({
         ) : (
           <ul className="max-h-[70vh] overflow-y-auto">
             {panelEntries.map((entry) => (
-              <WorklogEntryCard
-                key={entry.id}
-                entry={entry}
-                onAddSelected={(lines, atts, title) => handleAddSelected(entry.reportDate, lines, atts, title)}
-              />
+              <WorklogEntryCard key={entry.id} entry={entry} onAddBlock={handleAddBlock} />
             ))}
           </ul>
         )}
@@ -308,12 +300,7 @@ export function LeaderAggregateView({
               {status === "submitted" ? "상신완료" : "미저장"}
             </span>
           </div>
-          <textarea
-            rows={12}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full rounded-md border border-mist px-3.5 py-3 text-sm leading-relaxed outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
-          />
+          <RichTextEditor value={content} onChange={setContent} />
 
           {(attachments.length > 0 || pendingAttachments.length > 0) && (
             <ul className="mt-3 space-y-1.5">

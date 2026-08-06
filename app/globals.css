@@ -127,3 +127,44 @@ body {
 .nav-link:hover .nav-icon-wrap {
   color: #faf8f3;
 }
+
+/* FEAT-003-sales-department: 종합보고서 서식있는 편집기 (TipTap) 콘텐츠 스타일
+   — Tailwind 기본 리셋이 table/ul/ol/strong 등의 브라우저 기본 스타일을 지워서
+   최소한의 표/목록/굵게 표시를 여기서 직접 정의한다. */
+.worklog-rte p {
+  margin: 0 0 0.5em;
+}
+.worklog-rte p:last-child {
+  margin-bottom: 0;
+}
+.worklog-rte strong {
+  font-weight: 700;
+}
+.worklog-rte ul,
+.worklog-rte ol {
+  margin: 0 0 0.5em;
+  padding-left: 1.25em;
+}
+.worklog-rte ul {
+  list-style: disc;
+}
+.worklog-rte ol {
+  list-style: decimal;
+}
+.worklog-rte table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.5em 0;
+}
+.worklog-rte th,
+.worklog-rte td {
+  border: 1px solid var(--color-mist);
+  padding: 0.35em 0.5em;
+  vertical-align: top;
+  text-align: left;
+}
+.worklog-rte th {
+  background: var(--color-mist);
+  font-weight: 600;
+}
