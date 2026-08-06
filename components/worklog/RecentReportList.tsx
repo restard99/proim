@@ -3,6 +3,15 @@
 import { useMemo, useState } from "react";
 import type { DailyReportRow } from "@/app/actions/worklog";
 
+// content는 서식있는 편집기가 저장한 HTML이라, 미리보기 줄에서는 태그를 걷어내고
+// 텍스트만 보여준다.
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function RecentReportList({
   reports,
   selectedId,
@@ -76,7 +85,9 @@ export function RecentReportList({
                 {r.status === "submitted" ? "제출완료" : "임시저장"}
               </span>
             </div>
-            <p className="mt-1 line-clamp-2 text-xs text-muted">{r.visited_customers || r.content || "-"}</p>
+            <p className="mt-1 line-clamp-2 text-xs text-muted">
+              {r.visited_customers || (r.content ? stripHtml(r.content) : "") || "-"}
+            </p>
           </li>
         ))}
         {filtered.length === 0 && (

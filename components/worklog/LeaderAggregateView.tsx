@@ -29,7 +29,6 @@ function toRecentEntryFromDaily(row: DailyReportRow): RecentEntry {
     reportDate: row.report_date,
     status: row.status,
     content: row.content,
-    contentFormat: "text",
     visitedCustomers: row.visited_customers,
     attachments: row.attachments,
   };

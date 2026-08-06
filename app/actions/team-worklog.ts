@@ -14,10 +14,7 @@ export type RecentEntry = {
   id: string;
   reportDate: string;
   status: "draft" | "submitted";
-  content: string | null;
-  // 팀원 개인 업무일지(daily_reports)는 일반 텍스트, 하위 팀장의 종합보고서
-  // (team_daily_reports)는 서식있는 편집기로 작성된 HTML이라 렌더링 방식이 다르다.
-  contentFormat: "text" | "html";
+  content: string | null; // 서식있는 편집기(TipTap)로 작성된 HTML
   visitedCustomers: string | null;
   attachments: RecentEntryAttachment[];
 };
@@ -176,7 +173,6 @@ export async function getPersonRecentEntries(
       reportDate: r.report_date,
       status: r.status,
       content: r.content,
-      contentFormat: "text",
       visitedCustomers: r.visited_customers,
       attachments: r.daily_report_attachments ?? [],
     }));
@@ -202,7 +198,6 @@ export async function getPersonRecentEntries(
     reportDate: r.report_date,
     status: r.status,
     content: r.content,
-    contentFormat: "html",
     visitedCustomers: null,
     attachments: r.team_daily_report_attachments ?? [],
   }));

@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { saveDailyReport, deleteDailyReport, type DailyReportRow, type DailyReportAttachment } from "@/app/actions/worklog";
 import { addReportAttachment, removeReportAttachment, getAttachmentUrl } from "@/app/actions/attachments";
+import { RichTextEditor } from "./RichTextEditor";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -213,12 +214,7 @@ export function DailyReportForm({
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-inktext">주요 업무 내용</label>
-          <textarea
-            rows={6}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full rounded-md border border-mist px-3.5 py-2.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
-          />
+          <RichTextEditor value={content} onChange={setContent} />
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-inktext">특이사항</label>
