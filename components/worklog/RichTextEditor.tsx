@@ -10,6 +10,7 @@ import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
 import TextStyle from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
+import TextAlign from "@tiptap/extension-text-align";
 
 function ToolbarButton({
   onClick,
@@ -86,8 +87,26 @@ function Toolbar({ editor }: { editor: Editor }) {
           className="h-6 w-8 shrink-0 cursor-pointer rounded border border-mist bg-white p-0.5"
         />
       </span>
-      <ToolbarButton label="색상 지우기" onClick={() => editor.chain().focus().unsetColor().run()}>
-        지우기
+      <ToolbarButton
+        label="왼쪽 정렬"
+        active={editor.isActive({ textAlign: "left" })}
+        onClick={() => editor.chain().focus().setTextAlign("left").run()}
+      >
+        ≡◤
+      </ToolbarButton>
+      <ToolbarButton
+        label="가운데 정렬"
+        active={editor.isActive({ textAlign: "center" })}
+        onClick={() => editor.chain().focus().setTextAlign("center").run()}
+      >
+        ≡◆
+      </ToolbarButton>
+      <ToolbarButton
+        label="오른쪽 정렬"
+        active={editor.isActive({ textAlign: "right" })}
+        onClick={() => editor.chain().focus().setTextAlign("right").run()}
+      >
+        ≡◢
       </ToolbarButton>
       <span className="mx-1 h-4 w-px bg-mist" />
       <ToolbarButton
@@ -142,6 +161,7 @@ export function RichTextEditor({ value, onChange }: { value: string; onChange: (
       Underline,
       TextStyle,
       Color,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
