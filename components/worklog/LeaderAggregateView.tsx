@@ -23,6 +23,12 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function sevenDaysAgoISO() {
+  const d = new Date();
+  d.setDate(d.getDate() - 6);
+  return d.toISOString().slice(0, 10);
+}
+
 function toRecentEntryFromDaily(row: DailyReportRow): RecentEntry {
   return {
     id: row.id,
@@ -91,6 +97,11 @@ export function LeaderAggregateView({
 
   const memberCount = initialRoster.filter((r) => r.kind === "member").length;
   const memberSubmitted = initialRoster.filter((r) => r.kind === "member" && r.submittedCount > 0).length;
+
+  const sinceDate = sevenDaysAgoISO();
+  const ownSubmittedCount = ownEntries.filter(
+    (e) => e.status === "submitted" && e.reportDate >= sinceDate,
+  ).length;
 
   function handleSelectPerson(person: RosterEntry) {
     setSelectedPerson(person);
@@ -224,7 +235,13 @@ export function LeaderAggregateView({
           >
             <div className="flex items-center justify-between">
               <span className="font-medium text-inktext">본인</span>
-              <span className="rounded-full bg-mist px-2 py-0.5 text-xs font-medium text-ink">본인</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  ownSubmittedCount > 0 ? "bg-brine/10 text-brine" : "bg-mist text-muted"
+                }`}
+              >
+                {ownSubmittedCount}건
+              </span>
             </div>
           </li>
           {initialRoster.map((person) => (

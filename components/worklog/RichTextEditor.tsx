@@ -8,6 +8,8 @@ import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
+import TextStyle from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
 
 function ToolbarButton({
   onClick,
@@ -74,6 +76,26 @@ function Toolbar({ editor }: { editor: Editor }) {
         1.≡
       </ToolbarButton>
       <span className="mx-1 h-4 w-px bg-mist" />
+      <label
+        title="글자 색상"
+        className="relative flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-bold text-inktext hover:bg-mist"
+      >
+        A
+        <span
+          className="pointer-events-none absolute inset-x-1 bottom-0.5 h-1 rounded-sm"
+          style={{ backgroundColor: editor.getAttributes("textStyle").color || "#00000000" }}
+        />
+        <input
+          type="color"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          value={editor.getAttributes("textStyle").color || "#000000"}
+          onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+        />
+      </label>
+      <ToolbarButton label="색상 지우기" onClick={() => editor.chain().focus().unsetColor().run()}>
+        지우기
+      </ToolbarButton>
+      <span className="mx-1 h-4 w-px bg-mist" />
       <ToolbarButton
         label="표 삽입"
         onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
@@ -124,6 +146,8 @@ export function RichTextEditor({ value, onChange }: { value: string; onChange: (
     extensions: [
       StarterKit,
       Underline,
+      TextStyle,
+      Color,
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,

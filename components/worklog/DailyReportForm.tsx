@@ -102,39 +102,32 @@ export function DailyReportForm({
         return;
       }
 
-      let finalAttachments = attachments;
-      if (!reportId && pendingFiles.length > 0) {
+      let finalAttachments = result.report.attachments;
+      if (pendingFiles.length > 0) {
         const uploaded: DailyReportAttachment[] = [];
         const failedNames: string[] = [];
         for (const file of pendingFiles) {
           const formData = new FormData();
           formData.append("file", file);
-          const uploadResult = await addReportAttachment(result.id, formData);
+          const uploadResult = await addReportAttachment(result.report.id, formData);
           if (uploadResult.ok) {
             uploaded.push(uploadResult.attachment);
           } else {
             failedNames.push(file.name);
           }
         }
-        finalAttachments = [...attachments, ...uploaded];
+        finalAttachments = [...finalAttachments, ...uploaded];
         if (failedNames.length > 0) {
           setError(`업무일지는 저장됐지만 다음 첨부파일 업로드에 실패했습니다: ${failedNames.join(", ")}`);
         }
       }
 
-      onSaved({
-        id: result.id,
-        report_date: reportDate,
-        visited_customers: visitedCustomers,
-        content,
-        notes,
-        status: "submitted",
-        attachments: finalAttachments,
-      });
+      onSaved({ ...result.report, attachments: finalAttachments });
 
       if (report === null) {
         // 새 항목을 저장한 경우: 이 항목을 계속 수정하는 모드로 남지 않고,
         // 다음 항목을 바로 이어서 쓸 수 있도록 폼을 비운다.
+        // (같은 날짜에 이미 작성한 내용이 있었다면 서버에서 이어붙여 저장되었다.)
         setReportId(null);
         setReportDate(todayISO());
         setVisitedCustomers("");
@@ -146,7 +139,7 @@ export function DailyReportForm({
         return;
       }
 
-      setReportId(result.id);
+      setReportId(result.report.id);
       setStatus("submitted");
       setAttachments(finalAttachments);
       setPendingFiles([]);

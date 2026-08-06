@@ -51,9 +51,8 @@ export function WorklogEntryCard({
 
   return (
     <li className="border-b border-mist px-4 py-3 last:border-b-0">
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-sm font-medium text-inktext">{entry.reportDate}</span>
-        {hasTitle && (
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        {hasTitle ? (
           <label className="flex min-w-0 cursor-pointer items-center gap-1.5">
             <input
               type="checkbox"
@@ -61,9 +60,12 @@ export function WorklogEntryCard({
               checked={titleChecked}
               onChange={() => setTitleChecked((v) => !v)}
             />
-            <span className="truncate text-xs text-muted">{entry.visitedCustomers}</span>
+            <span className="truncate text-sm font-medium text-inktext">{entry.visitedCustomers}</span>
           </label>
+        ) : (
+          <span />
         )}
+        <span className="shrink-0 text-xs text-muted">{entry.reportDate}</span>
       </div>
       <div className="mb-2 rounded-md border border-mist bg-salt px-3 py-2">
         {entry.content ? <RichTextViewer html={entry.content} /> : <p className="text-xs text-muted">내용 없음</p>}

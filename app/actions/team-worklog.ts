@@ -35,10 +35,6 @@ export type TeamReportRow = {
   attachments: TeamReportAttachment[];
 };
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 async function getLeaderSelf(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
@@ -64,7 +60,7 @@ export async function getLeaderRoster(): Promise<{
   const self = await getLeaderSelf(supabase);
   if (!self) return { teamLabel: "", reportsToTeam: null, roster: [] };
 
-  const today = todayISO();
+  const sinceDate = sevenDaysAgoISO();
 
   const { data: members } = await supabase
     .from("profiles")
@@ -79,7 +75,7 @@ export async function getLeaderRoster(): Promise<{
     ? await supabase
         .from("daily_reports")
         .select("author_id, status")
-        .eq("report_date", today)
+        .gte("report_date", sinceDate)
         .in("author_id", memberIds)
     : { data: [] as { author_id: string; status: string }[] };
 
@@ -117,7 +113,7 @@ export async function getLeaderRoster(): Promise<{
       ? await supabase
           .from("team_daily_reports")
           .select("author_id, status")
-          .eq("report_date", today)
+          .gte("report_date", sinceDate)
           .in("author_id", leaderIds)
       : { data: [] as { author_id: string; status: string }[] };
     const teamSubmittedCounts = new Map<string, number>();
