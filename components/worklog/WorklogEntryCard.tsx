@@ -21,12 +21,20 @@ export function WorklogEntryCard({
   onAddSelected,
 }: {
   entry: RecentEntry;
-  onAddSelected: (lines: string[], attachments: RecentEntryAttachment[]) => void;
+  onAddSelected: (lines: string[], attachments: RecentEntryAttachment[], title: string | null) => void;
 }) {
   const lines = (entry.content ?? "").split("\n").filter((line) => line.trim().length > 0);
+  const hasTitle = Boolean(entry.visitedCustomers);
+  const [titleChecked, setTitleChecked] = useState(false);
   const [checkedLines, setCheckedLines] = useState<boolean[]>(() => lines.map(() => false));
   const [checkedAttachments, setCheckedAttachments] = useState<boolean[]>(() => entry.attachments.map(() => false));
   const [openingId, setOpeningId] = useState<string | null>(null);
+
+  function toggleTitle() {
+    const next = !titleChecked;
+    setTitleChecked(next);
+    setCheckedLines(lines.map(() => next));
+  }
 
   function toggleLine(i: number) {
     setCheckedLines((prev) => prev.map((v, idx) => (idx === i ? !v : v)));
@@ -47,14 +55,19 @@ export function WorklogEntryCard({
     const selectedLines = lines.filter((_, i) => checkedLines[i]);
     const selectedAttachments = entry.attachments.filter((_, i) => checkedAttachments[i]);
     if (selectedLines.length === 0 && selectedAttachments.length === 0) return;
-    onAddSelected(selectedLines, selectedAttachments);
+    onAddSelected(selectedLines, selectedAttachments, titleChecked ? entry.visitedCustomers : null);
   }
 
   return (
     <li className="border-b border-mist px-4 py-3 last:border-b-0">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-sm font-medium text-inktext">{entry.reportDate}</span>
-        {entry.visitedCustomers && <span className="truncate text-xs text-muted">{entry.visitedCustomers}</span>}
+        {hasTitle && (
+          <label className="flex min-w-0 cursor-pointer items-center gap-1.5">
+            <input type="checkbox" className="accent-crimson" checked={titleChecked} onChange={toggleTitle} />
+            <span className="truncate text-xs text-muted">{entry.visitedCustomers}</span>
+          </label>
+        )}
       </div>
       {lines.length > 0 ? (
         <div className="mb-2 space-y-1">

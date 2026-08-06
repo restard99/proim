@@ -99,9 +99,15 @@ export function LeaderAggregateView({
     });
   }
 
-  function handleAddSelected(entryDate: string, lines: string[], selectedAttachments: RecentEntryAttachment[]) {
+  function handleAddSelected(
+    entryDate: string,
+    lines: string[],
+    selectedAttachments: RecentEntryAttachment[],
+    title: string | null,
+  ) {
     if (lines.length > 0) {
-      setContent((prev) => `${prev}${prev ? "\n\n" : ""}${lines.join("\n")}\n(${entryDate})`);
+      const block = title ? `${title}(${entryDate}) - ${lines.join(" / ")}` : `${lines.join("\n")}\n(${entryDate})`;
+      setContent((prev) => `${prev}${prev ? "\n\n" : ""}${block}`);
     }
     if (selectedAttachments.length > 0) {
       setPendingAttachments((prev) => {
@@ -280,7 +286,7 @@ export function LeaderAggregateView({
               <WorklogEntryCard
                 key={entry.id}
                 entry={entry}
-                onAddSelected={(lines, atts) => handleAddSelected(entry.reportDate, lines, atts)}
+                onAddSelected={(lines, atts, title) => handleAddSelected(entry.reportDate, lines, atts, title)}
               />
             ))}
           </ul>
