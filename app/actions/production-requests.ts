@@ -8,6 +8,7 @@ import {
   type ProductionRequestSubItem,
   type ProductionRequestTotals,
 } from "@/lib/production-requests/parse";
+import { getMaterialStatusForItems, type ProductMaterialStatus } from "@/lib/yerp/production-materials";
 
 const BUCKET = "production-requests";
 const MAX_SIZE = 15 * 1024 * 1024;
@@ -196,6 +197,17 @@ export async function getProductionRequestDetail(id: string): Promise<Production
     sub_items: data.sub_items ?? [],
     totals: data.totals ?? null,
   };
+}
+
+export async function getProductionMaterialStatus(
+  items: ProductionRequestItem[],
+): Promise<Record<string, ProductMaterialStatus>> {
+  const supabase = await createClient();
+  const self = await getSelf(supabase);
+  if (!self) return {};
+
+  const query = items.map((it) => ({ name: it.name, qty: Number(it.count) || 0 }));
+  return getMaterialStatusForItems(query);
 }
 
 export async function getProductionRequestFileUrl(path: string): Promise<string | null> {

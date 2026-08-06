@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   deleteProductionRequest,
+  getProductionMaterialStatus,
   getProductionRequestDetail,
   getProductionRequestFileUrl,
   getProductionRequestList,
@@ -12,6 +13,7 @@ import {
   type ProductionRequestListRow,
 } from "@/app/actions/production-requests";
 import type { ProductionRequestFieldKey, ProductionRequestItem } from "@/lib/production-requests/parse";
+import type { ProductMaterialStatus } from "@/lib/yerp/production-materials";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -44,6 +46,25 @@ const CELL_CLASS = "whitespace-nowrap px-3 py-2 leading-tight";
 
 type EditableFieldKey = ProductionRequestFieldKey | "remark";
 
+function formatQty(n: number) {
+  return Math.round(n).toLocaleString("ko-KR");
+}
+
+function MaterialStatusDot({ status }: { status: ProductMaterialStatus | undefined }) {
+  if (!status || status.matchType !== "matched" || status.materials.length === 0) {
+    const title =
+      status?.matchType === "ambiguous"
+        ? "품목 후보가 여러 개라 자동 확인 불가 (클릭해서 확인)"
+        : "Y-ERP 품목과 매칭되지 않아 확인 불가";
+    return <span className="inline-block h-2.5 w-2.5 rounded-full bg-mist" title={title} />;
+  }
+  return status.allSufficient ? (
+    <span className="inline-block h-2.5 w-2.5 rounded-full bg-brine" title="부자재 넉넉함" />
+  ) : (
+    <span className="inline-block h-2.5 w-2.5 rounded-full bg-crimson" title="부자재 부족/애매함" />
+  );
+}
+
 export function ProductionRequestView({ canManage }: { canManage: boolean }) {
   const [list, setList] = useState<ProductionRequestListRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -61,6 +82,9 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftItems, setDraftItems] = useState<ProductionRequestItem[]>([]);
 
+  const [materialMap, setMaterialMap] = useState<Record<string, ProductMaterialStatus>>({});
+  const [materialModalName, setMaterialModalName] = useState<string | null>(null);
+
   function refreshList(selectAfter?: string) {
     startListTransition(async () => {
       const rows = await getProductionRequestList();
@@ -76,12 +100,17 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
   useEffect(() => {
     startDetailTransition(async () => {
       setIsEditing(false);
+      setMaterialMap({});
       if (!selectedId) {
         setDetail(null);
         return;
       }
       const d = await getProductionRequestDetail(selectedId);
       setDetail(d);
+      if (d) {
+        const materials = await getProductionMaterialStatus(d.items);
+        setMaterialMap(materials);
+      }
     });
   }, [selectedId]);
 
@@ -276,7 +305,8 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                           {c.label}
                         </th>
                       ))}
-                      <th className="whitespace-nowrap border-l border-mist px-3 py-2 font-medium">비고</th>
+                      <th className="whitespace-nowrap border-l border-mist px-3 py-2 font-medium">부자재</th>
+                      <th className="w-[90px] border-l border-mist px-3 py-2 font-medium">비고</th>
                     </tr>
                   </thead>
                   {!isEditing && (
@@ -297,11 +327,31 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                                     c.align === "right" ? "font-mono" : ""
                                   } ${c.key === "name" ? "font-medium" : ""}`}
                                 >
-                                  {c.align === "right" && !isMergeStart ? formatNumberText(item[c.key]) : item[c.key]}
+                                  {c.key === "name" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setMaterialModalName(item.name)}
+                                      className="text-crimson hover:underline"
+                                    >
+                                      {item.name}
+                                    </button>
+                                  ) : c.align === "right" && !isMergeStart ? (
+                                    formatNumberText(item[c.key])
+                                  ) : (
+                                    item[c.key]
+                                  )}
                                 </td>
                               );
                             })}
-                            <td className={`${CELL_CLASS} border-l border-mist text-center align-middle`}>{item.remark}</td>
+                            <td className={`${CELL_CLASS} border-l border-mist text-center align-middle`}>
+                              <MaterialStatusDot status={materialMap[item.name]} />
+                            </td>
+                            <td
+                              className={`${CELL_CLASS} w-[90px] max-w-[90px] truncate border-l border-mist text-center align-middle`}
+                              title={item.remark}
+                            >
+                              {item.remark}
+                            </td>
                           </tr>
                         );
                       })}
@@ -323,12 +373,15 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                               />
                             </td>
                           ))}
-                          <td className="px-1.5 py-1.5">
+                          <td className="px-1.5 py-1.5 text-center">
+                            <MaterialStatusDot status={materialMap[item.name]} />
+                          </td>
+                          <td className="w-[90px] px-1.5 py-1.5">
                             <input
                               type="text"
                               value={item.remark}
                               onChange={(e) => updateDraftField(i, "remark", e.target.value)}
-                              className="w-full min-w-[120px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30"
+                              className="w-full min-w-[70px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30"
                             />
                           </td>
                         </tr>
@@ -344,7 +397,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                         <td className={`${CELL_CLASS} border-l border-mist`} />
                         <td className={`${CELL_CLASS} border-l border-mist font-mono`}>{formatNumberText(detail.totals.weightKg)}</td>
                         <td className={`${CELL_CLASS} border-l border-mist font-mono`}>{formatNumberText(detail.totals.pl)}</td>
-                        <td colSpan={5} className={`${CELL_CLASS} border-l border-mist`} />
+                        <td colSpan={6} className={`${CELL_CLASS} border-l border-mist`} />
                       </tr>
                     </tfoot>
                   )}
@@ -380,6 +433,89 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
           </>
         )}
       </div>
+
+      {materialModalName && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setMaterialModalName(null)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-inktext">{materialModalName} — 부자재 현황</h3>
+              <button
+                type="button"
+                onClick={() => setMaterialModalName(null)}
+                className="text-muted hover:text-inktext"
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+            {(() => {
+              const status = materialMap[materialModalName];
+              if (!status || status.matchType === "unmatched") {
+                return (
+                  <p className="text-sm text-muted">Y-ERP 품목과 매칭되지 않아 부자재 현황을 확인할 수 없습니다.</p>
+                );
+              }
+              if (status.matchType === "ambiguous") {
+                return (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted">
+                      품목명 후보가 여러 개라 자동으로 판단할 수 없습니다. Y-ERP 품목명 중 하나로 확인해주세요.
+                    </p>
+                    <ul className="list-inside list-disc text-sm text-inktext">
+                      {status.candidateNames.map((n) => (
+                        <li key={n}>{n}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              }
+              if (status.materials.length === 0) {
+                return (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted">매칭된 품목: {status.matchedItemName}</p>
+                    <p className="text-sm text-muted">등록된 부자재 BOM이 없습니다.</p>
+                  </div>
+                );
+              }
+              return (
+                <>
+                <p className="mb-2 text-xs text-muted">매칭된 품목: {status.matchedItemName}</p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-mist text-left text-xs text-muted">
+                      <th className="py-2 font-medium">부자재명</th>
+                      <th className="py-2 text-right font-medium">소요량</th>
+                      <th className="py-2 text-right font-medium">재고</th>
+                      <th className="py-2 text-center font-medium">상태</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-mist">
+                    {status.materials.map((m) => (
+                      <tr key={m.itemCode}>
+                        <td className="py-2">{m.itemName}</td>
+                        <td className="py-2 text-right font-mono">{formatQty(m.requiredQty)}</td>
+                        <td className="py-2 text-right font-mono">{formatQty(m.availableQty)}</td>
+                        <td className="py-2 text-center">
+                          <span
+                            className={`inline-block h-2.5 w-2.5 rounded-full ${m.sufficient ? "bg-brine" : "bg-crimson"}`}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
