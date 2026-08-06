@@ -1,5 +1,6 @@
 import "server-only";
 import { yerpQuery } from "./client";
+import { sortByPriorityCustomer } from "./customer-sort";
 
 const CORP_CODE = "0460";
 
@@ -41,12 +42,15 @@ export async function getSalesByCustomer(params: {
     },
   );
 
-  return rows.map((r) => ({
-    customerCode: r.CUST_CD,
-    customerName: r.CUST_NM ?? r.CUST_CD,
-    amount: Number(r.AMOUNT ?? 0),
-    lastTradeDate: r.LAST_DT,
-  }));
+  return sortByPriorityCustomer(
+    rows.map((r) => ({
+      customerCode: r.CUST_CD,
+      customerName: r.CUST_NM ?? r.CUST_CD,
+      amount: Number(r.AMOUNT ?? 0),
+      lastTradeDate: r.LAST_DT,
+    })),
+    (a, b) => b.amount - a.amount,
+  );
 }
 
 export async function getSalesTotal(params: {

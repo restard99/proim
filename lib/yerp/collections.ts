@@ -1,5 +1,6 @@
 import "server-only";
 import { yerpQuery } from "./client";
+import { sortByPriorityCustomer } from "./customer-sort";
 
 const CORP_CODE = "0460";
 // 회계 담당자가 수금 전용 화면 대신 일반전표에 직접 분개하는 관행이라,
@@ -103,8 +104,7 @@ export async function getCollectionsByCustomer(params: {
     });
   }
 
-  result.sort((a, b) => b.balance - a.balance);
-  return result;
+  return sortByPriorityCustomer(result, (a, b) => b.balance - a.balance);
 }
 
 export type CollectionLedgerEntry = {
