@@ -102,14 +102,14 @@ function ProfileFooter({ userName, userTeam, interactive }: { userName: string; 
         <button
           type="submit"
           title="로그아웃"
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/5"
+          className="flex w-full items-start gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/5"
         >
           {body}
         </button>
       </form>
     );
   }
-  return <div className="mx-3 mb-3 flex items-center gap-3 px-3 py-3">{body}</div>;
+  return <div className="mx-3 mb-3 flex items-start gap-3 px-3 py-3">{body}</div>;
 }
 
 export function AppShell({
