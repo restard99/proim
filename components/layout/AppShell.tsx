@@ -13,8 +13,8 @@ function isActive(pathname: string, href: string) {
 
 function LogoBadge() {
   return (
-    <span className="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
-      <Image src="/logo.png" alt="태평염전 로고" width={403} height={143} className="h-8 w-auto" />
+    <span className="inline-flex items-center rounded-md bg-white px-4 py-3 shadow-sm shadow-black/20 w-fit">
+      <Image src="/logo.png" alt="태평염전 로고" width={403} height={143} className="h-14 w-auto" />
     </span>
   );
 }
