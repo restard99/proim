@@ -15,7 +15,8 @@ import {
 } from "@/app/actions/team-worklog";
 import { getAttachmentUrl } from "@/app/actions/attachments";
 import type { DailyReportRow } from "@/app/actions/worklog";
-import { RecentEntryAccordionItem } from "./RecentEntryAccordionItem";
+import { WorklogEntryCard } from "./WorklogEntryCard";
+import { SubmissionHistoryList } from "./SubmissionHistoryList";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -84,7 +85,7 @@ export function LeaderAggregateView({
   const [personEntries, setPersonEntries] = useState<RecentEntry[]>([]);
   const [isLoadingPerson, startPersonTransition] = useTransition();
 
-  const panelTitle = selectedPerson ? `${selectedPerson.name} · 최근 제출내역(1주)` : "내 업무일지";
+  const panelTitle = selectedPerson ? `${selectedPerson.name} · 금주 업무내용` : "내 금주 업무내용";
   const panelEntries = selectedPerson ? personEntries : ownEntries;
 
   const memberCount = initialRoster.filter((r) => r.kind === "member").length;
@@ -274,9 +275,9 @@ export function LeaderAggregateView({
             {selectedPerson ? "최근 제출 내역이 없습니다." : "작성한 업무일지가 없습니다."}
           </p>
         ) : (
-          <ul>
+          <ul className="max-h-[70vh] overflow-y-auto">
             {panelEntries.map((entry) => (
-              <RecentEntryAccordionItem
+              <WorklogEntryCard
                 key={entry.id}
                 entry={entry}
                 onAddSelected={(lines, atts) => handleAddSelected(entry.reportDate, lines, atts)}
@@ -392,27 +393,7 @@ export function LeaderAggregateView({
         </div>
 
         {/* 제출내역: 종합보고서 상신 이력 (위 작성 중인 오늘자 보고서와는 별도 목록) */}
-        <div className="overflow-hidden rounded-lg border border-mist bg-white">
-          <div className="border-b border-mist px-4 py-3.5 text-sm font-semibold text-inktext">제출내역</div>
-          {submissionHistory.length === 0 ? (
-            <p className="px-4 py-6 text-center text-xs text-muted">제출한 종합 보고서가 없습니다.</p>
-          ) : (
-            <ul className="divide-y divide-mist">
-              {submissionHistory.map((r) => (
-                <li key={r.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-inktext">{r.report_date}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      r.status === "submitted" ? "bg-brine/10 text-brine" : "bg-mist text-muted"
-                    }`}
-                  >
-                    {r.status === "submitted" ? "상신완료" : "미저장"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <SubmissionHistoryList rows={submissionHistory} />
       </div>
     </div>
   );
