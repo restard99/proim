@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { SaveResult, SaveReportResult } from "@/app/actions/worklog";
 
 export type RosterEntry =
-  | { id: string; name: string; kind: "member"; submittedToday: boolean }
-  | { id: string; name: string; kind: "team"; team: string; submittedToday: boolean };
+  | { id: string; name: string; kind: "member"; submittedCount: number }
+  | { id: string; name: string; kind: "team"; team: string; submittedCount: number };
 
 export type RecentEntryAttachment = { id: string; path: string; name: string };
 
@@ -83,15 +83,17 @@ export async function getLeaderRoster(): Promise<{
         .in("author_id", memberIds)
     : { data: [] as { author_id: string; status: string }[] };
 
-  const submittedSet = new Set(
-    (todayReports ?? []).filter((r) => r.status === "submitted").map((r) => r.author_id),
-  );
+  const submittedCounts = new Map<string, number>();
+  for (const r of todayReports ?? []) {
+    if (r.status !== "submitted") continue;
+    submittedCounts.set(r.author_id, (submittedCounts.get(r.author_id) ?? 0) + 1);
+  }
 
   const memberEntries: RosterEntry[] = (members ?? []).map((m) => ({
     id: m.id,
     name: m.full_name ?? "",
     kind: "member",
-    submittedToday: submittedSet.has(m.id),
+    submittedCount: submittedCounts.get(m.id) ?? 0,
   }));
 
   const { data: downstream } = await supabase
@@ -118,16 +120,18 @@ export async function getLeaderRoster(): Promise<{
           .eq("report_date", today)
           .in("author_id", leaderIds)
       : { data: [] as { author_id: string; status: string }[] };
-    const teamSubmittedSet = new Set(
-      (teamReportsToday ?? []).filter((r) => r.status === "submitted").map((r) => r.author_id),
-    );
+    const teamSubmittedCounts = new Map<string, number>();
+    for (const r of teamReportsToday ?? []) {
+      if (r.status !== "submitted") continue;
+      teamSubmittedCounts.set(r.author_id, (teamSubmittedCounts.get(r.author_id) ?? 0) + 1);
+    }
 
     upstreamEntries = (leaders ?? []).map((l) => ({
       id: l.id,
       name: l.full_name ?? "",
       kind: "team",
       team: l.team ?? "",
-      submittedToday: teamSubmittedSet.has(l.id),
+      submittedCount: teamSubmittedCounts.get(l.id) ?? 0,
     }));
   }
 

@@ -90,7 +90,7 @@ export function LeaderAggregateView({
   const panelEntries = selectedPerson ? personEntries : ownEntries;
 
   const memberCount = initialRoster.filter((r) => r.kind === "member").length;
-  const memberSubmitted = initialRoster.filter((r) => r.kind === "member" && r.submittedToday).length;
+  const memberSubmitted = initialRoster.filter((r) => r.kind === "member" && r.submittedCount > 0).length;
 
   function handleSelectPerson(person: RosterEntry) {
     setSelectedPerson(person);
@@ -244,10 +244,10 @@ export function LeaderAggregateView({
                 </span>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    person.submittedToday ? "bg-brine/10 text-brine" : "bg-mist text-muted"
+                    person.submittedCount > 0 ? "bg-brine/10 text-brine" : "bg-mist text-muted"
                   }`}
                 >
-                  {person.submittedToday ? (person.kind === "team" ? "상신완료" : "제출") : "미제출"}
+                  {person.submittedCount}건
                 </span>
               </div>
             </li>
