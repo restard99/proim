@@ -270,22 +270,19 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1100px] text-sm">
                   <thead>
-                    <tr className="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+                    <tr className="border-b border-mist bg-mist/40 text-center text-xs text-muted">
                       {COLUMNS.map((c) => (
-                        <th
-                          key={c.key}
-                          className={`whitespace-nowrap px-3 py-2 font-medium ${c.align === "right" ? "text-right" : "text-left"}`}
-                        >
+                        <th key={c.key} className="whitespace-nowrap border-l border-mist px-3 py-2 font-medium first:border-l-0">
                           {c.label}
                         </th>
                       ))}
-                      <th className="whitespace-nowrap px-3 py-2 font-medium">비고</th>
+                      <th className="whitespace-nowrap border-l border-mist px-3 py-2 font-medium">비고</th>
                     </tr>
                   </thead>
                   {!isEditing && (
                     <tbody className="divide-y divide-mist">
                       {detail.items.map((item, i) => {
-                        const rowRedClass = item.isRed ? "text-crimsond font-medium" : "";
+                        const rowRedClass = item.isRed ? "text-crimsond font-semibold" : "text-inktext";
                         return (
                           <tr key={i} className={rowRedClass}>
                             {COLUMNS.map((c) => {
@@ -296,15 +293,15 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                                   key={c.key}
                                   colSpan={isMergeStart ? item.merge!.colSpan : undefined}
                                   rowSpan={isMergeStart ? item.merge!.rowSpan : undefined}
-                                  className={`${CELL_CLASS} ${c.align === "right" ? "text-right font-mono" : "text-muted"} ${
-                                    c.key === "name" ? "font-medium text-inktext" : ""
-                                  } ${isMergeStart ? "text-center align-middle text-inktext" : ""}`}
+                                  className={`${CELL_CLASS} border-l border-mist text-center align-middle first:border-l-0 ${
+                                    c.align === "right" ? "font-mono" : ""
+                                  } ${c.key === "name" ? "font-medium" : ""}`}
                                 >
                                   {c.align === "right" && !isMergeStart ? formatNumberText(item[c.key]) : item[c.key]}
                                 </td>
                               );
                             })}
-                            <td className={`${CELL_CLASS} text-muted`}>{item.remark}</td>
+                            <td className={`${CELL_CLASS} border-l border-mist text-center align-middle`}>{item.remark}</td>
                           </tr>
                         );
                       })}
@@ -340,14 +337,14 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                   )}
                   {!isEditing && detail.totals && (
                     <tfoot>
-                      <tr className="border-t border-mist bg-mist/40 font-semibold text-inktext">
-                        <td className={CELL_CLASS}>소계</td>
-                        <td className={`${CELL_CLASS} text-right font-mono`}>{formatNumberText(detail.totals.count)}</td>
-                        <td className={CELL_CLASS} />
-                        <td className={CELL_CLASS} />
-                        <td className={`${CELL_CLASS} text-right font-mono`}>{formatNumberText(detail.totals.weightKg)}</td>
-                        <td className={`${CELL_CLASS} text-right font-mono`}>{formatNumberText(detail.totals.pl)}</td>
-                        <td colSpan={5} className={CELL_CLASS} />
+                      <tr className="border-t border-mist bg-mist/40 text-center font-semibold text-inktext">
+                        <td className={`${CELL_CLASS} border-l border-mist first:border-l-0`}>소계</td>
+                        <td className={`${CELL_CLASS} border-l border-mist font-mono`}>{formatNumberText(detail.totals.count)}</td>
+                        <td className={`${CELL_CLASS} border-l border-mist`} />
+                        <td className={`${CELL_CLASS} border-l border-mist`} />
+                        <td className={`${CELL_CLASS} border-l border-mist font-mono`}>{formatNumberText(detail.totals.weightKg)}</td>
+                        <td className={`${CELL_CLASS} border-l border-mist font-mono`}>{formatNumberText(detail.totals.pl)}</td>
+                        <td colSpan={5} className={`${CELL_CLASS} border-l border-mist`} />
                       </tr>
                     </tfoot>
                   )}
@@ -363,16 +360,16 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[400px] text-sm">
                     <thead>
-                      <tr className="border-b border-mist bg-mist/40 text-left text-xs text-muted">
-                        <th className="whitespace-nowrap px-3 py-2 font-medium">반제품명</th>
-                        <th className="whitespace-nowrap px-3 py-2 text-right font-medium">의뢰량(kg)</th>
+                      <tr className="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                        <th className="whitespace-nowrap border-l border-mist px-3 py-2 font-medium first:border-l-0">반제품명</th>
+                        <th className="whitespace-nowrap border-l border-mist px-3 py-2 font-medium">의뢰량(kg)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-mist">
                       {detail.sub_items.map((s, i) => (
-                        <tr key={i}>
-                          <td className={`${CELL_CLASS} text-inktext`}>{s.name}</td>
-                          <td className={`${CELL_CLASS} text-right font-mono`}>{formatNumberText(s.amountKg)}</td>
+                        <tr key={i} className="text-center text-inktext">
+                          <td className={`${CELL_CLASS} border-l border-mist first:border-l-0`}>{s.name}</td>
+                          <td className={`${CELL_CLASS} border-l border-mist font-mono`}>{formatNumberText(s.amountKg)}</td>
                         </tr>
                       ))}
                     </tbody>

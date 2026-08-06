@@ -20,6 +20,10 @@ export async function getYerpPool(): Promise<sql.ConnectionPool> {
     database: requireEnv("MSSQL_DATABASE"),
     user: requireEnv("MSSQL_USER"),
     password: requireEnv("MSSQL_PASSWORD"),
+    // 연간 목표대비 조회처럼 1년치를 통째로 집계하는 쿼리는 mssql 기본값(15초)을
+    // 넘기는 경우가 있어 여유를 둔다.
+    requestTimeout: 60000,
+    connectionTimeout: 30000,
     options: {
       trustServerCertificate: true,
       encrypt: false,

@@ -124,7 +124,7 @@ export function SalesByCustomerView() {
       : null;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+    <div className="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
       <div className="inline-flex flex-wrap gap-1 rounded-lg border border-mist bg-white p-1">
         {PERIOD_TABS.map((tab) => (
           <button

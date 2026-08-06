@@ -37,7 +37,7 @@ export function CollectionsView() {
   }, [start, end, search]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+    <div className="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="text-sm text-muted">기준월</label>
