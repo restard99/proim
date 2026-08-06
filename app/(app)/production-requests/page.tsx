@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canViewInventory } from "@/components/layout/nav-items";
-import { InventoryView } from "@/components/inventory/InventoryView";
+import { ProductionRequestView } from "@/components/inventory/ProductionRequestView";
 
-export default async function InventoryPage() {
+export default async function ProductionRequestsPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -15,5 +15,11 @@ export default async function InventoryPage() {
 
   if (!canViewInventory(profile.team, profile.role)) redirect("/");
 
-  return <InventoryView />;
+  const canManage = profile.role === "admin" || (profile.team === "영업채산팀" && profile.role === "leader");
+
+  return (
+    <div className="max-w-7xl px-5 py-8 lg:px-8">
+      <ProductionRequestView canManage={canManage} />
+    </div>
+  );
 }

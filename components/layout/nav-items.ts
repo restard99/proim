@@ -50,6 +50,13 @@ export const INVENTORY_NAV_ITEMS: NavItem[] = [
       "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
     evenOdd: false,
   },
+  {
+    href: "/production-requests",
+    label: "생산의뢰서",
+    iconPath:
+      "M5 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.828a2 2 0 0 0-.586-1.414l-3.828-3.828A2 2 0 0 0 11.172 2H5Zm1 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H6Zm0 4a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z",
+    evenOdd: true,
+  },
 ];
 
 // 거래처별 매출/수금현황: 영업팀 전체, 영업채산팀은 팀장만

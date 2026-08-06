@@ -54,6 +54,10 @@ async function getSelf(supabase: Awaited<ReturnType<typeof createClient>>) {
   };
 }
 
+function canManage(self: { team: string; role: string }): boolean {
+  return self.role === "admin" || (self.team === "영업채산팀" && self.role === "leader");
+}
+
 export async function uploadProductionRequest(requestDate: string, formData: FormData): Promise<UploadResult> {
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -69,7 +73,7 @@ export async function uploadProductionRequest(requestDate: string, formData: For
   const supabase = await createClient();
   const self = await getSelf(supabase);
   if (!self) return { ok: false, message: "로그인이 필요합니다." };
-  if (self.role !== "admin" && !(self.team === "영업채산팀" && self.role === "leader")) {
+  if (!canManage(self)) {
     return { ok: false, message: "업로드 권한이 없습니다." };
   }
 
@@ -113,8 +117,23 @@ export async function uploadProductionRequest(requestDate: string, formData: For
     return { ok: false, message: "저장 중 오류가 발생했습니다." };
   }
 
-  revalidatePath("/inventory");
+  revalidatePath("/production-requests");
   return { ok: true, id: data.id };
+}
+
+export async function updateProductionRequestItems(id: string, items: ProductionRequestItem[]): Promise<SaveResult> {
+  const supabase = await createClient();
+  const self = await getSelf(supabase);
+  if (!self) return { ok: false, message: "로그인이 필요합니다." };
+  if (!canManage(self)) {
+    return { ok: false, message: "수정 권한이 없습니다." };
+  }
+
+  const { error } = await supabase.from("production_requests").update({ items }).eq("id", id);
+  if (error) return { ok: false, message: "저장 중 오류가 발생했습니다." };
+
+  revalidatePath("/production-requests");
+  return { ok: true };
 }
 
 export async function getProductionRequestList(limit = 30): Promise<ProductionRequestListRow[]> {
@@ -158,7 +177,22 @@ export async function getProductionRequestDetail(id: string): Promise<Production
     request_date: data.request_date,
     file_name: data.file_name,
     file_path: data.file_path,
-    items: data.items ?? [],
+    items: ((data.items ?? []) as Partial<ProductionRequestItem>[]).map((it) => ({
+      name: it.name ?? "",
+      count: it.count ?? "",
+      pack: it.pack ?? "",
+      boxes: it.boxes ?? "",
+      weightKg: it.weightKg ?? "",
+      pl: it.pl ?? "",
+      eaPerPl: it.eaPerPl ?? "",
+      note: it.note ?? "",
+      loadType: it.loadType ?? "",
+      dueDate: it.dueDate ?? "",
+      remark: it.remark ?? "",
+      isRed: it.isRed ?? false,
+      merge: it.merge ?? null,
+      mergeSkip: it.mergeSkip ?? [],
+    })),
     sub_items: data.sub_items ?? [],
     totals: data.totals ?? null,
   };
@@ -182,7 +216,7 @@ export async function deleteProductionRequest(id: string): Promise<SaveResult> {
     .eq("id", id)
     .single();
   if (!row) return { ok: false, message: "삭제할 항목을 찾을 수 없습니다." };
-  if (row.uploaded_by !== self.userId && self.role !== "admin") {
+  if (!canManage(self)) {
     return { ok: false, message: "삭제 권한이 없습니다." };
   }
 
@@ -191,6 +225,6 @@ export async function deleteProductionRequest(id: string): Promise<SaveResult> {
 
   await supabase.storage.from(BUCKET).remove([row.file_path]);
 
-  revalidatePath("/inventory");
+  revalidatePath("/production-requests");
   return { ok: true };
 }

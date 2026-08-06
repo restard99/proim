@@ -6,10 +6,12 @@ import {
   getProductionRequestDetail,
   getProductionRequestFileUrl,
   getProductionRequestList,
+  updateProductionRequestItems,
   uploadProductionRequest,
   type ProductionRequestDetail,
   type ProductionRequestListRow,
 } from "@/app/actions/production-requests";
+import type { ProductionRequestFieldKey, ProductionRequestItem } from "@/lib/production-requests/parse";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -19,7 +21,24 @@ function todayISO() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export function ProductionRequestView({ canUpload }: { canUpload: boolean }) {
+const COLUMNS: { key: ProductionRequestFieldKey; label: string; align: "left" | "right" }[] = [
+  { key: "name", label: "제품명", align: "left" },
+  { key: "count", label: "낱개수", align: "right" },
+  { key: "pack", label: "입수", align: "right" },
+  { key: "boxes", label: "박스수", align: "right" },
+  { key: "weightKg", label: "중량(kg)", align: "right" },
+  { key: "pl", label: "PL", align: "right" },
+  { key: "eaPerPl", label: "EA/PL", align: "right" },
+  { key: "note", label: "특이사항", align: "left" },
+  { key: "loadType", label: "적재방식", align: "left" },
+  { key: "dueDate", label: "완료요청일", align: "left" },
+];
+
+const CELL_CLASS = "whitespace-nowrap px-3 py-2 leading-tight";
+
+type EditableFieldKey = ProductionRequestFieldKey | "remark";
+
+export function ProductionRequestView({ canManage }: { canManage: boolean }) {
   const [list, setList] = useState<ProductionRequestListRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProductionRequestDetail | null>(null);
@@ -29,8 +48,12 @@ export function ProductionRequestView({ canUpload }: { canUpload: boolean }) {
   const [isUploading, startUploadTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
   const [isLoadingDetail, startDetailTransition] = useTransition();
+  const [isSaving, startSaveTransition] = useTransition();
   const [openingFile, setOpeningFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftItems, setDraftItems] = useState<ProductionRequestItem[]>([]);
 
   function refreshList(selectAfter?: string) {
     startListTransition(async () => {
@@ -46,6 +69,7 @@ export function ProductionRequestView({ canUpload }: { canUpload: boolean }) {
 
   useEffect(() => {
     startDetailTransition(async () => {
+      setIsEditing(false);
       if (!selectedId) {
         setDetail(null);
         return;
@@ -96,10 +120,38 @@ export function ProductionRequestView({ canUpload }: { canUpload: boolean }) {
     if (url) window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  function startEdit() {
+    if (!detail) return;
+    setDraftItems(detail.items.map((it) => ({ ...it })));
+    setIsEditing(true);
+  }
+
+  function cancelEdit() {
+    setIsEditing(false);
+    setDraftItems([]);
+  }
+
+  function updateDraftField(index: number, field: EditableFieldKey, value: string) {
+    setDraftItems((prev) => prev.map((it, i) => (i === index ? { ...it, [field]: value } : it)));
+  }
+
+  function saveEdit() {
+    if (!detail) return;
+    startSaveTransition(async () => {
+      const result = await updateProductionRequestItems(detail.id, draftItems);
+      if (!result.ok) {
+        window.alert(result.message);
+        return;
+      }
+      setDetail({ ...detail, items: draftItems });
+      setIsEditing(false);
+    });
+  }
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
       <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
-        {canUpload && (
+        {canManage && (
           <div className="space-y-2 border-b border-mist px-4 py-3.5">
             <label className="block text-xs font-medium text-muted">의뢰일자</label>
             <input
@@ -163,7 +215,36 @@ export function ProductionRequestView({ canUpload }: { canUpload: boolean }) {
                 >
                   원본 파일 열기
                 </button>
-                {canUpload && (
+                {canManage && !isEditing && (
+                  <button
+                    type="button"
+                    onClick={startEdit}
+                    className="rounded-md border border-mist px-3 py-1.5 text-xs font-medium text-inktext hover:bg-mist/50"
+                  >
+                    수정
+                  </button>
+                )}
+                {canManage && isEditing && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={isSaving}
+                      className="rounded-md border border-mist px-3 py-1.5 text-xs font-medium text-inktext hover:bg-mist/50 disabled:opacity-50"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      disabled={isSaving}
+                      className="rounded-md bg-crimson px-3 py-1.5 text-xs font-medium text-salt hover:bg-crimsond disabled:opacity-50"
+                    >
+                      저장
+                    </button>
+                  </>
+                )}
+                {canManage && !isEditing && (
                   <button
                     type="button"
                     onClick={handleDelete}
@@ -184,46 +265,83 @@ export function ProductionRequestView({ canUpload }: { canUpload: boolean }) {
                 <table className="w-full min-w-[1100px] text-sm">
                   <thead>
                     <tr className="border-b border-mist bg-mist/40 text-left text-xs text-muted">
-                      <th className="px-3 py-2.5 font-medium">제품명</th>
-                      <th className="px-3 py-2.5 text-right font-medium">낱개수</th>
-                      <th className="px-3 py-2.5 text-right font-medium">입수</th>
-                      <th className="px-3 py-2.5 text-right font-medium">박스수</th>
-                      <th className="px-3 py-2.5 text-right font-medium">중량(kg)</th>
-                      <th className="px-3 py-2.5 text-right font-medium">PL</th>
-                      <th className="px-3 py-2.5 text-right font-medium">EA/PL</th>
-                      <th className="px-3 py-2.5 font-medium">특이사항</th>
-                      <th className="px-3 py-2.5 font-medium">적재방식</th>
-                      <th className="px-3 py-2.5 font-medium">완료요청일</th>
-                      <th className="px-3 py-2.5 font-medium">비고</th>
+                      {COLUMNS.map((c) => (
+                        <th
+                          key={c.key}
+                          className={`whitespace-nowrap px-3 py-2 font-medium ${c.align === "right" ? "text-right" : "text-left"}`}
+                        >
+                          {c.label}
+                        </th>
+                      ))}
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">비고</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-mist">
-                    {detail.items.map((item, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2.5 font-medium text-inktext">{item.name}</td>
-                        <td className="px-3 py-2.5 text-right font-mono">{item.count}</td>
-                        <td className="px-3 py-2.5 text-right font-mono">{item.pack}</td>
-                        <td className="px-3 py-2.5 text-right font-mono">{item.boxes}</td>
-                        <td className="px-3 py-2.5 text-right font-mono">{item.weightKg}</td>
-                        <td className="px-3 py-2.5 text-right font-mono">{item.pl}</td>
-                        <td className="px-3 py-2.5 text-right font-mono">{item.eaPerPl}</td>
-                        <td className="px-3 py-2.5 text-muted">{item.note}</td>
-                        <td className="px-3 py-2.5 text-muted">{item.loadType}</td>
-                        <td className="px-3 py-2.5 text-muted">{item.dueDate}</td>
-                        <td className="px-3 py-2.5 text-muted">{item.remark}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  {detail.totals && (
+                  {!isEditing && (
+                    <tbody className="divide-y divide-mist">
+                      {detail.items.map((item, i) => {
+                        const rowRedClass = item.isRed ? "text-crimsond font-medium" : "";
+                        return (
+                          <tr key={i} className={rowRedClass}>
+                            {COLUMNS.map((c) => {
+                              if (item.mergeSkip.includes(c.key)) return null;
+                              const isMergeStart = item.merge?.field === c.key;
+                              return (
+                                <td
+                                  key={c.key}
+                                  colSpan={isMergeStart ? item.merge!.colSpan : undefined}
+                                  rowSpan={isMergeStart ? item.merge!.rowSpan : undefined}
+                                  className={`${CELL_CLASS} ${c.align === "right" ? "text-right font-mono" : "text-muted"} ${
+                                    c.key === "name" ? "font-medium text-inktext" : ""
+                                  } ${isMergeStart ? "text-center align-middle text-inktext" : ""}`}
+                                >
+                                  {item[c.key]}
+                                </td>
+                              );
+                            })}
+                            <td className={`${CELL_CLASS} text-muted`}>{item.remark}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  )}
+                  {isEditing && (
+                    <tbody className="divide-y divide-mist">
+                      {draftItems.map((item, i) => (
+                        <tr key={i}>
+                          {COLUMNS.map((c) => (
+                            <td key={c.key} className="px-1.5 py-1.5">
+                              <input
+                                type="text"
+                                value={item[c.key]}
+                                onChange={(e) => updateDraftField(i, c.key, e.target.value)}
+                                className={`w-full min-w-[64px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30 ${
+                                  c.align === "right" ? "text-right font-mono" : ""
+                                }`}
+                              />
+                            </td>
+                          ))}
+                          <td className="px-1.5 py-1.5">
+                            <input
+                              type="text"
+                              value={item.remark}
+                              onChange={(e) => updateDraftField(i, "remark", e.target.value)}
+                              className="w-full min-w-[120px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  )}
+                  {!isEditing && detail.totals && (
                     <tfoot>
                       <tr className="border-t border-mist bg-mist/40 font-semibold text-inktext">
-                        <td className="px-3 py-2.5">소계</td>
-                        <td className="px-3 py-2.5 text-right font-mono">{detail.totals.count}</td>
-                        <td className="px-3 py-2.5" />
-                        <td className="px-3 py-2.5" />
-                        <td className="px-3 py-2.5 text-right font-mono">{detail.totals.weightKg}</td>
-                        <td className="px-3 py-2.5 text-right font-mono">{detail.totals.pl}</td>
-                        <td colSpan={5} className="px-3 py-2.5" />
+                        <td className={CELL_CLASS}>소계</td>
+                        <td className={`${CELL_CLASS} text-right font-mono`}>{detail.totals.count}</td>
+                        <td className={CELL_CLASS} />
+                        <td className={CELL_CLASS} />
+                        <td className={`${CELL_CLASS} text-right font-mono`}>{detail.totals.weightKg}</td>
+                        <td className={`${CELL_CLASS} text-right font-mono`}>{detail.totals.pl}</td>
+                        <td colSpan={5} className={CELL_CLASS} />
                       </tr>
                     </tfoot>
                   )}
@@ -240,15 +358,15 @@ export function ProductionRequestView({ canUpload }: { canUpload: boolean }) {
                   <table className="w-full min-w-[400px] text-sm">
                     <thead>
                       <tr className="border-b border-mist bg-mist/40 text-left text-xs text-muted">
-                        <th className="px-3 py-2.5 font-medium">반제품명</th>
-                        <th className="px-3 py-2.5 text-right font-medium">의뢰량(kg)</th>
+                        <th className="whitespace-nowrap px-3 py-2 font-medium">반제품명</th>
+                        <th className="whitespace-nowrap px-3 py-2 text-right font-medium">의뢰량(kg)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-mist">
                       {detail.sub_items.map((s, i) => (
                         <tr key={i}>
-                          <td className="px-3 py-2.5 text-inktext">{s.name}</td>
-                          <td className="px-3 py-2.5 text-right font-mono">{s.amountKg}</td>
+                          <td className={`${CELL_CLASS} text-inktext`}>{s.name}</td>
+                          <td className={`${CELL_CLASS} text-right font-mono`}>{s.amountKg}</td>
                         </tr>
                       ))}
                     </tbody>

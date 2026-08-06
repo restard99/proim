@@ -365,10 +365,30 @@ CREATE POLICY "production_requests_leader_insert" ON production_requests
     )
   );
 
--- 삭제는 업로드한 본인 또는 관리자만
+-- 수정(엑셀 파싱 결과 보정)과 삭제는 영업채산팀장 또는 관리자만
 DROP POLICY IF EXISTS "production_requests_uploader_delete" ON production_requests;
-CREATE POLICY "production_requests_uploader_delete" ON production_requests
-  FOR DELETE USING ( uploaded_by = auth.uid() OR public.is_tenant_admin(tenant_id) );
+DROP POLICY IF EXISTS "production_requests_leader_delete" ON production_requests;
+CREATE POLICY "production_requests_leader_delete" ON production_requests
+  FOR DELETE USING (
+    public.is_tenant_admin(tenant_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '영업채산팀' AND p.role = 'leader')
+  );
+
+DROP POLICY IF EXISTS "production_requests_leader_update" ON production_requests;
+CREATE POLICY "production_requests_leader_update" ON production_requests
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '영업채산팀' AND p.role = 'leader')
+    )
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '영업채산팀' AND p.role = 'leader')
+    )
+  );
 
 CREATE INDEX IF NOT EXISTS production_requests_tenant_date_idx ON production_requests(tenant_id, request_date DESC);
 

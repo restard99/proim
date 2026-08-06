@@ -1,6 +1,26 @@
 import "server-only";
 import ExcelJS from "exceljs";
 
+const FIELD_KEYS = [
+  "name",
+  "count",
+  "pack",
+  "boxes",
+  "weightKg",
+  "pl",
+  "eaPerPl",
+  "note",
+  "loadType",
+  "dueDate",
+] as const;
+export type ProductionRequestFieldKey = (typeof FIELD_KEYS)[number];
+
+export type ProductionRequestMerge = {
+  field: ProductionRequestFieldKey;
+  colSpan: number;
+  rowSpan: number;
+};
+
 export type ProductionRequestItem = {
   name: string;
   count: string;
@@ -13,6 +33,9 @@ export type ProductionRequestItem = {
   loadType: string;
   dueDate: string;
   remark: string;
+  isRed: boolean;
+  merge: ProductionRequestMerge | null;
+  mergeSkip: ProductionRequestFieldKey[];
 };
 
 export type ProductionRequestSubItem = {
@@ -35,6 +58,7 @@ export type ParsedProductionRequest = {
 const HEADER_LABEL = "제품명";
 const SUB_HEADER_LABEL = "반제품명";
 const MAX_COL = 15;
+const RED_ARGB = "FFFF0000";
 
 function numText(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
@@ -59,6 +83,31 @@ function cellText(cell: ExcelJS.Cell): string {
 
 function isBlankRow(texts: string[]): boolean {
   return texts.every((t) => t.trim() === "");
+}
+
+function isRedFont(cell: ExcelJS.Cell): boolean {
+  const color = cell.style?.font?.color as { argb?: string } | undefined;
+  return color?.argb?.toUpperCase() === RED_ARGB;
+}
+
+function colLetterToNumber(letters: string): number {
+  let n = 0;
+  for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n;
+}
+
+function parseA1Range(range: string): { r1: number; c1: number; r2: number; c2: number } | null {
+  const [a, b] = range.split(":");
+  const m1 = a.match(/^([A-Z]+)(\d+)$/);
+  if (!m1) return null;
+  const m2 = (b ?? a).match(/^([A-Z]+)(\d+)$/);
+  if (!m2) return null;
+  return {
+    r1: Number(m1[2]),
+    c1: colLetterToNumber(m1[1]),
+    r2: Number(m2[2]),
+    c2: colLetterToNumber(m2[1]),
+  };
 }
 
 export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<ParsedProductionRequest> {
@@ -86,10 +135,11 @@ export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<Pa
   }
   if (headerRow === -1) return { items: [], subItems: [], totals: null };
 
-  const items: ProductionRequestItem[] = [];
+  const itemsByRow = new Map<number, ProductionRequestItem>();
   let totals: ProductionRequestTotals | null = null;
   let subHeaderRow = -1;
   let cursor = headerRow + 1;
+  let lastItemRow = headerRow;
 
   for (; cursor <= ws.rowCount; cursor++) {
     const t = rowTexts(cursor);
@@ -103,7 +153,7 @@ export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<Pa
       subHeaderRow = cursor;
       break;
     }
-    items.push({
+    itemsByRow.set(cursor, {
       name: t[0],
       count: t[1],
       pack: t[2],
@@ -115,8 +165,47 @@ export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<Pa
       loadType: t[8],
       dueDate: t[9],
       remark: t.slice(10).filter(Boolean).join(" / "),
+      isRed: isRedFont(ws.getRow(cursor).getCell(1)),
+      merge: null,
+      mergeSkip: [],
     });
+    lastItemRow = cursor;
   }
+
+  // 원본 엑셀에서 여러 셀을 병합해 하나의 특이사항으로 강조 표기한 부분을
+  // 동일하게 재현하기 위해, 제품 항목 영역(헤더~마지막 항목 행) 안에 걸친
+  // 병합 범위만 골라 각 항목에 병합 정보를 붙인다.
+  const merges = (ws.model.merges ?? []) as string[];
+  for (const rangeStr of merges) {
+    const range = parseA1Range(rangeStr);
+    if (!range) continue;
+    const { r1, c1, r2, c2 } = range;
+    if (r1 < headerRow + 1 || r2 > lastItemRow) continue;
+    if (c1 < 1 || c2 > FIELD_KEYS.length) continue;
+    if (r1 === r2 && c1 === c2) continue;
+
+    const topItem = itemsByRow.get(r1);
+    if (!topItem) continue;
+
+    topItem.merge = {
+      field: FIELD_KEYS[c1 - 1],
+      colSpan: c2 - c1 + 1,
+      rowSpan: r2 - r1 + 1,
+    };
+
+    for (let r = r1; r <= r2; r++) {
+      const item = itemsByRow.get(r);
+      if (!item) continue;
+      for (let c = c1; c <= c2; c++) {
+        if (r === r1 && c === c1) continue;
+        item.mergeSkip.push(FIELD_KEYS[c - 1]);
+      }
+    }
+  }
+
+  const items = [...itemsByRow.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, item]) => item);
 
   if (subHeaderRow === -1) {
     for (; cursor <= ws.rowCount; cursor++) {
