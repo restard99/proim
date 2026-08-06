@@ -39,7 +39,7 @@ export function AuthBrandPanel({ headline, tagline, className = "" }: AuthBrandP
         <p className="text-sm text-sand/90">{tagline}</p>
       </div>
 
-      <p className="relative z-10 text-xs text-salt/40">© 태평염전. 사내 전용 시스템입니다.</p>
+      <p className="relative z-10 text-xs text-salt/40">© 소금사업부 사내전용 시스템입니다.</p>
     </aside>
   );
 }
