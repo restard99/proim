@@ -1,6 +1,6 @@
 # TASK-001: Supabase 스키마 — 아티팩트
 
-## 상태: 완료 (Supabase 대시보드에서 실행 필요)
+## 상태: 배포 완료
 
 ## 구현 내용
 영업부 업무일지 취합/상신과 연간 매출 목표 관리를 위한 테이블 4개(`team_hierarchy`, `daily_reports`, `team_daily_reports`, `sales_targets`)와 RLS 정책을 `schema.sql`에 추가했다. `seed.sql`에는 영업채산팀 → 영업팀 보고 라인 예외 시드를 추가했다.
