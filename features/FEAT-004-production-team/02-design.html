@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>생산팀 화면 — 디자인 목업 (FEAT-004)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: "#14283A",
+          ink2: "#0F1F2E",
+          brine: "#1E6B72",
+          crimson: "#8B2942",
+          crimsond: "#6E1F33",
+          sand: "#C9B896",
+          salt: "#FAF8F3",
+          mist: "#EFEAE1",
+          inktext: "#1F2A33",
+          muted: "#5B6B74",
+        },
+      },
+    },
+  };
+</script>
+</head>
+<body class="bg-salt text-inktext">
+
+<div class="flex min-h-screen">
+  <!-- 사이드바 -->
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 8.5V18h5v-6h6v6h5V8.5L10 2Z"/></svg>
+        홈
+      </a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M6 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1V3a1 1 0 0 1 1-1Zm10 6H4v8h12V8Z"/></svg>
+        일정관리
+      </a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M5 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.828a2 2 0 0 0-.586-1.414l-3.828-3.828A2 2 0 0 0 11.172 2H5Zm1 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H6Zm0 4a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z"/></svg>
+        업무일지
+      </a>
+
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">생산팀</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M5 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.828a2 2 0 0 0-.586-1.414l-3.828-3.828A2 2 0 0 0 11.172 2H5Zm1 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H6Zm0 4a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z"/></svg>
+        생산계획서
+      </a>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z"/></svg>
+        생산일지
+      </a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-start gap-3 px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left">
+        <p class="text-sm font-medium text-salt">김생산</p>
+        <p class="text-xs text-salt/50">생산팀 · 팀원</p>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="flex items-center justify-between border-b border-mist bg-white px-5 py-4 lg:px-8">
+      <h1 class="text-lg font-semibold text-inktext">생산일지</h1>
+      <div class="flex items-center gap-2 text-sm">
+        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-mist text-xs font-medium text-inktext">김</div>
+        <span class="hidden font-medium text-inktext sm:inline">김생산</span>
+      </div>
+    </header>
+
+    <main class="flex-1 bg-salt px-5 py-8 lg:px-8 space-y-10">
+
+      <!-- ============ 상태 1: 기본 (업로드 목록 + 탭별 조회) ============ -->
+      <section>
+        <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
+          상태: 기본 — "태평소금 공정별 일일 생산현황_26년 1월.xlsx" 실제 데이터 예시
+        </p>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+          <!-- 왼쪽: 업로드 + 목록 -->
+          <div class="h-fit overflow-hidden rounded-lg border border-mist bg-white">
+            <div class="space-y-2 border-b border-mist px-4 py-3.5">
+              <label class="block text-xs font-medium text-muted">업로드</label>
+              <input type="file"
+                class="w-full rounded-md border border-mist px-3 py-2 text-sm text-muted outline-none file:mr-3 file:rounded-md file:border-0 file:bg-mist file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-inktext" />
+              <p class="text-xs text-muted/70">엑셀(.xlsx)을 올리면 안에 있는 공정별 탭이 오른쪽에 그대로 나타납니다.</p>
+            </div>
+            <div class="px-4 py-3 text-sm font-semibold text-inktext">생산일지 목록</div>
+            <ul class="divide-y divide-mist text-sm">
+              <li class="cursor-pointer border-l-2 border-crimson bg-crimson/5 px-4 py-3">
+                <p class="font-medium text-inktext">2026년 1월</p>
+                <p class="mt-0.5 text-xs text-muted">태평소금 공정별 일일 생산현황_26년 1월.xlsx</p>
+                <p class="mt-0.5 text-xs text-muted/70">박생산 · 2026.02.02 업로드</p>
+              </li>
+              <li class="cursor-pointer px-4 py-3 hover:bg-mist/40">
+                <p class="font-medium text-inktext">2025년 12월</p>
+                <p class="mt-0.5 text-xs text-muted">태평소금 공정별 일일 생산현황_25년 12월.xlsx</p>
+                <p class="mt-0.5 text-xs text-muted/70">김생산 · 2026.01.03 업로드</p>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 오른쪽: 공정별 탭 + 표 -->
+          <div class="space-y-3">
+            <div class="flex flex-wrap gap-1 rounded-lg border border-mist bg-white p-1 text-xs">
+              <span class="rounded-md bg-ink px-3 py-1.5 font-medium text-salt">가공 및 선별 공정</span>
+              <span class="rounded-md px-3 py-1.5 font-medium text-muted hover:bg-mist">포장 공정</span>
+              <span class="rounded-md px-3 py-1.5 font-medium text-muted hover:bg-mist">3공장</span>
+              <span class="rounded-md px-3 py-1.5 font-medium text-muted hover:bg-mist">세척로스율</span>
+              <span class="rounded-md px-3 py-1.5 font-medium text-muted hover:bg-mist">포장 공정(로스율측정자료)</span>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <div class="overflow-x-auto">
+                <table class="w-full whitespace-nowrap text-xs">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-left text-muted">
+                      <th class="px-3 py-2 font-medium">작업일</th>
+                      <th class="px-3 py-2 font-medium">공정명</th>
+                      <th class="px-3 py-2 font-medium">시작시간</th>
+                      <th class="px-3 py-2 font-medium">종료시간</th>
+                      <th class="px-3 py-2 text-right font-medium">총근무시간</th>
+                      <th class="px-3 py-2 text-right font-medium">실근무시간</th>
+                      <th class="px-3 py-2 text-right font-medium">정지시간</th>
+                      <th class="px-3 py-2 text-right font-medium">준비</th>
+                      <th class="px-3 py-2 text-right font-medium">휴게</th>
+                      <th class="px-3 py-2 text-right font-medium">청소</th>
+                      <th class="px-3 py-2 text-right font-medium">고장</th>
+                      <th class="px-3 py-2 text-right font-medium">기타</th>
+                      <th class="px-3 py-2 text-right font-medium">잔업시간</th>
+                      <th class="px-3 py-2 text-right font-medium">투입인원</th>
+                      <th class="px-3 py-2 font-medium">투입품명</th>
+                      <th class="px-3 py-2 text-right font-medium">투입수량</th>
+                      <th class="px-3 py-2 text-right font-medium">톤백중량</th>
+                      <th class="px-3 py-2 text-right font-medium">투입량</th>
+                      <th class="px-3 py-2 text-right font-medium">자연로스량</th>
+                      <th class="px-3 py-2 text-right font-medium">자연로스율</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist">
+                    <tr>
+                      <td class="px-3 py-2">2026.01.02.금</td><td class="px-3 py-2">분쇄</td>
+                      <td class="px-3 py-2 text-muted">06:00</td><td class="px-3 py-2 text-muted">06:00</td>
+                      <td class="px-3 py-2 text-right font-mono">390</td><td class="px-3 py-2 text-right font-mono">315</td>
+                      <td class="px-3 py-2 text-right font-mono">75</td><td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">60</td><td class="px-3 py-2 text-right font-mono">15</td>
+                      <td class="px-3 py-2 text-right font-mono">0</td><td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">-150</td><td class="px-3 py-2 text-right font-mono">2</td>
+                      <td class="px-3 py-2">건조염외1</td><td class="px-3 py-2 text-right font-mono">11</td>
+                      <td class="px-3 py-2 text-right font-mono">6,832</td><td class="px-3 py-2 text-right font-mono">6,832</td>
+                      <td class="px-3 py-2 text-right font-mono text-muted">-</td><td class="px-3 py-2 text-right font-mono text-muted">-</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2">2026.01.02.금</td><td class="px-3 py-2">킬른건조</td>
+                      <td class="px-3 py-2 text-muted">06:00</td><td class="px-3 py-2 text-muted">14:30</td>
+                      <td class="px-3 py-2 text-right font-mono">510</td><td class="px-3 py-2 text-right font-mono">420</td>
+                      <td class="px-3 py-2 text-right font-mono">90</td><td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">60</td><td class="px-3 py-2 text-right font-mono">30</td>
+                      <td class="px-3 py-2 text-right font-mono">0</td><td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">-30</td><td class="px-3 py-2 text-right font-mono">2</td>
+                      <td class="px-3 py-2">분쇄천일염</td><td class="px-3 py-2 text-right font-mono">14</td>
+                      <td class="px-3 py-2 text-right font-mono">8,078</td><td class="px-3 py-2 text-right font-mono">8,078</td>
+                      <td class="px-3 py-2 text-right font-mono text-muted">-</td><td class="px-3 py-2 text-right font-mono text-muted">-</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2">2026.01.02.금</td><td class="px-3 py-2">2차선별 #2</td>
+                      <td class="px-3 py-2 text-muted">06:00</td><td class="px-3 py-2 text-muted">06:00</td>
+                      <td class="px-3 py-2 text-right font-mono">200</td><td class="px-3 py-2 text-right font-mono">200</td>
+                      <td class="px-3 py-2 text-right font-mono text-muted">-</td><td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">0</td><td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">0</td><td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">-340</td><td class="px-3 py-2 text-right font-mono">3</td>
+                      <td class="px-3 py-2">#14이하꽃소금</td><td class="px-3 py-2 text-right font-mono">5</td>
+                      <td class="px-3 py-2 text-right font-mono">2,851</td><td class="px-3 py-2 text-right font-mono">2,851</td>
+                      <td class="px-3 py-2 text-right font-mono text-muted">-</td><td class="px-3 py-2 text-right font-mono text-muted">-</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="border-t border-mist bg-salt px-3 py-2 text-xs text-muted">
+                138건 더 있음 — 표는 원본 엑셀의 헤더(3번째 행)를 그대로 컬럼으로 사용하며, 탭마다 컬럼 구성이 다릅니다.
+              </div>
+            </div>
+            <p class="text-xs text-muted/70">
+              ※ 원본 엑셀의 시작/종료시간은 날짜 서식 오류가 섞여 있어(예: 1899.12.30), 개발 단계에서 시:분 형식으로 정리합니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 상태 2: 빈 상태 ============ -->
+      <section>
+        <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">상태: 빈 상태 (아직 업로드된 생산일지 없음)</p>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+          <div class="h-fit overflow-hidden rounded-lg border border-mist bg-white">
+            <div class="px-4 py-3 text-sm font-semibold text-inktext">생산일지 목록</div>
+            <ul class="divide-y divide-mist">
+              <li class="px-4 py-6 text-center text-xs text-muted">등록된 생산일지가 없습니다.</li>
+            </ul>
+          </div>
+          <div class="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+            <svg class="mx-auto mb-3 h-8 w-8 text-mist" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z"/></svg>
+            <p class="text-sm text-muted">왼쪽에서 생산일지 엑셀을 업로드해주세요.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 상태 3: 오류 ============ -->
+      <section>
+        <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">상태: 오류</p>
+        <div class="rounded-lg border border-crimson/30 bg-crimson/5 px-4 py-3 text-sm text-crimsond">
+          엑셀 파일을 읽는 중 오류가 발생했습니다. 양식을 확인해주세요.
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+</body>
+</html>
