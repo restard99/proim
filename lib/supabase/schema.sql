@@ -453,3 +453,70 @@ CREATE POLICY "team_daily_report_attachments_upstream_select" ON team_daily_repo
 
 CREATE INDEX IF NOT EXISTS team_daily_report_attachments_report_id_idx
   ON team_daily_report_attachments(team_report_id);
+
+-- ============================================================
+-- FEAT-004-production-team: 생산일지 (생산팀이 매월 올리는 공정별 실적 엑셀을 그대로 보관)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS production_logs (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id),
+  uploaded_by   UUID NOT NULL REFERENCES profiles(id),
+  team          TEXT NOT NULL,
+  period_label  TEXT NOT NULL,
+  file_path     TEXT NOT NULL,
+  file_name     TEXT NOT NULL,
+  sheets        JSONB NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE production_logs ENABLE ROW LEVEL SECURITY;
+
+-- 같은 테넌트의 생산팀(팀원+팀장) + 관리자는 조회 가능
+DROP POLICY IF EXISTS "production_logs_team_select" ON production_logs;
+CREATE POLICY "production_logs_team_select" ON production_logs
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '생산팀')
+    )
+  );
+
+-- 업로드는 생산팀 소속이면 팀원/팀장 구분 없이 누구나 + 관리자
+DROP POLICY IF EXISTS "production_logs_team_insert" ON production_logs;
+CREATE POLICY "production_logs_team_insert" ON production_logs
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND uploaded_by = auth.uid()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '생산팀')
+    )
+  );
+
+-- 삭제는 본인이 올린 것 또는 관리자만 (수정 기능은 없음 — UPDATE 정책 없음)
+DROP POLICY IF EXISTS "production_logs_self_delete" ON production_logs;
+CREATE POLICY "production_logs_self_delete" ON production_logs
+  FOR DELETE USING (
+    uploaded_by = auth.uid() OR public.is_tenant_admin(tenant_id)
+  );
+
+CREATE INDEX IF NOT EXISTS production_logs_tenant_period_idx ON production_logs(tenant_id, period_label DESC);
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('production-logs', 'production-logs', false)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "production_logs_insert_own" ON storage.objects;
+CREATE POLICY "production_logs_insert_own" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'production-logs' AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+DROP POLICY IF EXISTS "production_logs_select_authenticated" ON storage.objects;
+CREATE POLICY "production_logs_select_authenticated" ON storage.objects
+  FOR SELECT USING ( bucket_id = 'production-logs' AND auth.role() = 'authenticated' );
+DROP POLICY IF EXISTS "production_logs_delete_own" ON storage.objects;
+CREATE POLICY "production_logs_delete_own" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'production-logs' AND (storage.foldername(name))[1] = auth.uid()::text
+  );
