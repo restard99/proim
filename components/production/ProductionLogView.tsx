@@ -15,6 +15,7 @@ import {
   type ProductionTrendPoint,
 } from "@/app/actions/production-logs";
 import { computeProcessEfficiency } from "@/lib/production-logs/efficiency";
+import { PRODUCTIVITY_2026_SNAPSHOT } from "@/lib/production-logs/productivity-2026-snapshot";
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -118,6 +119,60 @@ function StatCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-mist bg-white p-3">
       <p className="text-xs text-muted">{label}</p>
       <p className="mt-1 text-lg font-semibold text-inktext">{value}</p>
+    </div>
+  );
+}
+
+function formatMaybeHours(n: number | null): string {
+  return n === null ? "-" : formatHours(n);
+}
+
+// 업무보고 파일(주간_월간_업무보고_2026.08.09.xlsx)의 "인당생산성" 시트 26년 블록을
+// 한 번 그대로 옮겨온 임시 스냅샷 표. 자동 갱신되지 않으며, 화면 구조는 추후 다시 설계 예정.
+function Productivity2026SnapshotTable() {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-inktext">2026년 인당생산성 (참고자료 스냅샷)</h3>
+        <span className="rounded-full bg-mist px-2 py-0.5 text-xs text-muted">수동 입력 · 자동 갱신 안 됨</span>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-mist bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full whitespace-nowrap text-xs">
+            <thead>
+              <tr className="border-b border-mist bg-mist/40 text-left text-muted">
+                <th className="px-3 py-2 font-medium">구분</th>
+                <th className="px-3 py-2 text-right font-medium">천일염(kg)</th>
+                <th className="px-3 py-2 text-right font-medium">가공염(kg)</th>
+                <th className="px-3 py-2 text-right font-medium">계(kg)</th>
+                <th className="px-3 py-2 text-right font-medium">생산인원</th>
+                <th className="px-3 py-2 text-right font-medium">근무일수</th>
+                <th className="px-3 py-2 text-right font-medium">정기근로시간</th>
+                <th className="px-3 py-2 text-right font-medium">인당월생산량</th>
+                <th className="px-3 py-2 text-right font-medium">인당일생산량</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-mist">
+              {PRODUCTIVITY_2026_SNAPSHOT.map((r) => (
+                <tr key={r.month} className={r.month === "계" || r.month === "평균" ? "bg-salt font-medium" : ""}>
+                  <td className="px-3 py-2 font-medium text-inktext">{r.month}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMaybeHours(r.cheonilYeom)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMaybeHours(r.gagongYeom)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMaybeHours(r.total)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMaybeHours(r.workers)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMaybeHours(r.workDays)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMaybeHours(r.regularHours)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMaybeHours(r.perMonth)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatMaybeHours(r.perDay)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p className="text-xs text-muted/70">
+        ※ 2026.08.09자 업무보고 파일의 인당생산성(26년) 표를 그대로 옮긴 임시 스냅샷입니다. 이후 화면 구조는 다시 설계할 예정입니다.
+      </p>
     </div>
   );
 }
@@ -319,6 +374,8 @@ function TrendView() {
         ※ 왼쪽부터 오래된 기간 순입니다. 막대는 인당 투입량을 선택한 기간 범위 내 최댓값 대비 상대 크기로 표시합니다.
         투입량/인당 투입량은 생산일지의 &quot;투입량&quot;·&quot;투입인원&quot; 컬럼 기준 근사치입니다.
       </p>
+
+      <Productivity2026SnapshotTable />
     </div>
   );
 }
