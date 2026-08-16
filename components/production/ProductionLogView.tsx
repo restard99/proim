@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   deleteProductionLog,
+  getProductionEfficiency,
   getProductionLogDetail,
   getProductionLogFileUrl,
   getProductionLogList,
   uploadProductionLog,
+  type ProcessEfficiency,
   type ProductionLogDetail,
   type ProductionLogListRow,
 } from "@/app/actions/production-logs";
@@ -17,7 +19,93 @@ function formatDateTime(iso: string): string {
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
 }
 
+function formatHours(n: number): string {
+  return n.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+}
+
+function EfficiencyView() {
+  const [rows, setRows] = useState<ProcessEfficiency[] | null>(null);
+  const [isLoading, startTransition] = useTransition();
+
+  useEffect(() => {
+    startTransition(async () => {
+      setRows(await getProductionEfficiency());
+    });
+  }, []);
+
+  if (isLoading && rows === null) {
+    return (
+      <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+        <p className="text-sm text-muted">불러오는 중…</p>
+      </div>
+    );
+  }
+
+  if (!rows || rows.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+        <p className="text-sm text-muted">
+          가동률을 계산할 수 있는 생산일지가 없습니다. (&quot;총근무시간&quot;·&quot;실근무시간&quot; 컬럼이 있는 탭이 필요합니다)
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted/70">
+        지금까지 업로드된 모든 생산일지를 공정별로 누적 집계한 값입니다. (기간 필터 없음)
+      </p>
+      <div className="overflow-hidden rounded-lg border border-mist bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full whitespace-nowrap text-xs">
+            <thead>
+              <tr className="border-b border-mist bg-mist/40 text-left text-muted">
+                <th className="px-3 py-2 font-medium">공정</th>
+                <th className="px-3 py-2 text-right font-medium">총근무시간</th>
+                <th className="px-3 py-2 text-right font-medium">실근무시간</th>
+                <th className="px-3 py-2 font-medium">가동률</th>
+                <th className="px-3 py-2 text-right font-medium">준비</th>
+                <th className="px-3 py-2 text-right font-medium">휴게</th>
+                <th className="px-3 py-2 text-right font-medium">청소</th>
+                <th className="px-3 py-2 text-right font-medium">고장</th>
+                <th className="px-3 py-2 text-right font-medium">기타</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-mist">
+              {rows.map((r) => (
+                <tr key={r.processName}>
+                  <td className="px-3 py-2 font-medium text-inktext">{r.processName}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalHours)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatHours(r.actualHours)}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-mist">
+                        <div
+                          className="h-full rounded-full bg-brine"
+                          style={{ width: `${Math.min(100, r.utilizationPct)}%` }}
+                        />
+                      </div>
+                      <span className="font-mono text-inktext">{r.utilizationPct.toFixed(1)}%</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.prepHours)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.restHours)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.cleanHours)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.breakdownHours)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.etcHours)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: string; isAdmin: boolean }) {
+  const [mode, setMode] = useState<"logs" | "efficiency">("logs");
   const [list, setList] = useState<ProductionLogListRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProductionLogDetail | null>(null);
@@ -99,7 +187,32 @@ export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: s
   const sheet = detail?.sheets[activeSheet] ?? null;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+    <div className="space-y-4">
+      <div className="inline-flex gap-1 rounded-lg border border-mist bg-white p-1">
+        <button
+          type="button"
+          onClick={() => setMode("logs")}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            mode === "logs" ? "bg-ink text-salt" : "text-muted"
+          }`}
+        >
+          생산일지 조회
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("efficiency")}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            mode === "efficiency" ? "bg-ink text-salt" : "text-muted"
+          }`}
+        >
+          생산효율
+        </button>
+      </div>
+
+      {mode === "efficiency" ? (
+        <EfficiencyView />
+      ) : (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
       <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
         <div className="space-y-2 border-b border-mist px-4 py-3.5">
           <label className="block text-xs font-medium text-muted">업로드</label>
@@ -221,8 +334,10 @@ export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: s
               ※ 표는 원본 엑셀의 헤더(3번째 행)를 그대로 컬럼으로 사용하며, 탭마다 컬럼 구성이 다릅니다.
             </p>
           </>
-        )}
-      </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

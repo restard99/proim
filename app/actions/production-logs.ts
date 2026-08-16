@@ -27,6 +27,27 @@ export type ProductionLogDetail = {
 export type UploadResult = { ok: true; id: string } | { ok: false; message: string };
 export type SaveResult = { ok: true } | { ok: false; message: string };
 
+export type ProcessEfficiency = {
+  processName: string;
+  totalHours: number;
+  actualHours: number;
+  utilizationPct: number;
+  stopHours: number;
+  prepHours: number;
+  restHours: number;
+  cleanHours: number;
+  breakdownHours: number;
+  etcHours: number;
+};
+
+const EFFICIENCY_REQUIRED_HEADERS = ["총근무시간", "실근무시간"];
+
+function parseNum(v: string | undefined): number {
+  if (!v) return 0;
+  const n = Number(v.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function getSelf(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
@@ -202,4 +223,58 @@ export async function deleteProductionLog(id: string): Promise<SaveResult> {
 
   revalidatePath("/production-logs");
   return { ok: true };
+}
+
+// 업로드된 모든 생산일지(여러 기간)를 누적 집계해 공정별 가동률(실근무시간÷총근무시간)과
+// 정지시간 구성을 계산한다. "총근무시간"·"실근무시간" 컬럼이 모두 있는 시트만 집계 대상으로
+// 삼아, 세척로스율 등 근무시간 데이터가 없는 시트는 자동으로 빠진다.
+export async function getProductionEfficiency(): Promise<ProcessEfficiency[]> {
+  const supabase = await createClient();
+  const self = await getSelf(supabase);
+  if (!self) return [];
+
+  const { data } = await supabase.from("production_logs").select("sheets");
+
+  const map = new Map<
+    string,
+    { totalHours: number; actualHours: number; stopHours: number; prepHours: number; restHours: number; cleanHours: number; breakdownHours: number; etcHours: number }
+  >();
+
+  for (const row of data ?? []) {
+    const sheets = (row.sheets ?? []) as ProductionLogSheet[];
+    for (const sheet of sheets) {
+      if (!EFFICIENCY_REQUIRED_HEADERS.every((h) => sheet.headers.includes(h))) continue;
+      const hasProcessCol = sheet.headers.includes("공정명");
+      for (const dataRow of sheet.rows) {
+        const key = hasProcessCol ? dataRow["공정명"] || "미상" : sheet.name;
+        const entry = map.get(key) ?? {
+          totalHours: 0,
+          actualHours: 0,
+          stopHours: 0,
+          prepHours: 0,
+          restHours: 0,
+          cleanHours: 0,
+          breakdownHours: 0,
+          etcHours: 0,
+        };
+        entry.totalHours += parseNum(dataRow["총근무시간"]);
+        entry.actualHours += parseNum(dataRow["실근무시간"]);
+        entry.stopHours += parseNum(dataRow["정지시간"]);
+        entry.prepHours += parseNum(dataRow["준비"]);
+        entry.restHours += parseNum(dataRow["휴게"]);
+        entry.cleanHours += parseNum(dataRow["청소"]);
+        entry.breakdownHours += parseNum(dataRow["고장"]);
+        entry.etcHours += parseNum(dataRow["기타"]);
+        map.set(key, entry);
+      }
+    }
+  }
+
+  return [...map.entries()]
+    .map(([processName, v]) => ({
+      processName,
+      ...v,
+      utilizationPct: v.totalHours > 0 ? (v.actualHours / v.totalHours) * 100 : 0,
+    }))
+    .sort((a, b) => b.utilizationPct - a.utilizationPct);
 }
