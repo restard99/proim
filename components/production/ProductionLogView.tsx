@@ -15,7 +15,7 @@ import {
   type ProductionTrendPoint,
 } from "@/app/actions/production-logs";
 import { computeProcessEfficiency } from "@/lib/production-logs/efficiency";
-import { PRODUCTIVITY_2026_SNAPSHOT } from "@/lib/production-logs/productivity-2026-snapshot";
+import { PRODUCTIVITY_2026_SNAPSHOT, PRODUCTION_ROSTER_JUNE_2026 } from "@/lib/production-logs/productivity-2026-snapshot";
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -172,6 +172,31 @@ function Productivity2026SnapshotTable() {
       </div>
       <p className="text-xs text-muted/70">
         ※ 2026.08.09자 업무보고 파일의 인당생산성(26년) 표를 그대로 옮긴 임시 스냅샷입니다. 이후 화면 구조는 다시 설계할 예정입니다.
+      </p>
+    </div>
+  );
+}
+
+// 같은 파일에 있던 월별 생산인원 명단 중, 데이터가 채워진 가장 최근 달(6월) 명단을
+// 그대로 옮긴 임시 리스트. 인원 교체가 있던 자리는 괄호로 표시된 새 이름 그대로 반영했다.
+function ProductionRosterList() {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-inktext">투입 생산인원 명단 (2026년 6월 기준)</h3>
+        <span className="rounded-full bg-mist px-2 py-0.5 text-xs text-muted">
+          {PRODUCTION_ROSTER_JUNE_2026.length}명 · 수동 입력
+        </span>
+      </div>
+      <ul className="grid grid-cols-2 gap-2 rounded-lg border border-mist bg-white p-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
+        {PRODUCTION_ROSTER_JUNE_2026.map((name) => (
+          <li key={name} className="rounded-md bg-salt px-3 py-1.5 text-inktext">
+            {name}
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-muted/70">
+        ※ 업무보고 파일의 월별 생산인원 명단에서 가장 최근 데이터가 있는 6월 기준으로 옮긴 임시 스냅샷입니다.
       </p>
     </div>
   );
@@ -376,6 +401,7 @@ function TrendView() {
       </p>
 
       <Productivity2026SnapshotTable />
+      <ProductionRosterList />
     </div>
   );
 }

@@ -30,3 +30,29 @@ export const PRODUCTIVITY_2026_SNAPSHOT: Productivity2026Row[] = [
   { month: "계", cheonilYeom: 832353, gagongYeom: 324840, total: 1157193, workers: 122, workDays: 119, regularHours: 19336, perMonth: 9485.19, perDay: 2853.77 },
   { month: "평균", cheonilYeom: 138725.5, gagongYeom: 54140, total: 192865.5, workers: 20.33, workDays: 19.83, regularHours: 3222.67, perMonth: 4784.72, perDay: 241.25 },
 ];
+
+// 같은 시트 오른쪽에 있는 월별 생산인원 명단(행=인원 슬롯, 열=월, 셀=그 달 담당자명 —
+// 인원 교체 시 새 이름으로 바뀜)에서, 데이터가 채워진 가장 최근 달인 6월 명단을 옮겼다.
+// 6월 인원 수(19명)가 위 PRODUCTIVITY_2026_SNAPSHOT의 6월 "workers" 값과 정확히 일치해
+// 이 명단이 그 headcount의 근거임을 확인했다.
+export const PRODUCTION_ROSTER_JUNE_2026: string[] = [
+  "이주상",
+  "김애경",
+  "배윤룡",
+  "이도연",
+  "박정재",
+  "박민철",
+  "이정례",
+  "권정남",
+  "한아름(구잉)",
+  "이소은",
+  "나우와랏",
+  "최진아(르엉티 하이엔)",
+  "이은지",
+  "챠콘제쉴쥐",
+  "김영화",
+  "론시타(임민정)",
+  "레야린(채야린)",
+  "한정희",
+  "안성대",
+];
