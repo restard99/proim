@@ -15,7 +15,7 @@ import {
   type ProductionTrendPoint,
 } from "@/app/actions/production-logs";
 import { computeProcessEfficiency } from "@/lib/production-logs/efficiency";
-import { PRODUCTIVITY_2026_SNAPSHOT, PRODUCTION_ROSTER_JUNE_2026 } from "@/lib/production-logs/productivity-2026-snapshot";
+import { PRODUCTIVITY_2026_SNAPSHOT, PRODUCTION_ROSTER_2026 } from "@/lib/production-logs/productivity-2026-snapshot";
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -177,26 +177,50 @@ function Productivity2026SnapshotTable() {
   );
 }
 
-// 같은 파일에 있던 월별 생산인원 명단 중, 데이터가 채워진 가장 최근 달(6월) 명단을
-// 그대로 옮긴 임시 리스트. 인원 교체가 있던 자리는 괄호로 표시된 새 이름 그대로 반영했다.
-function ProductionRosterList() {
+const ROSTER_MONTH_LABELS = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
+
+// 같은 파일에 있던 월별 생산인원 명단을 원본과 동일한 방식(행=인원 슬롯, 열=1~12월)
+// 그대로 옮긴 임시 표. 빈 칸은 그 달에 그 슬롯이 비어있었다는 뜻이다.
+function ProductionRosterTable() {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-inktext">투입 생산인원 명단 (2026년 6월 기준)</h3>
+        <h3 className="text-sm font-semibold text-inktext">월별 투입 생산인원 명단 (2026년)</h3>
         <span className="rounded-full bg-mist px-2 py-0.5 text-xs text-muted">
-          {PRODUCTION_ROSTER_JUNE_2026.length}명 · 수동 입력
+          {PRODUCTION_ROSTER_2026.length}자리 · 수동 입력
         </span>
       </div>
-      <ul className="grid grid-cols-2 gap-2 rounded-lg border border-mist bg-white p-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
-        {PRODUCTION_ROSTER_JUNE_2026.map((name) => (
-          <li key={name} className="rounded-md bg-salt px-3 py-1.5 text-inktext">
-            {name}
-          </li>
-        ))}
-      </ul>
+      <div className="overflow-hidden rounded-lg border border-mist bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full whitespace-nowrap text-xs">
+            <thead>
+              <tr className="border-b border-mist bg-mist/40 text-left text-muted">
+                <th className="px-3 py-2 font-medium">인원</th>
+                {ROSTER_MONTH_LABELS.map((m) => (
+                  <th key={m} className="px-3 py-2 font-medium">
+                    {m}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-mist">
+              {PRODUCTION_ROSTER_2026.map((r) => (
+                <tr key={r.slot}>
+                  <td className="px-3 py-2 font-medium text-inktext">{r.slot}</td>
+                  {r.months.map((name, i) => (
+                    <td key={i} className={name ? "px-3 py-2 text-inktext" : "px-3 py-2 text-muted"}>
+                      {name ?? "-"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
       <p className="text-xs text-muted/70">
-        ※ 업무보고 파일의 월별 생산인원 명단에서 가장 최근 데이터가 있는 6월 기준으로 옮긴 임시 스냅샷입니다.
+        ※ 업무보고 파일의 월별 생산인원 명단을 원본과 같은 형태(자리별·월별)로 옮긴 임시 스냅샷입니다. 같은 자리라도 인원
+        교체 시 새 이름으로 표시됩니다(예: 11번 자리는 5월까지 &quot;한아름&quot;, 6월부터 &quot;한아름(구잉)&quot;).
       </p>
     </div>
   );
@@ -401,7 +425,7 @@ function TrendView() {
       </p>
 
       <Productivity2026SnapshotTable />
-      <ProductionRosterList />
+      <ProductionRosterTable />
     </div>
   );
 }

@@ -31,28 +31,39 @@ export const PRODUCTIVITY_2026_SNAPSHOT: Productivity2026Row[] = [
   { month: "평균", cheonilYeom: 138725.5, gagongYeom: 54140, total: 192865.5, workers: 20.33, workDays: 19.83, regularHours: 3222.67, perMonth: 4784.72, perDay: 241.25 },
 ];
 
-// 같은 시트 오른쪽에 있는 월별 생산인원 명단(행=인원 슬롯, 열=월, 셀=그 달 담당자명 —
-// 인원 교체 시 새 이름으로 바뀜)에서, 데이터가 채워진 가장 최근 달인 6월 명단을 옮겼다.
-// 6월 인원 수(19명)가 위 PRODUCTIVITY_2026_SNAPSHOT의 6월 "workers" 값과 정확히 일치해
-// 이 명단이 그 headcount의 근거임을 확인했다.
-export const PRODUCTION_ROSTER_JUNE_2026: string[] = [
-  "이주상",
-  "김애경",
-  "배윤룡",
-  "이도연",
-  "박정재",
-  "박민철",
-  "이정례",
-  "권정남",
-  "한아름(구잉)",
-  "이소은",
-  "나우와랏",
-  "최진아(르엉티 하이엔)",
-  "이은지",
-  "챠콘제쉴쥐",
-  "김영화",
-  "론시타(임민정)",
-  "레야린(채야린)",
-  "한정희",
-  "안성대",
+// 같은 시트 오른쪽에 있는 월별 생산인원 명단을 원본과 동일한 방식(행=인원 슬롯,
+// 열=1~12월, 셀=그 달 담당자명)으로 그대로 옮겼다. 자리가 비어있으면 그 달에는
+// 그 슬롯에 아무도 없었다는 뜻이고, 같은 슬롯이라도 인원 교체가 있으면 새 이름으로
+// 바뀐다(예: 13행은 5월까지 "한아름", 6월부터 "한아름(구잉)"). 6월 실인원 수(19명)가
+// PRODUCTIVITY_2026_SNAPSHOT의 6월 "workers" 값과 정확히 일치해 이 명단이 그
+// headcount의 근거임을 확인했다.
+export type ProductionRosterRow = {
+  slot: number;
+  months: (string | null)[]; // index0=1월 ... index11=12월
+};
+
+export const PRODUCTION_ROSTER_2026: ProductionRosterRow[] = [
+  { slot: 1, months: ["이주상", "이주상", "이주상", "이주상", "이주상", "이주상", null, null, null, null, null, null] },
+  { slot: 2, months: ["김애경", "김애경", "김애경", "김애경", "김애경", "김애경", null, null, null, null, null, null] },
+  { slot: 3, months: ["배윤룡", "배윤룡", "배윤룡", "배윤룡", "배윤룡", "배윤룡", null, null, null, null, null, null] },
+  { slot: 4, months: ["이도연", "이도연", "이도연", "이도연", "이도연", "이도연", null, null, null, null, null, null] },
+  { slot: 5, months: ["박정재", "박정재", "박정재", "박정재", "박정재", "박정재", null, null, null, null, null, null] },
+  { slot: 6, months: ["박민철", "박민철", "박민철", "박민철", "박민철", "박민철", null, null, null, null, null, null] },
+  { slot: 7, months: ["이정례", "이정례", "이정례", "이정례", "이정례", "이정례", null, null, null, null, null, null] },
+  { slot: 8, months: ["권정남", "권정남", "권정남", "권정남", "권정남", "권정남", null, null, null, null, null, null] },
+  { slot: 9, months: ["김창석", "김창석", null, null, null, null, null, null, null, null, null, null] },
+  { slot: 10, months: ["임광목", null, null, null, null, null, null, null, null, null, null, null] },
+  { slot: 11, months: ["한아름", "한아름", "한아름", "한아름", "한아름", "한아름(구잉)", null, null, null, null, null, null] },
+  { slot: 12, months: ["이소은", "이소은", "이소은", "이소은", "이소은", "이소은", null, null, null, null, null, null] },
+  { slot: 13, months: ["나우와랏", "나우와랏", "나우와랏", "나우와랏", "나우와랏", "나우와랏", null, null, null, null, null, null] },
+  { slot: 14, months: ["최진아", "최진아", "최진아", "최진아", "최진아", "최진아(르엉티 하이엔)", null, null, null, null, null, null] },
+  { slot: 15, months: ["이은지", "이은지", "이은지", "이은지", "이은지", "이은지", null, null, null, null, null, null] },
+  { slot: 16, months: ["챠콘제쉴쥐", "챠콘제쉴쥐", "챠콘제쉴쥐", "챠콘제쉴쥐", "챠콘제쉴쥐", "챠콘제쉴쥐", null, null, null, null, null, null] },
+  { slot: 17, months: ["김영화", "김영화", "김영화", "김영화", "김영화", "김영화", null, null, null, null, null, null] },
+  { slot: 18, months: ["론시타", "론시타", "론시타", "론시타", "론시타", "론시타(임민정)", null, null, null, null, null, null] },
+  { slot: 19, months: ["레야린", "레야린", "레야린", "레야린", "레야린", "레야린(채야린)", null, null, null, null, null, null] },
+  { slot: 20, months: ["장길수", "장길수", "장길수", "장길수", "장길수", null, null, null, null, null, null, null] },
+  { slot: 21, months: ["하길순", "하길순", null, null, null, null, null, null, null, null, null, null] },
+  { slot: 22, months: ["한정희", "한정희", "한정희", "한정희", "한정희", "한정희", null, null, null, null, null, null] },
+  { slot: 23, months: [null, null, "안성대", "안성대", "안성대", "안성대", null, null, null, null, null, null] },
 ];
