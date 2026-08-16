@@ -345,14 +345,15 @@ CREATE TABLE IF NOT EXISTS production_requests (
 );
 ALTER TABLE production_requests ENABLE ROW LEVEL SECURITY;
 
--- 같은 테넌트의 영업채산팀(팀원 포함) + 관리자는 조회 가능
+-- 같은 테넌트의 영업채산팀(팀원 포함) + 생산팀(팀원 포함, FEAT-004에서 읽기 전용 조회
+-- 권한 추가) + 관리자는 조회 가능
 DROP POLICY IF EXISTS "production_requests_team_select" ON production_requests;
 CREATE POLICY "production_requests_team_select" ON production_requests
   FOR SELECT USING (
     tenant_id = public.my_tenant_id()
     AND (
       public.is_tenant_admin(tenant_id)
-      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '영업채산팀')
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team IN ('영업채산팀', '생산팀'))
     )
   );
 
