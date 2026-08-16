@@ -1,6 +1,6 @@
 # TASK-001: Supabase 스키마 — 아티팩트
 
-## 상태: 완료 (Supabase 대시보드에서 실행 필요)
+## 상태: 배포 완료
 
 ## 구현 내용
 생산일지 저장용 `production_logs` 테이블과 RLS 정책, `production-logs` Storage 버킷을 `production_requests`와 동일한 패턴으로 추가했다. 생산팀은 팀원/팀장 구분 없이 업로드 가능하고, 삭제는 본인 것 또는 관리자만 가능하도록 했다(수정 기능은 없어 UPDATE 정책은 두지 않음).
