@@ -16,6 +16,8 @@ import {
 } from "@/app/actions/production-logs";
 import { computeProcessEfficiency } from "@/lib/production-logs/efficiency";
 import { PRODUCTIVITY_2026_SNAPSHOT, PRODUCTION_ROSTER_2026 } from "@/lib/production-logs/productivity-2026-snapshot";
+import { getProductionByCategoryData } from "@/app/actions/production-output";
+import type { ProductionByCategoryResult } from "@/lib/yerp/production-output";
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -25,6 +27,91 @@ function formatDateTime(iso: string): string {
 
 function formatHours(n: number): string {
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+function toDateInputValue(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function toYmd(dateInputValue: string): string {
+  return dateInputValue.replaceAll("-", "");
+}
+
+// Y-ERP 실시간 데이터로 천일염/가공염 생산량(kg)을 집계해 보여준다. 사용자가 완제품목록을
+// 직접 분류한 결과(lib/yerp/product-category.ts)를 기준으로 하며, 품목 중량(WEIGHT_QTY)
+// 마스터가 비어있는 품목은 그만큼 과소집계되므로 그 사실을 그대로 드러낸다.
+function CategoryOutputView() {
+  const today = useMemo(() => new Date(), []);
+  const [startDate, setStartDate] = useState(() => toDateInputValue(new Date(today.getFullYear(), today.getMonth(), 1)));
+  const [endDate, setEndDate] = useState(() => toDateInputValue(today));
+  const [data, setData] = useState<ProductionByCategoryResult | null>(null);
+  const [isLoading, startTransition] = useTransition();
+
+  useEffect(() => {
+    startTransition(async () => {
+      setData(await getProductionByCategoryData({ startDate: toYmd(startDate), endDate: toYmd(endDate) }));
+    });
+     
+  }, [startDate, endDate]);
+
+  const hasUnweighted = (data?.unweightedItems.length ?? 0) > 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-inktext">천일염/가공염 생산량 (Y-ERP 실시간)</h3>
+        <span className="rounded-full bg-brine/10 px-2 py-0.5 text-xs text-brine">실시간 조회</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          value={startDate}
+          max={endDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="rounded-md border border-mist px-3 py-1.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+        />
+        <span className="text-sm text-muted">~</span>
+        <input
+          type="date"
+          value={endDate}
+          min={startDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="rounded-md border border-mist px-3 py-1.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+        />
+      </div>
+
+      {isLoading && !data ? (
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+          <p className="text-sm text-muted">불러오는 중…</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            {(data?.byCategory ?? []).map((c) => (
+              <StatCard
+                key={c.category}
+                label={`${c.category} 생산량`}
+                value={`${formatHours(c.qtyKg)} kg`}
+              />
+            ))}
+          </div>
+          {hasUnweighted && (
+            <div className="rounded-lg border border-crimson/30 bg-crimson/5 px-4 py-3 text-xs text-crimsond">
+              품목 {data?.unweightedItems.length}건은 Y-ERP에 중량(kg) 마스터 데이터가 등록돼 있지 않아 이 기간 집계에서
+              빠져 있습니다({data?.unweightedItems
+                .slice(0, 5)
+                .map((i) => i.itemName)
+                .join(", ")}
+              {(data?.unweightedItems.length ?? 0) > 5 ? " 외" : ""}). 마스터 데이터에 중량을 채워 넣으면 자동으로
+              반영됩니다.
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 // 생산효율/인당생산성 탭이 공통으로 쓰는 "기간 선택 → 데이터 재조회" 흐름을 훅으로 뺐다.
@@ -329,22 +416,31 @@ function TrendView() {
 
   if (isLoadingPeriods && periods.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
-        <p className="text-sm text-muted">불러오는 중…</p>
+      <div className="space-y-6">
+        <CategoryOutputView />
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+          <p className="text-sm text-muted">불러오는 중…</p>
+        </div>
       </div>
     );
   }
 
   if (periods.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
-        <p className="text-sm text-muted">업로드된 생산일지가 없습니다.</p>
+      <div className="space-y-6">
+        <CategoryOutputView />
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+          <p className="text-sm text-muted">업로드된 생산일지가 없습니다.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
+      <CategoryOutputView />
+
+      <div className="space-y-3">
       <PeriodRangePicker
         periods={periods}
         startPeriod={startPeriod}
@@ -423,6 +519,7 @@ function TrendView() {
         ※ 왼쪽부터 오래된 기간 순입니다. 막대는 인당 투입량을 선택한 기간 범위 내 최댓값 대비 상대 크기로 표시합니다.
         투입량/인당 투입량은 생산일지의 &quot;투입량&quot;·&quot;투입인원&quot; 컬럼 기준 근사치입니다.
       </p>
+      </div>
 
       <Productivity2026SnapshotTable />
       <ProductionRosterTable />
