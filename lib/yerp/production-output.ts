@@ -1,6 +1,7 @@
 import "server-only";
 import { yerpQuery } from "./client";
 import { PRODUCT_CATEGORY_BY_CODE, type SaltCategory } from "./product-category";
+import { PRODUCT_WEIGHT_OVERRIDE_KG } from "./product-weight-override";
 
 const CORP_CODE = "0460";
 // "생산품입고"(생산 실적이 재고로 들어오는 시점) — Y-ERP PM_IO_CODE 기준 확인된 코드.
@@ -62,7 +63,9 @@ export async function getProductionByCategory(params: {
     if (!category) continue; // 소금 외 상품(육수 등) 또는 미분류 품목은 집계에서 제외
 
     const qty = Number(row.QTY ?? 0);
-    const weight = Number(row.WEIGHT_QTY ?? 0);
+    // Y-ERP 마스터 중량이 비어있으면(회사 측 정리 전까지) 사용자가 직접 채워 넣은 임시
+    // 보정표를 폴백으로 쓴다. 둘 다 없으면 여전히 0으로 남아 unweightedItems에 잡힌다.
+    const weight = Number(row.WEIGHT_QTY ?? 0) || PRODUCT_WEIGHT_OVERRIDE_KG[row.ITM_CD] || 0;
     const entry = totals.get(category) ?? { qtyKg: 0, itemCount: 0, unweightedItemCount: 0 };
     entry.qtyKg += qty * weight;
     entry.itemCount += 1;
