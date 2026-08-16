@@ -124,6 +124,9 @@ function EfficiencyView() {
                 <th className="px-3 py-2 text-right font-medium">청소</th>
                 <th className="px-3 py-2 text-right font-medium">고장</th>
                 <th className="px-3 py-2 text-right font-medium">기타</th>
+                <th className="px-3 py-2 text-right font-medium">투입량 합계</th>
+                <th className="px-3 py-2 text-right font-medium">투입인원(연인원)</th>
+                <th className="px-3 py-2 text-right font-medium">인당 투입량</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-mist">
@@ -148,6 +151,11 @@ function EfficiencyView() {
                   <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.cleanHours)}</td>
                   <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.breakdownHours)}</td>
                   <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.etcHours)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalInputQty)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalWorkers)}</td>
+                  <td className="px-3 py-2 text-right font-mono font-medium text-inktext">
+                    {formatHours(r.productivityPerWorker)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -155,6 +163,10 @@ function EfficiencyView() {
         </div>
       </div>
       )}
+      <p className="text-xs text-muted/70">
+        ※ 투입량/인당 투입량은 생산일지의 &quot;투입량&quot;·&quot;투입인원&quot; 컬럼 기준 근사치입니다. (완제품 생산량·정규 인원 기준의
+        인사 리포트와는 산출 기준이 다릅니다)
+      </p>
     </div>
   );
 }

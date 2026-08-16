@@ -38,6 +38,9 @@ export type ProcessEfficiency = {
   cleanHours: number;
   breakdownHours: number;
   etcHours: number;
+  totalInputQty: number;
+  totalWorkers: number;
+  productivityPerWorker: number;
 };
 
 const EFFICIENCY_REQUIRED_HEADERS = ["총근무시간", "실근무시간"];
@@ -264,7 +267,18 @@ export async function getProductionEfficiency(
 
   const map = new Map<
     string,
-    { totalHours: number; actualHours: number; stopHours: number; prepHours: number; restHours: number; cleanHours: number; breakdownHours: number; etcHours: number }
+    {
+      totalHours: number;
+      actualHours: number;
+      stopHours: number;
+      prepHours: number;
+      restHours: number;
+      cleanHours: number;
+      breakdownHours: number;
+      etcHours: number;
+      totalInputQty: number;
+      totalWorkers: number;
+    }
   >();
 
   for (const row of data ?? []) {
@@ -287,6 +301,8 @@ export async function getProductionEfficiency(
           cleanHours: 0,
           breakdownHours: 0,
           etcHours: 0,
+          totalInputQty: 0,
+          totalWorkers: 0,
         };
         entry.totalHours += parseNum(dataRow["총근무시간"]);
         entry.actualHours += parseNum(dataRow["실근무시간"]);
@@ -296,6 +312,12 @@ export async function getProductionEfficiency(
         entry.cleanHours += parseNum(dataRow["청소"]);
         entry.breakdownHours += parseNum(dataRow["고장"]);
         entry.etcHours += parseNum(dataRow["기타"]);
+        // "인당생산성"(주간_월간_업무보고.xlsx) 리포트의 "생산효율지표(정기근로생산량 ÷
+        // 인원)" 개념을 참고해, 우리가 실제로 갖고 있는 컬럼(투입량/투입인원)으로 낼 수
+        // 있는 유사 지표를 추가한다. 원본 리포트의 완제품 생산량(kg)·정규 인원 기준과는
+        // 다른, 공정 단위 투입량/투입인원 기준의 근사치다.
+        entry.totalInputQty += parseNum(dataRow["투입량"]);
+        entry.totalWorkers += parseNum(dataRow["투입인원"]);
         map.set(key, entry);
       }
     }
@@ -306,6 +328,7 @@ export async function getProductionEfficiency(
       processName,
       ...v,
       utilizationPct: v.totalHours > 0 ? (v.actualHours / v.totalHours) * 100 : 0,
+      productivityPerWorker: v.totalWorkers > 0 ? v.totalInputQty / v.totalWorkers : 0,
     }))
     .sort((a, b) => b.utilizationPct - a.utilizationPct);
 }
