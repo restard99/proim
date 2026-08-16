@@ -37,26 +37,31 @@
 ## 컴포넌트 구조
 
 - `lib/production-logs/parse.ts`: ExcelJS로 워크북의 모든 시트를 순회하며 "■ 생산일보" 고정 제목 아래 3번째 행을 헤더, 4번째 행부터 데이터로 동적 인식해 `{ name, headers, rows }[]`를 반환. 필드를 고정 타입으로 정의하지 않고 시트별로 있는 그대로 다뤄서, 탭 구성이나 컬럼이 달마다 조금 바뀌어도 코드 수정 없이 대응
-- `app/actions/production-logs.ts`: `uploadProductionLog`, `getProductionLogList`, `getProductionLogDetail`, `deleteProductionLog`, `getProductionLogFileUrl` — `production-requests.ts`와 동일한 패턴(파일 검증 → 파싱 → Storage 업로드 → DB insert)
-- `components/production/ProductionLogView.tsx`: 왼쪽 업로드+목록(월별), 오른쪽 공정 탭 바 + 표. 표는 컬럼을 하드코딩하지 않고 선택된 시트의 `headers`/`rows`를 그대로 렌더링하는 범용 컴포넌트
+- `lib/production-logs/efficiency.ts`: `computeProcessEfficiency(sheetsList: ProductionLogSheet[][])` 순수 함수. "총근무시간"·"실근무시간" 컬럼이 모두 있는 시트만 골라 공정별(또는 시트명 기준)로 근무시간/정지시간/투입량/투입인원을 합산한다. `"use server"` 파일이 아니라서 서버 액션과 클라이언트 컴포넌트 양쪽에서 그대로 import해 재사용한다.
+- `app/actions/production-logs.ts`: `uploadProductionLog`, `getProductionLogList`, `getProductionLogDetail`, `deleteProductionLog`, `getProductionLogFileUrl`, `getProductionLogPeriods`, `getProductionEfficiency`, `getProductionTrend` — `production-requests.ts`와 동일한 패턴(파일 검증 → 파싱 → Storage 업로드 → DB insert)
+- `components/production/ProductionLogView.tsx`: "생산효율"/"인당생산성" 2개 모드 토글. `usePeriodRangeData<T>(fetchRows)` 제네릭 훅으로 기간 선택 UI+재조회 로직을 공유. `EfficiencyView`(공정별 가동률 표), `TrendView`(기간별 흐름 리스트), `ProductionLogBrowser`(업로드/목록/파일별 요약 카드/원본 표 — "생산효율" 탭 하단에 통합, 별도 탭으로 분리하지 않음)
 - `app/(app)/production-logs/page.tsx`: 생산팀(전체) + admin만 접근, 그 외는 홈으로 리다이렉트
 
 ## 시작/종료시간 처리
 원본 엑셀의 시작/종료시간 컬럼이 Excel의 날짜 기준일(1899-12-30)로 잘못 해석되는 셀이 섞여 있음을 확인했다. `parse.ts`에서 셀 타입이 Date이고 값이 시간 전용(날짜부가 1899-12-30/31)인 경우 `HH:mm`로만 포맷하도록 `cellText` 로직에 예외 처리를 추가한다.
 
-## 생산효율 탭 (가동률 집계)
+## 생산효율 / 인당생산성 탭 (가동률·흐름 집계)
 
-- `getProductionEfficiency(startPeriod?, endPeriod?)` (신규 서버 액션): 모든 `production_logs.sheets`(JSONB)를 읽어와, 헤더에 "총근무시간"과 "실근무시간"이 **모두** 있는 시트만 골라 집계 대상으로 삼는다. 두 컬럼이 없는 시트(세척로스율, 포장 공정(로스율측정자료) 등)는 자동으로 제외되므로 시트별 예외 처리가 필요 없다.
-- `getProductionLogPeriods()` (신규 서버 액션): 실제 존재하는 `period_label` 목록을 오래된 순으로 반환 — 기간 선택 드롭다운을 채우는 용도.
-- 기간 필터링은 `period_label`("YYYY년 M월", 항상 서버가 생성하는 고정 형식) 단위로 이뤄진다. `periodSortKey()`가 이 문자열을 `연*12+월` 정수로 변환해 범위 비교에 사용한다 — 작업일(행 단위 날짜)까지 파고들지 않고 업로드 단위(월)로 필터링하는 게 이번 범위.
+- `getProductionEfficiency(startPeriod?, endPeriod?)`: 선택한 기간 범위의 `production_logs.sheets`를 모아 `computeProcessEfficiency()`로 공정별 가동률/정지시간을 집계한다.
+- `getProductionTrend(startPeriod?, endPeriod?)`: 기간(월) 단위로 그룹핑한 뒤, 각 월의 시트들을 `computeProcessEfficiency()`로 집계하고 그 결과를 다시 공정 구분 없이 합산해 월 단위 요약 1건으로 만든다. 오래된 기간 → 최근 기간 순으로 정렬해 반환 — "인당생산성" 탭이 시계열(흐름)로 보여주는 근거 데이터.
+- `getProductionLogPeriods()`: 실제 존재하는 `period_label` 목록을 오래된 순으로 반환 — 기간 선택 드롭다운을 채우는 용도.
+- 기간 필터링은 `period_label`("YYYY년 M월", 항상 서버가 생성하는 고정 형식) 단위로 이뤄진다. `periodSortKey()`가 이 문자열을 `연*12+월` 정수로 변환해 범위/정렬 비교에 사용한다 — 작업일(행 단위 날짜)까지 파고들지 않고 업로드 단위(월)로 필터링하는 게 이번 범위.
 - 그룹 키는 "공정명" 컬럼이 있으면 그 값, 없으면 시트 이름을 그대로 사용한다.
 - 합산 컬럼: 총근무시간, 실근무시간, 정지시간, 준비, 휴게, 청소, 고장, 기타, 투입량, 투입인원 — 컬럼이 없으면 0으로 취급(문자→숫자 변환 실패 시에도 0).
 - 가동률 = 실근무시간 합 ÷ 총근무시간 합 × 100 (총근무시간 합이 0이면 0%로 표시).
 - 인당 투입량 = 투입량 합 ÷ 투입인원 합 (투입인원 합이 0이면 0으로 표시). "인당생산성"(주간_월간_업무보고.xlsx) 리포트의 "생산효율지표(정기근로생산량÷인원)" 개념을 참고한 근사 지표 — 원본은 완제품 생산량(kg)·정규 인원 기준이고 우리는 공정 단위 투입량/투입인원 기준이라 산출 기준이 다르다는 점을 화면에 명시한다.
-- 화면: `components/production/ProductionLogView.tsx` 안에 "생산일지 조회"/"생산효율"/"인당생산성" 3개 모드 토글을 추가한다. 두 집계 탭(생산효율/인당생산성)은 기간 선택 UI와 데이터 로딩 로직을 `useEfficiencyPeriodData()` 훅으로 공유하고, `PeriodRangePicker` 컴포넌트로 "시작 기간~종료 기간" 드롭다운을 재사용한다. 선택이 바뀌면 즉시 재조회하며 기본값은 전체 기간(가장 오래된 것~가장 최근 것).
-  - "생산효율" 탭: 공정별 가동률(막대바+%) + 정지시간 구성(준비/휴게/청소/고장/기타) 표
-  - "인당생산성" 탭: 공정별 투입인원(연인원)/투입량 합계/인당 투입량을 리스트(막대바 포함, 인당 투입량 내림차순)로 표시 — "체크하기 쉬운 리스트" 요구에 맞춰 표가 아니라 항목별 카드형 리스트로 구성
+- 화면 구성 (사용자 피드백 반영 후 최종):
+  - **생산효율** 탭: 상단에 기간 범위 선택 + 공정별 가동률(막대바+%) 표(`EfficiencyView`). 그 아래에 생산일지 업로드/목록/원본 조회(`ProductionLogBrowser`)를 통합 — 파일을 선택하면 원본 표보다 먼저 그 파일만의 요약 카드(참여 공정 수/가동률/총 정지시간/인당 투입량, `computeProcessEfficiency([detail.sheets])`로 클라이언트에서 즉시 계산)를 보여준다.
+  - **인당생산성** 탭: 공정별 스냅샷이 아니라 `getProductionTrend` 결과를 기간(월) 오래된 순으로 나열하는 리스트(`TrendView`). 각 행은 가동률/투입인원/투입량과 인당 투입량 막대바(그 기간 범위 내 최댓값 대비 상대 크기)를 보여줘 "흐름"을 스캔하듯 볼 수 있게 한다.
 - 이 계산은 컬럼명을 정확히 일치시켜야 동작하므로, 원본 엑셀의 헤더 문구("총근무시간", "실근무시간", "투입량", "투입인원" 등)가 달라지면 집계에서 빠질 수 있다는 한계를 인지하고 진행한다(엄격 매칭이 "그럴듯하게 틀린 집계"보다 안전하다는 기존 판단 기준과 동일).
+
+### "use server" 파일에서 타입만 재-export하면 안 되는 이유
+`app/actions/production-logs.ts`에 `export type { ProcessEfficiency }`를 뒀더니 Turbopack의 서버 액션 변환기가 이를 런타임 값 참조로 오인해 `ReferenceError: ProcessEfficiency is not defined`가 발생했다. `"use server"` 파일은 async 함수만 런타임 export로 다뤄야 안전하다 — 타입이 필요한 곳(클라이언트 컴포넌트 등)은 실제 타입이 정의된 `lib/production-logs/efficiency.ts`에서 직접 import해야 한다.
 
 ## 접근 권한 (nav-items.ts)
 현재 `canViewInventory`가 "재고현황"과 "생산의뢰서"를 함께 묶어 영업채산팀에만 열어주고 있어, 이걸 그대로 생산팀에 확장하면 재고현황까지 보이게 되는 문제가 있다. 그래서:

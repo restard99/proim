@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   deleteProductionLog,
   getProductionEfficiency,
@@ -8,11 +8,13 @@ import {
   getProductionLogFileUrl,
   getProductionLogList,
   getProductionLogPeriods,
+  getProductionTrend,
   uploadProductionLog,
-  type ProcessEfficiency,
   type ProductionLogDetail,
   type ProductionLogListRow,
+  type ProductionTrendPoint,
 } from "@/app/actions/production-logs";
+import { computeProcessEfficiency } from "@/lib/production-logs/efficiency";
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -24,12 +26,12 @@ function formatHours(n: number): string {
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
 }
 
-// 생산효율 탭과 인당생산성 탭이 같은 기간 선택 + 집계 데이터를 공유하므로 로직을 훅으로 뺐다.
-function useEfficiencyPeriodData() {
+// 생산효율/인당생산성 탭이 공통으로 쓰는 "기간 선택 → 데이터 재조회" 흐름을 훅으로 뺐다.
+function usePeriodRangeData<T>(fetchRows: (startPeriod?: string, endPeriod?: string) => Promise<T[]>) {
   const [periods, setPeriods] = useState<string[]>([]);
   const [startPeriod, setStartPeriod] = useState<string>("");
   const [endPeriod, setEndPeriod] = useState<string>("");
-  const [rows, setRows] = useState<ProcessEfficiency[] | null>(null);
+  const [rows, setRows] = useState<T[] | null>(null);
   const [isLoadingPeriods, startPeriodsTransition] = useTransition();
   const [isLoadingRows, startRowsTransition] = useTransition();
 
@@ -42,6 +44,7 @@ function useEfficiencyPeriodData() {
         setEndPeriod(list[list.length - 1]);
       }
     });
+     
   }, []);
 
   useEffect(() => {
@@ -50,7 +53,7 @@ function useEfficiencyPeriodData() {
     const endIdx = periods.indexOf(endPeriod);
     const [from, to] = startIdx <= endIdx ? [startPeriod, endPeriod] : [endPeriod, startPeriod];
     startRowsTransition(async () => {
-      setRows(await getProductionEfficiency(from, to));
+      setRows(await fetchRows(from, to));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startPeriod, endPeriod]);
@@ -110,9 +113,19 @@ function PeriodRangePicker({
   );
 }
 
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-mist bg-white p-3">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-inktext">{value}</p>
+    </div>
+  );
+}
+
+// 공정별 가동률(막대바+%) + 정지시간 구성 — 선택한 기간 범위를 누적 집계한 표.
 function EfficiencyView() {
   const { periods, startPeriod, endPeriod, setStartPeriod, setEndPeriod, rows, isLoadingPeriods, isLoadingRows } =
-    useEfficiencyPeriodData();
+    usePeriodRangeData(getProductionEfficiency);
 
   if (isLoadingPeriods && periods.length === 0) {
     return (
@@ -125,7 +138,7 @@ function EfficiencyView() {
   if (periods.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
-        <p className="text-sm text-muted">업로드된 생산일지가 없습니다.</p>
+        <p className="text-sm text-muted">업로드된 생산일지가 없습니다. 아래에서 먼저 업로드해주세요.</p>
       </div>
     );
   }
@@ -200,9 +213,15 @@ function EfficiencyView() {
   );
 }
 
-function ProductivityView() {
+// 기간(월)별로 생산 흐름이 어떻게 이어져왔는지 — 오래된 기간부터 순서대로 보여주는 시계열.
+function TrendView() {
   const { periods, startPeriod, endPeriod, setStartPeriod, setEndPeriod, rows, isLoadingPeriods, isLoadingRows } =
-    useEfficiencyPeriodData();
+    usePeriodRangeData(getProductionTrend);
+
+  const maxProductivity = useMemo(
+    () => (rows ? Math.max(0, ...rows.map((r) => r.productivityPerWorker)) : 0),
+    [rows],
+  );
 
   if (isLoadingPeriods && periods.length === 0) {
     return (
@@ -219,8 +238,6 @@ function ProductivityView() {
       </div>
     );
   }
-
-  const maxProductivity = rows ? Math.max(0, ...rows.map((r) => r.productivityPerWorker)) : 0;
 
   return (
     <div className="space-y-3">
@@ -239,50 +256,51 @@ function ProductivityView() {
       ) : !rows || rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
           <p className="text-sm text-muted">
-            선택한 기간에는 인당생산성을 계산할 수 있는 생산일지가 없습니다. (&quot;총근무시간&quot;·&quot;실근무시간&quot; 컬럼이 있는 탭이 필요합니다)
+            선택한 기간에는 흐름을 계산할 수 있는 생산일지가 없습니다. (&quot;총근무시간&quot;·&quot;실근무시간&quot; 컬럼이 있는 탭이 필요합니다)
           </p>
         </div>
       ) : (
         <ul className="divide-y divide-mist overflow-hidden rounded-lg border border-mist bg-white">
-          {[...rows]
-            .sort((a, b) => b.productivityPerWorker - a.productivityPerWorker)
-            .map((r) => (
-              <li key={r.processName} className="px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium text-inktext">{r.processName}</span>
-                  <span className="shrink-0 text-xs text-muted">
-                    투입인원(연인원) <span className="font-mono text-inktext">{formatHours(r.totalWorkers)}</span>
-                    <span className="mx-1.5 text-mist">·</span>
-                    투입량 합계 <span className="font-mono text-inktext">{formatHours(r.totalInputQty)}</span>
-                  </span>
+          {rows.map((r: ProductionTrendPoint) => (
+            <li key={r.periodLabel} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-inktext">{r.periodLabel}</span>
+                <span className="shrink-0 text-xs text-muted">
+                  가동률 <span className="font-mono text-inktext">{r.utilizationPct.toFixed(1)}%</span>
+                  <span className="mx-1.5 text-mist">·</span>
+                  투입인원(연인원) <span className="font-mono text-inktext">{formatHours(r.totalWorkers)}</span>
+                  <span className="mx-1.5 text-mist">·</span>
+                  투입량 합계 <span className="font-mono text-inktext">{formatHours(r.totalInputQty)}</span>
+                </span>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
+                  <div
+                    className="h-full rounded-full bg-crimson"
+                    style={{
+                      width: `${maxProductivity > 0 ? (r.productivityPerWorker / maxProductivity) * 100 : 0}%`,
+                    }}
+                  />
                 </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
-                    <div
-                      className="h-full rounded-full bg-crimson"
-                      style={{
-                        width: `${maxProductivity > 0 ? (r.productivityPerWorker / maxProductivity) * 100 : 0}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="w-24 shrink-0 text-right font-mono text-sm font-medium text-inktext">
-                    {formatHours(r.productivityPerWorker)} /인
-                  </span>
-                </div>
-              </li>
-            ))}
+                <span className="w-24 shrink-0 text-right font-mono text-sm font-medium text-inktext">
+                  {formatHours(r.productivityPerWorker)} /인
+                </span>
+              </div>
+            </li>
+          ))}
         </ul>
       )}
       <p className="text-xs text-muted/70">
-        ※ 투입량/인당 투입량은 생산일지의 &quot;투입량&quot;·&quot;투입인원&quot; 컬럼 기준 근사치입니다. (완제품 생산량·정규 인원 기준의
-        인사 리포트와는 산출 기준이 다릅니다)
+        ※ 왼쪽부터 오래된 기간 순입니다. 막대는 인당 투입량을 선택한 기간 범위 내 최댓값 대비 상대 크기로 표시합니다.
+        투입량/인당 투입량은 생산일지의 &quot;투입량&quot;·&quot;투입인원&quot; 컬럼 기준 근사치입니다.
       </p>
     </div>
   );
 }
 
-export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: string; isAdmin: boolean }) {
-  const [mode, setMode] = useState<"logs" | "efficiency" | "productivity">("logs");
+// 생산일지 업로드/목록/원본 조회 + 선택한 파일의 요약(가동률·정지시간)과 원본 표.
+// (기존 "생산일지 조회" 탭을 생산효율 탭 안으로 통합한 부분)
+function ProductionLogBrowser({ currentUserId, isAdmin }: { currentUserId: string; isAdmin: boolean }) {
   const [list, setList] = useState<ProductionLogListRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProductionLogDetail | null>(null);
@@ -305,6 +323,7 @@ export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: s
 
   useEffect(() => {
     refreshList();
+     
   }, []);
 
   useEffect(() => {
@@ -317,6 +336,7 @@ export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: s
       const d = await getProductionLogDetail(selectedId);
       setDetail(d);
     });
+     
   }, [selectedId]);
 
   function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -363,44 +383,27 @@ export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: s
   const canDelete = detail ? isAdmin || list.find((r) => r.id === detail.id)?.uploaded_by === currentUserId : false;
   const sheet = detail?.sheets[activeSheet] ?? null;
 
-  return (
-    <div className="space-y-4">
-      <div className="inline-flex gap-1 rounded-lg border border-mist bg-white p-1">
-        <button
-          type="button"
-          onClick={() => setMode("logs")}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            mode === "logs" ? "bg-ink text-salt" : "text-muted"
-          }`}
-        >
-          생산일지 조회
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("efficiency")}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            mode === "efficiency" ? "bg-ink text-salt" : "text-muted"
-          }`}
-        >
-          생산효율
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("productivity")}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            mode === "productivity" ? "bg-ink text-salt" : "text-muted"
-          }`}
-        >
-          인당생산성
-        </button>
-      </div>
+  // 선택한 파일 하나만의 요약 — 어떤 기간 범위를 고르든 상관없이 지금 보고 있는 파일
+  // 기준으로 "한눈에" 들어오는 숫자를 보여준다.
+  const fileSummary = useMemo(() => {
+    if (!detail) return null;
+    const byProcess = computeProcessEfficiency([detail.sheets]);
+    if (byProcess.length === 0) return null;
+    const totalHours = byProcess.reduce((s, p) => s + p.totalHours, 0);
+    const actualHours = byProcess.reduce((s, p) => s + p.actualHours, 0);
+    const stopHours = byProcess.reduce((s, p) => s + p.stopHours, 0);
+    const totalInputQty = byProcess.reduce((s, p) => s + p.totalInputQty, 0);
+    const totalWorkers = byProcess.reduce((s, p) => s + p.totalWorkers, 0);
+    return {
+      processCount: byProcess.length,
+      utilizationPct: totalHours > 0 ? (actualHours / totalHours) * 100 : 0,
+      stopHours,
+      productivityPerWorker: totalWorkers > 0 ? totalInputQty / totalWorkers : 0,
+    };
+  }, [detail]);
 
-      {mode === "efficiency" ? (
-        <EfficiencyView />
-      ) : mode === "productivity" ? (
-        <ProductivityView />
-      ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
       <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
         <div className="space-y-2 border-b border-mist px-4 py-3.5">
           <label className="block text-xs font-medium text-muted">업로드</label>
@@ -448,6 +451,15 @@ export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: s
           </div>
         ) : (
           <>
+            {fileSummary && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatCard label="참여 공정" value={`${fileSummary.processCount}개`} />
+                <StatCard label="가동률" value={`${fileSummary.utilizationPct.toFixed(1)}%`} />
+                <StatCard label="총 정지시간" value={`${formatHours(fileSummary.stopHours)}h`} />
+                <StatCard label="인당 투입량" value={formatHours(fileSummary.productivityPerWorker)} />
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap gap-1 rounded-lg border border-mist bg-white p-1 text-xs">
                 {detail.sheets.map((s, i) => (
@@ -522,7 +534,46 @@ export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: s
               ※ 표는 원본 엑셀의 헤더(3번째 행)를 그대로 컬럼으로 사용하며, 탭마다 컬럼 구성이 다릅니다.
             </p>
           </>
-            )}
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: string; isAdmin: boolean }) {
+  const [mode, setMode] = useState<"efficiency" | "productivity">("efficiency");
+
+  return (
+    <div className="space-y-4">
+      <div className="inline-flex gap-1 rounded-lg border border-mist bg-white p-1">
+        <button
+          type="button"
+          onClick={() => setMode("efficiency")}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            mode === "efficiency" ? "bg-ink text-salt" : "text-muted"
+          }`}
+        >
+          생산효율
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("productivity")}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            mode === "productivity" ? "bg-ink text-salt" : "text-muted"
+          }`}
+        >
+          인당생산성
+        </button>
+      </div>
+
+      {mode === "productivity" ? (
+        <TrendView />
+      ) : (
+        <div className="space-y-6">
+          <EfficiencyView />
+          <div>
+            <h2 className="mb-3 text-sm font-semibold text-inktext">생산일지 목록 및 상세</h2>
+            <ProductionLogBrowser currentUserId={currentUserId} isAdmin={isAdmin} />
           </div>
         </div>
       )}
