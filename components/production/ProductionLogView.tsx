@@ -260,35 +260,60 @@ function TrendView() {
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-mist overflow-hidden rounded-lg border border-mist bg-white">
-          {rows.map((r: ProductionTrendPoint) => (
-            <li key={r.periodLabel} className="px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium text-inktext">{r.periodLabel}</span>
-                <span className="shrink-0 text-xs text-muted">
-                  가동률 <span className="font-mono text-inktext">{r.utilizationPct.toFixed(1)}%</span>
-                  <span className="mx-1.5 text-mist">·</span>
-                  투입인원(연인원) <span className="font-mono text-inktext">{formatHours(r.totalWorkers)}</span>
-                  <span className="mx-1.5 text-mist">·</span>
-                  투입량 합계 <span className="font-mono text-inktext">{formatHours(r.totalInputQty)}</span>
-                </span>
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
-                  <div
-                    className="h-full rounded-full bg-crimson"
-                    style={{
-                      width: `${maxProductivity > 0 ? (r.productivityPerWorker / maxProductivity) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <span className="w-24 shrink-0 text-right font-mono text-sm font-medium text-inktext">
-                  {formatHours(r.productivityPerWorker)} /인
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-hidden rounded-lg border border-mist bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full whitespace-nowrap text-xs">
+              <thead>
+                <tr className="border-b border-mist bg-mist/40 text-left text-muted">
+                  <th className="px-3 py-2 font-medium">기간</th>
+                  <th className="px-3 py-2 text-right font-medium">총근무시간</th>
+                  <th className="px-3 py-2 text-right font-medium">실근무시간</th>
+                  <th className="px-3 py-2 font-medium">가동률</th>
+                  <th className="px-3 py-2 text-right font-medium">투입인원(연인원)</th>
+                  <th className="px-3 py-2 text-right font-medium">투입량 합계</th>
+                  <th className="px-3 py-2 font-medium">인당 투입량</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-mist">
+                {rows.map((r: ProductionTrendPoint) => (
+                  <tr key={r.periodLabel}>
+                    <td className="px-3 py-2 font-medium text-inktext">{r.periodLabel}</td>
+                    <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalHours)}</td>
+                    <td className="px-3 py-2 text-right font-mono">{formatHours(r.actualHours)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-20 overflow-hidden rounded-full bg-mist">
+                          <div
+                            className="h-full rounded-full bg-brine"
+                            style={{ width: `${Math.min(100, r.utilizationPct)}%` }}
+                          />
+                        </div>
+                        <span className="font-mono text-inktext">{r.utilizationPct.toFixed(1)}%</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalWorkers)}</td>
+                    <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalInputQty)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-20 overflow-hidden rounded-full bg-mist">
+                          <div
+                            className="h-full rounded-full bg-crimson"
+                            style={{
+                              width: `${maxProductivity > 0 ? (r.productivityPerWorker / maxProductivity) * 100 : 0}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="font-mono font-medium text-inktext">
+                          {formatHours(r.productivityPerWorker)}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
       <p className="text-xs text-muted/70">
         ※ 왼쪽부터 오래된 기간 순입니다. 막대는 인당 투입량을 선택한 기간 범위 내 최댓값 대비 상대 크기로 표시합니다.
