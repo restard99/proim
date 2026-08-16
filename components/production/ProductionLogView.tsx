@@ -24,7 +24,8 @@ function formatHours(n: number): string {
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
 }
 
-function EfficiencyView() {
+// 생산효율 탭과 인당생산성 탭이 같은 기간 선택 + 집계 데이터를 공유하므로 로직을 훅으로 뺐다.
+function useEfficiencyPeriodData() {
   const [periods, setPeriods] = useState<string[]>([]);
   const [startPeriod, setStartPeriod] = useState<string>("");
   const [endPeriod, setEndPeriod] = useState<string>("");
@@ -54,6 +55,65 @@ function EfficiencyView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startPeriod, endPeriod]);
 
+  return {
+    periods,
+    startPeriod,
+    endPeriod,
+    setStartPeriod,
+    setEndPeriod,
+    rows,
+    isLoadingPeriods,
+    isLoadingRows,
+  };
+}
+
+function PeriodRangePicker({
+  periods,
+  startPeriod,
+  endPeriod,
+  onChangeStart,
+  onChangeEnd,
+}: {
+  periods: string[];
+  startPeriod: string;
+  endPeriod: string;
+  onChangeStart: (v: string) => void;
+  onChangeEnd: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="text-sm text-muted">기간</label>
+      <select
+        value={startPeriod}
+        onChange={(e) => onChangeStart(e.target.value)}
+        className="rounded-md border border-mist px-3 py-1.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+      >
+        {periods.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+      <span className="text-sm text-muted">~</span>
+      <select
+        value={endPeriod}
+        onChange={(e) => onChangeEnd(e.target.value)}
+        className="rounded-md border border-mist px-3 py-1.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+      >
+        {periods.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function EfficiencyView() {
+  const { periods, startPeriod, endPeriod, setStartPeriod, setEndPeriod, rows, isLoadingPeriods, isLoadingRows } =
+    useEfficiencyPeriodData();
+
   if (isLoadingPeriods && periods.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
@@ -72,32 +132,13 @@ function EfficiencyView() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-sm text-muted">기간</label>
-        <select
-          value={startPeriod}
-          onChange={(e) => setStartPeriod(e.target.value)}
-          className="rounded-md border border-mist px-3 py-1.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
-        >
-          {periods.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <span className="text-sm text-muted">~</span>
-        <select
-          value={endPeriod}
-          onChange={(e) => setEndPeriod(e.target.value)}
-          className="rounded-md border border-mist px-3 py-1.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
-        >
-          {periods.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PeriodRangePicker
+        periods={periods}
+        startPeriod={startPeriod}
+        endPeriod={endPeriod}
+        onChangeStart={setStartPeriod}
+        onChangeEnd={setEndPeriod}
+      />
 
       {isLoadingRows && rows === null ? (
         <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
@@ -110,58 +151,127 @@ function EfficiencyView() {
           </p>
         </div>
       ) : (
-      <div className="overflow-hidden rounded-lg border border-mist bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full whitespace-nowrap text-xs">
-            <thead>
-              <tr className="border-b border-mist bg-mist/40 text-left text-muted">
-                <th className="px-3 py-2 font-medium">공정</th>
-                <th className="px-3 py-2 text-right font-medium">총근무시간</th>
-                <th className="px-3 py-2 text-right font-medium">실근무시간</th>
-                <th className="px-3 py-2 font-medium">가동률</th>
-                <th className="px-3 py-2 text-right font-medium">준비</th>
-                <th className="px-3 py-2 text-right font-medium">휴게</th>
-                <th className="px-3 py-2 text-right font-medium">청소</th>
-                <th className="px-3 py-2 text-right font-medium">고장</th>
-                <th className="px-3 py-2 text-right font-medium">기타</th>
-                <th className="px-3 py-2 text-right font-medium">투입량 합계</th>
-                <th className="px-3 py-2 text-right font-medium">투입인원(연인원)</th>
-                <th className="px-3 py-2 text-right font-medium">인당 투입량</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-mist">
-              {rows.map((r) => (
-                <tr key={r.processName}>
-                  <td className="px-3 py-2 font-medium text-inktext">{r.processName}</td>
-                  <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalHours)}</td>
-                  <td className="px-3 py-2 text-right font-mono">{formatHours(r.actualHours)}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-mist">
-                        <div
-                          className="h-full rounded-full bg-brine"
-                          style={{ width: `${Math.min(100, r.utilizationPct)}%` }}
-                        />
-                      </div>
-                      <span className="font-mono text-inktext">{r.utilizationPct.toFixed(1)}%</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.prepHours)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.restHours)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.cleanHours)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.breakdownHours)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.etcHours)}</td>
-                  <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalInputQty)}</td>
-                  <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalWorkers)}</td>
-                  <td className="px-3 py-2 text-right font-mono font-medium text-inktext">
-                    {formatHours(r.productivityPerWorker)}
-                  </td>
+        <div className="overflow-hidden rounded-lg border border-mist bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full whitespace-nowrap text-xs">
+              <thead>
+                <tr className="border-b border-mist bg-mist/40 text-left text-muted">
+                  <th className="px-3 py-2 font-medium">공정</th>
+                  <th className="px-3 py-2 text-right font-medium">총근무시간</th>
+                  <th className="px-3 py-2 text-right font-medium">실근무시간</th>
+                  <th className="px-3 py-2 font-medium">가동률</th>
+                  <th className="px-3 py-2 text-right font-medium">준비</th>
+                  <th className="px-3 py-2 text-right font-medium">휴게</th>
+                  <th className="px-3 py-2 text-right font-medium">청소</th>
+                  <th className="px-3 py-2 text-right font-medium">고장</th>
+                  <th className="px-3 py-2 text-right font-medium">기타</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-mist">
+                {rows.map((r) => (
+                  <tr key={r.processName}>
+                    <td className="px-3 py-2 font-medium text-inktext">{r.processName}</td>
+                    <td className="px-3 py-2 text-right font-mono">{formatHours(r.totalHours)}</td>
+                    <td className="px-3 py-2 text-right font-mono">{formatHours(r.actualHours)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-24 overflow-hidden rounded-full bg-mist">
+                          <div
+                            className="h-full rounded-full bg-brine"
+                            style={{ width: `${Math.min(100, r.utilizationPct)}%` }}
+                          />
+                        </div>
+                        <span className="font-mono text-inktext">{r.utilizationPct.toFixed(1)}%</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.prepHours)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.restHours)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.cleanHours)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.breakdownHours)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-muted">{formatHours(r.etcHours)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function ProductivityView() {
+  const { periods, startPeriod, endPeriod, setStartPeriod, setEndPeriod, rows, isLoadingPeriods, isLoadingRows } =
+    useEfficiencyPeriodData();
+
+  if (isLoadingPeriods && periods.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+        <p className="text-sm text-muted">불러오는 중…</p>
       </div>
+    );
+  }
+
+  if (periods.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+        <p className="text-sm text-muted">업로드된 생산일지가 없습니다.</p>
+      </div>
+    );
+  }
+
+  const maxProductivity = rows ? Math.max(0, ...rows.map((r) => r.productivityPerWorker)) : 0;
+
+  return (
+    <div className="space-y-3">
+      <PeriodRangePicker
+        periods={periods}
+        startPeriod={startPeriod}
+        endPeriod={endPeriod}
+        onChangeStart={setStartPeriod}
+        onChangeEnd={setEndPeriod}
+      />
+
+      {isLoadingRows && rows === null ? (
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+          <p className="text-sm text-muted">불러오는 중…</p>
+        </div>
+      ) : !rows || rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+          <p className="text-sm text-muted">
+            선택한 기간에는 인당생산성을 계산할 수 있는 생산일지가 없습니다. (&quot;총근무시간&quot;·&quot;실근무시간&quot; 컬럼이 있는 탭이 필요합니다)
+          </p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-mist overflow-hidden rounded-lg border border-mist bg-white">
+          {[...rows]
+            .sort((a, b) => b.productivityPerWorker - a.productivityPerWorker)
+            .map((r) => (
+              <li key={r.processName} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-inktext">{r.processName}</span>
+                  <span className="shrink-0 text-xs text-muted">
+                    투입인원(연인원) <span className="font-mono text-inktext">{formatHours(r.totalWorkers)}</span>
+                    <span className="mx-1.5 text-mist">·</span>
+                    투입량 합계 <span className="font-mono text-inktext">{formatHours(r.totalInputQty)}</span>
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
+                    <div
+                      className="h-full rounded-full bg-crimson"
+                      style={{
+                        width: `${maxProductivity > 0 ? (r.productivityPerWorker / maxProductivity) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="w-24 shrink-0 text-right font-mono text-sm font-medium text-inktext">
+                    {formatHours(r.productivityPerWorker)} /인
+                  </span>
+                </div>
+              </li>
+            ))}
+        </ul>
       )}
       <p className="text-xs text-muted/70">
         ※ 투입량/인당 투입량은 생산일지의 &quot;투입량&quot;·&quot;투입인원&quot; 컬럼 기준 근사치입니다. (완제품 생산량·정규 인원 기준의
@@ -172,7 +282,7 @@ function EfficiencyView() {
 }
 
 export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: string; isAdmin: boolean }) {
-  const [mode, setMode] = useState<"logs" | "efficiency">("logs");
+  const [mode, setMode] = useState<"logs" | "efficiency" | "productivity">("logs");
   const [list, setList] = useState<ProductionLogListRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProductionLogDetail | null>(null);
@@ -274,10 +384,21 @@ export function ProductionLogView({ currentUserId, isAdmin }: { currentUserId: s
         >
           생산효율
         </button>
+        <button
+          type="button"
+          onClick={() => setMode("productivity")}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            mode === "productivity" ? "bg-ink text-salt" : "text-muted"
+          }`}
+        >
+          인당생산성
+        </button>
       </div>
 
       {mode === "efficiency" ? (
         <EfficiencyView />
+      ) : mode === "productivity" ? (
+        <ProductivityView />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
       <div className="h-fit overflow-hidden rounded-lg border border-mist bg-white">
