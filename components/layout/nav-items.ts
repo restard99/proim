@@ -50,12 +50,24 @@ export const INVENTORY_NAV_ITEMS: NavItem[] = [
       "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
     evenOdd: false,
   },
+];
+
+export const PRODUCTION_REQUESTS_NAV_ITEMS: NavItem[] = [
   {
     href: "/production-requests",
     label: "생산의뢰서",
     iconPath:
       "M5 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.828a2 2 0 0 0-.586-1.414l-3.828-3.828A2 2 0 0 0 11.172 2H5Zm1 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H6Zm0 4a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z",
     evenOdd: true,
+  },
+];
+
+export const PRODUCTION_LOGS_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/production-logs",
+    label: "생산일지",
+    iconPath:
+      "M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z",
   },
 ];
 
@@ -73,6 +85,18 @@ export function canViewInventory(team: string | null | undefined, role: string |
   return team === "영업채산팀";
 }
 
+// 생산의뢰서(=생산계획서): 영업채산팀 전체(업로드/수정은 팀장만) + 생산팀 전체(조회 전용)
+export function canViewProductionRequests(team: string | null | undefined, role: string | null | undefined): boolean {
+  if (role === "admin") return true;
+  return team === "영업채산팀" || team === "생산팀";
+}
+
+// 생산일지: 생산팀 전체(팀원+팀장)
+export function canViewProductionLogs(team: string | null | undefined, role: string | null | undefined): boolean {
+  if (role === "admin") return true;
+  return team === "생산팀";
+}
+
 export function getVisibleBusinessNavItems(
   team: string | null | undefined,
   role: string | null | undefined,
@@ -80,5 +104,7 @@ export function getVisibleBusinessNavItems(
   const items: NavItem[] = [];
   if (canViewSales(team, role)) items.push(...SALES_NAV_ITEMS);
   if (canViewInventory(team, role)) items.push(...INVENTORY_NAV_ITEMS);
+  if (canViewProductionRequests(team, role)) items.push(...PRODUCTION_REQUESTS_NAV_ITEMS);
+  if (canViewProductionLogs(team, role)) items.push(...PRODUCTION_LOGS_NAV_ITEMS);
   return items;
 }
