@@ -7,6 +7,7 @@ import {
   getProductionLogDetail,
   getProductionLogFileUrl,
   getProductionLogList,
+  getProductionLogPeriods,
   uploadProductionLog,
   type ProcessEfficiency,
   type ProductionLogDetail,
@@ -24,16 +25,36 @@ function formatHours(n: number): string {
 }
 
 function EfficiencyView() {
+  const [periods, setPeriods] = useState<string[]>([]);
+  const [startPeriod, setStartPeriod] = useState<string>("");
+  const [endPeriod, setEndPeriod] = useState<string>("");
   const [rows, setRows] = useState<ProcessEfficiency[] | null>(null);
-  const [isLoading, startTransition] = useTransition();
+  const [isLoadingPeriods, startPeriodsTransition] = useTransition();
+  const [isLoadingRows, startRowsTransition] = useTransition();
 
   useEffect(() => {
-    startTransition(async () => {
-      setRows(await getProductionEfficiency());
+    startPeriodsTransition(async () => {
+      const list = await getProductionLogPeriods();
+      setPeriods(list);
+      if (list.length > 0) {
+        setStartPeriod(list[0]);
+        setEndPeriod(list[list.length - 1]);
+      }
     });
   }, []);
 
-  if (isLoading && rows === null) {
+  useEffect(() => {
+    if (!startPeriod || !endPeriod) return;
+    const startIdx = periods.indexOf(startPeriod);
+    const endIdx = periods.indexOf(endPeriod);
+    const [from, to] = startIdx <= endIdx ? [startPeriod, endPeriod] : [endPeriod, startPeriod];
+    startRowsTransition(async () => {
+      setRows(await getProductionEfficiency(from, to));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startPeriod, endPeriod]);
+
+  if (isLoadingPeriods && periods.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
         <p className="text-sm text-muted">불러오는 중…</p>
@@ -41,21 +62,54 @@ function EfficiencyView() {
     );
   }
 
-  if (!rows || rows.length === 0) {
+  if (periods.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
-        <p className="text-sm text-muted">
-          가동률을 계산할 수 있는 생산일지가 없습니다. (&quot;총근무시간&quot;·&quot;실근무시간&quot; 컬럼이 있는 탭이 필요합니다)
-        </p>
+        <p className="text-sm text-muted">업로드된 생산일지가 없습니다.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted/70">
-        지금까지 업로드된 모든 생산일지를 공정별로 누적 집계한 값입니다. (기간 필터 없음)
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-sm text-muted">기간</label>
+        <select
+          value={startPeriod}
+          onChange={(e) => setStartPeriod(e.target.value)}
+          className="rounded-md border border-mist px-3 py-1.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+        >
+          {periods.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <span className="text-sm text-muted">~</span>
+        <select
+          value={endPeriod}
+          onChange={(e) => setEndPeriod(e.target.value)}
+          className="rounded-md border border-mist px-3 py-1.5 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+        >
+          {periods.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {isLoadingRows && rows === null ? (
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+          <p className="text-sm text-muted">불러오는 중…</p>
+        </div>
+      ) : !rows || rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+          <p className="text-sm text-muted">
+            선택한 기간에는 가동률을 계산할 수 있는 생산일지가 없습니다. (&quot;총근무시간&quot;·&quot;실근무시간&quot; 컬럼이 있는 탭이 필요합니다)
+          </p>
+        </div>
+      ) : (
       <div className="overflow-hidden rounded-lg border border-mist bg-white">
         <div className="overflow-x-auto">
           <table className="w-full whitespace-nowrap text-xs">
@@ -100,6 +154,7 @@ function EfficiencyView() {
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }

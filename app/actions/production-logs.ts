@@ -48,6 +48,14 @@ function parseNum(v: string | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// period_label은 항상 extractPeriodLabel()이 만든 "YYYY년 M월" 형식이라(사용자가 자유
+// 입력하는 값이 아님), 이 형식을 신뢰해 연월 순서를 비교 가능한 숫자로 변환한다.
+function periodSortKey(label: string): number | null {
+  const m = label.match(/^(\d{4})년\s*(\d{1,2})월$/);
+  if (!m) return null;
+  return Number(m[1]) * 12 + Number(m[2]);
+}
+
 async function getSelf(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
@@ -225,15 +233,34 @@ export async function deleteProductionLog(id: string): Promise<SaveResult> {
   return { ok: true };
 }
 
-// 업로드된 모든 생산일지(여러 기간)를 누적 집계해 공정별 가동률(실근무시간÷총근무시간)과
-// 정지시간 구성을 계산한다. "총근무시간"·"실근무시간" 컬럼이 모두 있는 시트만 집계 대상으로
-// 삼아, 세척로스율 등 근무시간 데이터가 없는 시트는 자동으로 빠진다.
-export async function getProductionEfficiency(): Promise<ProcessEfficiency[]> {
+// 생산일지 목록에 실제로 존재하는 기간(period_label)들을 오래된 순으로 반환한다.
+// 생산효율 탭의 기간 선택 드롭다운을 채우는 용도.
+export async function getProductionLogPeriods(): Promise<string[]> {
   const supabase = await createClient();
   const self = await getSelf(supabase);
   if (!self) return [];
 
-  const { data } = await supabase.from("production_logs").select("sheets");
+  const { data } = await supabase.from("production_logs").select("period_label");
+  const unique = [...new Set((data ?? []).map((r) => r.period_label))];
+  return unique.sort((a, b) => (periodSortKey(a) ?? 0) - (periodSortKey(b) ?? 0));
+}
+
+// 업로드된 생산일지를 기간 범위(startPeriod~endPeriod, 둘 다 미지정이면 전체)로 누적
+// 집계해 공정별 가동률(실근무시간÷총근무시간)과 정지시간 구성을 계산한다.
+// "총근무시간"·"실근무시간" 컬럼이 모두 있는 시트만 집계 대상으로 삼아, 세척로스율
+// 등 근무시간 데이터가 없는 시트는 자동으로 빠진다.
+export async function getProductionEfficiency(
+  startPeriod?: string,
+  endPeriod?: string,
+): Promise<ProcessEfficiency[]> {
+  const supabase = await createClient();
+  const self = await getSelf(supabase);
+  if (!self) return [];
+
+  const { data } = await supabase.from("production_logs").select("period_label, sheets");
+
+  const startKey = startPeriod ? periodSortKey(startPeriod) : null;
+  const endKey = endPeriod ? periodSortKey(endPeriod) : null;
 
   const map = new Map<
     string,
@@ -241,6 +268,10 @@ export async function getProductionEfficiency(): Promise<ProcessEfficiency[]> {
   >();
 
   for (const row of data ?? []) {
+    const rowKey = periodSortKey(row.period_label);
+    if (startKey !== null && rowKey !== null && rowKey < startKey) continue;
+    if (endKey !== null && rowKey !== null && rowKey > endKey) continue;
+
     const sheets = (row.sheets ?? []) as ProductionLogSheet[];
     for (const sheet of sheets) {
       if (!EFFICIENCY_REQUIRED_HEADERS.every((h) => sheet.headers.includes(h))) continue;
