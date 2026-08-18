@@ -91,9 +91,14 @@ export function LoginForm() {
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-inktext mb-1.5">
-            비밀번호
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="password" className="block text-sm font-medium text-inktext">
+              비밀번호
+            </label>
+            <Link href="/forgot-password" className="text-xs font-medium text-crimson hover:underline">
+              비밀번호 찾기
+            </Link>
+          </div>
           <input
             id="password"
             name="password"
@@ -118,8 +123,6 @@ export function LoginForm() {
           {isPending ? "확인하는 중…" : "로그인"}
         </button>
       </form>
-
-      <p className="mt-4 text-xs text-muted">비밀번호를 잊으셨다면 관리자에게 문의하세요.</p>
 
       <div className="mt-8 pt-6 border-t border-mist text-sm text-center text-muted">
         계정이 없으신가요?{" "}

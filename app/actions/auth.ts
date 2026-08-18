@@ -164,6 +164,54 @@ export async function signIn(_prevState: SignInState, formData: FormData): Promi
   redirect("/");
 }
 
+export type ForgotPasswordFieldErrors = Partial<Record<"fullName" | "team", string>>;
+
+export type ForgotPasswordState =
+  | { status: "idle" }
+  | { status: "error"; fieldErrors: ForgotPasswordFieldErrors }
+  | { status: "sent" };
+
+// 이름+소속팀 조합이 실제로 존재하는지 여부를 외부에 노출하지 않기 위해,
+// 이메일을 찾았든 못 찾았든, 발송에 성공했든 실패했든 항상 같은 "sent" 상태를 반환한다.
+export async function requestPasswordReset(
+  _prevState: ForgotPasswordState,
+  formData: FormData,
+): Promise<ForgotPasswordState> {
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const team = String(formData.get("team") ?? "");
+
+  const fieldErrors: ForgotPasswordFieldErrors = {};
+  if (!fullName) fieldErrors.fullName = "이름을 입력하세요.";
+  if (!TEAMS.includes(team as (typeof TEAMS)[number])) fieldErrors.team = "소속팀을 선택하세요.";
+  if (Object.keys(fieldErrors).length > 0) {
+    return { status: "error", fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const tenantId = process.env.DEFAULT_TENANT_ID!;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!siteUrl) {
+    console.error("requestPasswordReset: NEXT_PUBLIC_SITE_URL 환경변수가 설정되지 않았습니다.");
+  }
+
+  const { data: email } = await supabase.rpc("lookup_auth_email", {
+    p_tenant_id: tenantId,
+    p_full_name: fullName,
+    p_team: team,
+  });
+
+  if (email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${siteUrl ?? ""}/reset-password`,
+    });
+    if (error) {
+      console.error("requestPasswordReset: resetPasswordForEmail failed", error);
+    }
+  }
+
+  return { status: "sent" };
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
