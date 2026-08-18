@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FEAT-005 비밀번호 찾기/변경 — 디자인 목업</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: "#14283A",
+          ink2: "#0F1F2E",
+          brine: "#1E6B72",
+          crimson: "#8B2942",
+          crimsond: "#6E1F33",
+          sand: "#C9B896",
+          salt: "#FAF8F3",
+          mist: "#EFEAE1",
+          inktext: "#1F2A33",
+          muted: "#5B6B74",
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; background: #FAF8F3; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .brand-panel { background: linear-gradient(160deg, #14283A 0%, #0F1F2E 100%); }
+</style>
+</head>
+<body class="text-inktext">
+
+<!-- 목업 네비게이션 (실제 화면 아님) -->
+<div class="sticky top-0 z-50 bg-ink text-salt px-4 py-2.5 flex flex-wrap gap-1.5 text-xs">
+  <span class="font-semibold mr-2 py-1">FEAT-005 목업:</span>
+  <button onclick="show('login')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">① 로그인</button>
+  <button onclick="show('signup')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">② 회원가입</button>
+  <button onclick="show('forgot')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">③ 비밀번호 찾기</button>
+  <button onclick="show('forgot-sent')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">③-1 발송 완료</button>
+  <button onclick="show('reset')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">④ 새 비밀번호 설정</button>
+  <button onclick="show('reset-done')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">④-1 변경 완료</button>
+  <button onclick="show('reset-expired')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">④-2 링크 만료</button>
+  <button onclick="show('myinfo')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">⑤ 내 정보(로그인중 변경)</button>
+  <button onclick="show('admin')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">⑥ 관리자 대리 재설정</button>
+  <button onclick="show('admin-modal')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">⑥-1 재설정 완료</button>
+</div>
+
+<!-- ① 로그인 -->
+<div id="login" class="screen">
+  <div class="min-h-screen flex">
+    <aside class="hidden lg:flex lg:w-[42%] brand-panel text-salt px-12 py-10 flex-col justify-between">
+      <div class="inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md w-fit">
+        <span class="text-ink font-bold text-lg">태평염전</span>
+      </div>
+      <div class="space-y-4">
+        <p class="text-4xl leading-snug font-semibold">팀의 하루가 모여<br/>바다처럼 채워집니다</p>
+        <p class="text-sm text-sand/90">태평소금 · 태평염전 · 섬들채 통합 일일업무보고 시스템</p>
+      </div>
+      <p class="text-xs text-salt/40">© 소금사업부 사내전용 시스템입니다.</p>
+    </aside>
+    <main class="flex-1 flex items-center justify-center px-6 py-16">
+      <div class="w-full max-w-sm">
+        <h1 class="text-2xl font-semibold text-inktext">로그인</h1>
+        <p class="mt-1.5 text-sm text-muted">이름, 소속팀, 비밀번호를 입력하세요.</p>
+        <form class="mt-4 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+            <input type="text" placeholder="홍길동" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">소속팀 <span class="text-muted font-normal">(관리자는 선택하지 않아도 됩니다)</span></label>
+            <select class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine">
+              <option>선택하세요</option>
+              <option>생산팀</option>
+            </select>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-sm font-medium text-inktext">비밀번호</label>
+              <button type="button" onclick="show('forgot')" class="text-xs font-medium text-crimson hover:underline">비밀번호 찾기</button>
+            </div>
+            <input type="password" placeholder="••••••••" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+          </div>
+          <button type="button" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">로그인</button>
+        </form>
+        <div class="mt-8 pt-6 border-t border-mist text-sm text-center text-muted">
+          계정이 없으신가요? <a href="#" onclick="show('signup')" class="text-crimson font-medium hover:underline">회원가입</a>
+        </div>
+        <p class="mt-4 text-xs text-muted bg-mist/50 rounded px-3 py-2">변경점: 기존 "비밀번호를 잊으셨다면 관리자에게 문의하세요" 안내 문구를 지우고, 비밀번호 입력란 위에 "비밀번호 찾기" 링크를 추가했습니다.</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ② 회원가입 -->
+<div id="signup" class="screen">
+  <div class="min-h-screen flex">
+    <aside class="hidden lg:flex lg:w-[42%] brand-panel text-salt px-12 py-10 flex-col justify-between">
+      <div class="inline-flex items-center gap-3 rounded-lg bg-white px-5 py-3 shadow-md w-fit">
+        <span class="text-ink font-bold text-lg">태평염전</span>
+      </div>
+      <div class="space-y-4">
+        <p class="text-4xl leading-snug font-semibold">처음 오셨다면<br/>등록부터 시작하세요</p>
+        <p class="text-sm text-sand/90">가입 후 관리자 승인이 완료되면 이용할 수 있습니다.</p>
+      </div>
+      <p class="text-xs text-salt/40">© 소금사업부 사내전용 시스템입니다.</p>
+    </aside>
+    <main class="flex-1 flex items-center justify-center px-6 py-14">
+      <div class="w-full max-w-sm">
+        <h1 class="text-2xl font-semibold text-inktext">회원가입</h1>
+        <p class="mt-1.5 text-sm text-muted">이름, 소속팀, 직급, 이메일을 입력하면 관리자 승인 후 이용할 수 있습니다.</p>
+        <form class="mt-7 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+            <input type="text" placeholder="홍길동" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+            <p class="mt-1 text-xs text-muted">이름이 곧 로그인 아이디로 사용됩니다.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">소속팀</label>
+            <select class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine">
+              <option>선택하세요</option>
+              <option>생산팀</option>
+            </select>
+          </div>
+          <div>
+            <span class="block text-sm font-medium text-inktext mb-1.5">직급</span>
+            <div class="grid grid-cols-3 gap-2">
+              <label class="flex items-center justify-center gap-1.5 rounded-md border border-crimson bg-crimson/5 text-crimsond px-3 py-2.5 text-sm cursor-pointer">팀원</label>
+              <label class="flex items-center justify-center gap-1.5 rounded-md border border-mist px-3 py-2.5 text-sm cursor-pointer">팀장</label>
+            </div>
+          </div>
+          <div class="rounded-md border-2 border-brine/40 bg-brine/5 p-3.5">
+            <label class="block text-sm font-medium text-inktext mb-1.5">
+              이메일 <span class="text-crimson">(신규)</span>
+            </label>
+            <input type="email" placeholder="you@example.com" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+            <p class="mt-1 text-xs text-brine">비밀번호를 잊었을 때 재설정 메일을 받는 용도로만 사용됩니다. 실제 로그인은 이름+소속팀으로 그대로 하시면 됩니다.</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호</label>
+            <input type="password" placeholder="8자 이상" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">비밀번호 확인</label>
+            <input type="password" placeholder="다시 입력하세요" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+          </div>
+          <button type="button" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">가입 요청 보내기</button>
+        </form>
+        <div class="mt-6 text-sm text-center text-muted">
+          이미 계정이 있으신가요? <a href="#" onclick="show('login')" class="text-crimson font-medium hover:underline">로그인</a>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ③ 비밀번호 찾기 -->
+<div id="forgot" class="screen">
+  <div class="min-h-screen flex items-center justify-center px-6 py-16">
+    <div class="w-full max-w-sm">
+      <button onclick="show('login')" class="text-xs text-muted hover:text-inktext mb-6 inline-flex items-center gap-1">← 로그인으로 돌아가기</button>
+      <h1 class="text-2xl font-semibold text-inktext">비밀번호 찾기</h1>
+      <p class="mt-1.5 text-sm text-muted">가입할 때 입력한 이름과 소속팀을 입력하세요. 등록된 이메일로 재설정 링크를 보내드립니다.</p>
+      <form class="mt-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-inktext mb-1.5">이름</label>
+          <input type="text" placeholder="홍길동" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-inktext mb-1.5">소속팀</label>
+          <select class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine">
+            <option>선택하세요</option>
+            <option>생산팀</option>
+          </select>
+        </div>
+        <button type="button" onclick="show('forgot-sent')" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">비밀번호 리셋</button>
+      </form>
+      <p class="mt-4 text-xs text-muted">이메일을 등록하지 않았거나 메일이 오지 않는 경우, 관리자에게 문의해 대신 재설정을 요청하세요.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ③-1 발송 완료 -->
+<div id="forgot-sent" class="screen">
+  <div class="min-h-screen flex items-center justify-center px-6 py-16">
+    <div class="w-full max-w-sm text-center">
+      <div class="mx-auto h-14 w-14 rounded-full bg-brine/10 flex items-center justify-center">
+        <svg class="h-7 w-7 text-brine" viewBox="0 0 20 20" fill="currentColor"><path d="M2.94 6.94a1.5 1.5 0 012.12-2.12L10 9.76l4.94-4.94a1.5 1.5 0 112.12 2.12l-6 6a1.5 1.5 0 01-2.12 0l-6-6z"/><path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" fill-opacity="0"/></svg>
+      </div>
+      <h1 class="mt-5 text-xl font-semibold text-inktext">요청을 처리했습니다</h1>
+      <p class="mt-2 text-sm text-muted leading-relaxed">입력하신 정보로 등록된 이메일이 있다면, 비밀번호 재설정 링크를 보내드렸습니다.<br/>메일함(스팸함 포함)을 확인해주세요.</p>
+      <p class="mt-4 text-xs text-muted bg-mist/50 rounded px-3 py-2">항상 이 동일한 메시지만 보여줍니다 — 이름/소속팀 조합이 실제로 존재하는지 여부를 외부에 노출하지 않기 위해서입니다.</p>
+      <button onclick="show('login')" class="mt-6 text-sm font-medium text-crimson hover:underline">로그인으로 돌아가기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ④ 새 비밀번호 설정 -->
+<div id="reset" class="screen">
+  <div class="min-h-screen flex items-center justify-center px-6 py-16">
+    <div class="w-full max-w-sm">
+      <h1 class="text-2xl font-semibold text-inktext">새 비밀번호 설정</h1>
+      <p class="mt-1.5 text-sm text-muted">메일로 받은 링크를 통해 접속하셨습니다. 새 비밀번호를 입력하세요.</p>
+      <form class="mt-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-inktext mb-1.5">새 비밀번호</label>
+          <input type="password" placeholder="8자 이상" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-inktext mb-1.5">새 비밀번호 확인</label>
+          <input type="password" placeholder="다시 입력하세요" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+        </div>
+        <button type="button" onclick="show('reset-done')" class="w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">비밀번호 변경</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ④-1 변경 완료 -->
+<div id="reset-done" class="screen">
+  <div class="min-h-screen flex items-center justify-center px-6 py-16">
+    <div class="w-full max-w-sm text-center">
+      <div class="mx-auto h-14 w-14 rounded-full bg-brine/10 flex items-center justify-center">
+        <svg class="h-7 w-7 text-brine" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+      </div>
+      <h1 class="mt-5 text-xl font-semibold text-inktext">비밀번호가 변경되었습니다</h1>
+      <p class="mt-2 text-sm text-muted">새 비밀번호로 다시 로그인해주세요.</p>
+      <button onclick="show('login')" class="mt-6 w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">로그인하러 가기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ④-2 링크 만료/오류 -->
+<div id="reset-expired" class="screen">
+  <div class="min-h-screen flex items-center justify-center px-6 py-16">
+    <div class="w-full max-w-sm text-center">
+      <div class="mx-auto h-14 w-14 rounded-full bg-crimson/10 flex items-center justify-center">
+        <svg class="h-7 w-7 text-crimsond" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-5a1 1 0 112 0 1 1 0 01-2 0zm1-9a1 1 0 00-1 1v4a1 1 0 002 0V5a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+      </div>
+      <h1 class="mt-5 text-xl font-semibold text-inktext">링크가 만료되었습니다</h1>
+      <p class="mt-2 text-sm text-muted leading-relaxed">재설정 링크는 일정 시간이 지나면 사용할 수 없습니다.<br/>비밀번호 찾기를 다시 시도해주세요.</p>
+      <button onclick="show('forgot')" class="mt-6 w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">비밀번호 찾기 다시 하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ⑤ 내 정보 (로그인 상태에서 변경) -->
+<div id="myinfo" class="screen">
+  <div class="min-h-screen bg-salt">
+    <header class="border-b border-mist bg-white px-6 lg:px-10 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-ink font-bold">태평염전</span>
+      </div>
+      <div class="text-sm text-muted">이연태 · 생산팀</div>
+    </header>
+    <div class="max-w-xl mx-auto px-6 lg:px-10 py-10">
+      <h1 class="text-xl font-semibold text-inktext">내 정보</h1>
+      <p class="mt-1.5 text-sm text-muted">비밀번호를 변경합니다. 현재 비밀번호 확인이 필요합니다.</p>
+      <div class="mt-6 rounded-lg border border-mist bg-white p-6">
+        <form class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">현재 비밀번호</label>
+            <input type="password" placeholder="••••••••" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+          </div>
+          <div class="pt-2 border-t border-mist"></div>
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">새 비밀번호</label>
+            <input type="password" placeholder="8자 이상" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-inktext mb-1.5">새 비밀번호 확인</label>
+            <input type="password" placeholder="다시 입력하세요" class="w-full rounded-md border border-mist bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+          </div>
+          <div class="flex items-center gap-3 pt-2">
+            <button type="button" class="rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium px-4 py-2.5 transition-colors">비밀번호 변경</button>
+            <span class="text-xs text-brine">✓ 변경되었습니다</span>
+          </div>
+          <p class="text-xs text-crimsond hidden">현재 비밀번호가 올바르지 않습니다.</p>
+        </form>
+      </div>
+      <p class="mt-3 text-xs text-muted">사이드바 하단 프로필 영역에서 "내 정보"로 진입합니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ⑥ 관리자 — 대리 재설정 -->
+<div id="admin" class="screen">
+  <div class="min-h-screen bg-salt">
+    <header class="border-b border-mist bg-white px-6 lg:px-10 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-ink font-bold">태평염전</span>
+        <span class="text-xs font-medium bg-ink text-salt px-2 py-0.5 rounded">관리자</span>
+      </div>
+      <div class="text-sm text-muted">시스템 관리자</div>
+    </header>
+    <div class="max-w-4xl mx-auto px-6 lg:px-10 py-10">
+      <div class="flex items-baseline gap-3">
+        <h1 class="text-xl font-semibold text-inktext">가입 승인 관리</h1>
+        <span class="text-xs font-medium px-2 py-0.5 rounded-full text-brine bg-brine/10">대기중 0건</span>
+      </div>
+      <p class="mt-1.5 text-sm text-muted">새로 가입한 계정을 확인하고 승인하거나 반려하세요.</p>
+      <div class="mt-6 rounded-lg border border-dashed border-mist bg-white px-6 py-10 text-center text-sm text-muted">대기 중인 가입 요청이 없습니다</div>
+
+      <div class="flex items-baseline gap-3 mt-12">
+        <h2 class="text-xl font-semibold text-inktext">전체 사용자 <span class="text-crimson text-sm font-medium">(신규)</span></h2>
+      </div>
+      <p class="mt-1.5 text-sm text-muted">비밀번호를 잊었거나 이메일이 등록되지 않은 사용자를 대신 재설정해줄 수 있습니다.</p>
+      <div class="mt-4">
+        <input type="text" placeholder="이름으로 검색" class="w-64 rounded-md border border-mist bg-white px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-brine/30 focus:border-brine" />
+      </div>
+      <div class="mt-4 rounded-lg border border-mist bg-white overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+              <th class="px-4 py-3 font-medium">이름</th>
+              <th class="px-4 py-3 font-medium">소속팀</th>
+              <th class="px-4 py-3 font-medium">직급</th>
+              <th class="px-4 py-3 font-medium">이메일</th>
+              <th class="px-4 py-3 font-medium text-right">처리</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-mist">
+            <tr>
+              <td class="px-4 py-3.5 font-medium">이연태</td>
+              <td class="px-4 py-3.5 text-muted">생산팀</td>
+              <td class="px-4 py-3.5 text-muted">팀장</td>
+              <td class="px-4 py-3.5 text-muted">yeontae@example.com</td>
+              <td class="px-4 py-3.5 text-right">
+                <button onclick="show('admin-modal')" class="rounded-md border border-mist hover:bg-mist/50 text-inktext text-xs font-medium px-3 py-1.5 transition-colors">비밀번호 재설정</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3.5 font-medium">박소금</td>
+              <td class="px-4 py-3.5 text-muted">영업채산팀</td>
+              <td class="px-4 py-3.5 text-muted">팀원</td>
+              <td class="px-4 py-3.5 text-muted"><span class="text-xs text-crimsond bg-crimson/5 px-1.5 py-0.5 rounded">미등록</span></td>
+              <td class="px-4 py-3.5 text-right">
+                <button onclick="show('admin-modal')" class="rounded-md border border-mist hover:bg-mist/50 text-inktext text-xs font-medium px-3 py-1.5 transition-colors">비밀번호 재설정</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ⑥-1 관리자 재설정 모달/완료 -->
+<div id="admin-modal" class="screen">
+  <div class="min-h-screen bg-salt relative">
+    <div class="max-w-4xl mx-auto px-6 lg:px-10 py-10 opacity-40 pointer-events-none">
+      <h1 class="text-xl font-semibold text-inktext">전체 사용자</h1>
+      <div class="mt-4 h-64 rounded-lg border border-mist bg-white"></div>
+    </div>
+    <div class="fixed inset-0 bg-black/30 flex items-center justify-center px-6">
+      <div class="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+        <h2 class="text-lg font-semibold text-inktext">비밀번호 재설정 — 박소금</h2>
+        <p class="mt-1.5 text-sm text-muted">새 임시 비밀번호가 발급되었습니다. 사용자에게 직접 전달해주세요(메일이 없어 자동 발송되지 않습니다).</p>
+        <div class="mt-4 rounded-md bg-mist/60 px-4 py-3 flex items-center justify-between">
+          <span class="font-mono text-sm text-inktext">tp4x-92kd-qzr7</span>
+          <button class="text-xs font-medium text-crimson hover:underline">복사</button>
+        </div>
+        <p class="mt-2 text-xs text-muted">사용자는 로그인 후 "내 정보"에서 원하는 비밀번호로 다시 바꿀 수 있습니다.</p>
+        <button onclick="show('admin')" class="mt-5 w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium py-2.5 transition-colors">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+  show('login');
+</script>
+</body>
+</html>

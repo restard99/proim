@@ -5,13 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 import { TEAMS, SIGNUP_ROLES } from "@/lib/auth/constants";
 
 export type SignUpFieldErrors = Partial<
-  Record<"fullName" | "team" | "role" | "password" | "passwordConfirm", string>
+  Record<"fullName" | "team" | "role" | "email" | "password" | "passwordConfirm", string>
 >;
 
 export type SignUpState =
   | { status: "idle" }
   | { status: "error"; error: "validation"; fieldErrors: SignUpFieldErrors }
   | { status: "error"; error: "duplicate-name" }
+  | { status: "error"; error: "duplicate-email" }
   | { status: "error"; error: "unknown"; message: string };
 
 const SIGNUP_ROLE_VALUES = SIGNUP_ROLES.map((r) => r.value);
@@ -20,6 +21,7 @@ export async function signUp(_prevState: SignUpState, formData: FormData): Promi
   const fullName = String(formData.get("fullName") ?? "").trim();
   const team = String(formData.get("team") ?? "");
   const role = String(formData.get("role") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
 
@@ -28,6 +30,11 @@ export async function signUp(_prevState: SignUpState, formData: FormData): Promi
   if (!TEAMS.includes(team as (typeof TEAMS)[number])) fieldErrors.team = "소속팀을 선택하세요.";
   if (!SIGNUP_ROLE_VALUES.includes(role as (typeof SIGNUP_ROLE_VALUES)[number])) {
     fieldErrors.role = "직급을 선택하세요.";
+  }
+  if (!email) {
+    fieldErrors.email = "이메일을 입력하세요.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fieldErrors.email = "올바른 이메일 형식이 아닙니다.";
   }
   if (password.length < 8) fieldErrors.password = "비밀번호는 8자 이상이어야 합니다.";
   if (password !== passwordConfirm) fieldErrors.passwordConfirm = "비밀번호가 일치하지 않습니다.";
@@ -48,12 +55,17 @@ export async function signUp(_prevState: SignUpState, formData: FormData): Promi
     return { status: "error", error: "duplicate-name" };
   }
 
-  const syntheticEmail = `${crypto.randomUUID()}@internal.taepyeong.invalid`;
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email: syntheticEmail,
+    email,
     password,
   });
-  if (signUpError || !signUpData.user) {
+  if (signUpError) {
+    if (signUpError.code === "user_already_exists") {
+      return { status: "error", error: "duplicate-email" };
+    }
+    return { status: "error", error: "unknown", message: "가입 처리 중 오류가 발생했습니다." };
+  }
+  if (!signUpData.user) {
     return { status: "error", error: "unknown", message: "가입 처리 중 오류가 발생했습니다." };
   }
 

@@ -14,9 +14,11 @@ export function SignupForm() {
   const bannerMessage =
     state.status === "error" && state.error === "duplicate-name"
       ? "이미 등록된 이름입니다. 동명이인이라면 관리자에게 문의해주세요."
-      : state.status === "error" && state.error === "unknown"
-        ? state.message
-        : null;
+      : state.status === "error" && state.error === "duplicate-email"
+        ? "이미 사용 중인 이메일입니다. 다른 이메일을 입력해주세요."
+        : state.status === "error" && state.error === "unknown"
+          ? state.message
+          : null;
 
   const borderClass = (hasError: boolean) =>
     hasError
@@ -95,6 +97,23 @@ export function SignupForm() {
             ))}
           </div>
           {fieldErrors.role && <p className="mt-1 text-xs text-crimsond">{fieldErrors.role}</p>}
+        </div>
+
+        <div className="rounded-md border-2 border-brine/40 bg-brine/5 p-3.5">
+          <label htmlFor="email" className="block text-sm font-medium text-inktext mb-1.5">
+            이메일
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            className={`w-full rounded-md border bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 ${borderClass(!!fieldErrors.email)}`}
+          />
+          <p className="mt-1 text-xs text-brine">
+            비밀번호를 잊었을 때 재설정 메일을 받는 용도로만 사용됩니다. 실제 로그인은 이름+소속팀으로 그대로 하시면 됩니다.
+          </p>
+          {fieldErrors.email && <p className="mt-1 text-xs text-crimsond">{fieldErrors.email}</p>}
         </div>
 
         <div>
