@@ -74,42 +74,47 @@ function NavLinks({
   );
 }
 
-function ProfileFooter({ userName, userTeam, interactive }: { userName: string; userTeam: string; interactive?: boolean }) {
-  const body = (
-    <>
-      <div className="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">
-        {userName.slice(0, 1)}
-      </div>
-      <div className="min-w-0 text-left">
-        <p className="text-sm font-medium text-salt">{userName}</p>
-        <p className="text-xs text-salt/50">{userTeam}</p>
-      </div>
-      {interactive && (
-        <svg className="h-4 w-4 text-salt/40 ml-auto shrink-0" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M3 3a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H5v12h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1V3Zm10.3 3.3a1 1 0 0 1 1.4 0l3 3a1 1 0 0 1 0 1.4l-3 3a1 1 0 1 1-1.4-1.4L14.58 11H8a1 1 0 1 1 0-2h6.58l-1.28-1.3a1 1 0 0 1 0-1.4Z"
-          />
-        </svg>
-      )}
-    </>
-  );
-
-  if (interactive) {
-    return (
-      <form action={signOut} className="mx-3 mb-3">
+function ProfileFooter({
+  userName,
+  userTeam,
+  onNavigate,
+}: {
+  userName: string;
+  userTeam: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <div className="mx-3 mb-3 flex items-center gap-1">
+      <Link
+        href="/account"
+        onClick={onNavigate}
+        className="flex flex-1 min-w-0 items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/5"
+      >
+        <div className="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">
+          {userName.slice(0, 1)}
+        </div>
+        <div className="min-w-0 text-left">
+          <p className="text-sm font-medium text-salt truncate">{userName}</p>
+          <p className="text-xs text-salt/50 truncate">{userTeam}</p>
+        </div>
+      </Link>
+      <form action={signOut}>
         <button
           type="submit"
           title="로그아웃"
-          className="flex w-full items-start gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/5"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-salt/40 hover:text-salt hover:bg-white/5 transition-colors shrink-0"
         >
-          {body}
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M3 3a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H5v12h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1V3Zm10.3 3.3a1 1 0 0 1 1.4 0l3 3a1 1 0 0 1 0 1.4l-3 3a1 1 0 1 1-1.4-1.4L14.58 11H8a1 1 0 1 1 0-2h6.58l-1.28-1.3a1 1 0 0 1 0-1.4Z"
+            />
+          </svg>
         </button>
       </form>
-    );
-  }
-  return <div className="mx-3 mb-3 flex items-start gap-3 px-3 py-3">{body}</div>;
+    </div>
+  );
 }
 
 export function AppShell({
@@ -135,7 +140,7 @@ export function AppShell({
           <LogoBadge />
         </div>
         <NavLinks pathname={pathname} businessNavItems={businessNavItems} userTeam={userTeam} />
-        <ProfileFooter userName={userName} userTeam={userTeam} interactive />
+        <ProfileFooter userName={userName} userTeam={userTeam} />
       </aside>
 
       {mobileOpen && (
@@ -159,7 +164,7 @@ export function AppShell({
               userTeam={userTeam}
               onNavigate={() => setMobileOpen(false)}
             />
-            <ProfileFooter userName={userName} userTeam={userTeam} />
+            <ProfileFooter userName={userName} userTeam={userTeam} onNavigate={() => setMobileOpen(false)} />
           </div>
           <button
             type="button"
