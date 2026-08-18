@@ -521,3 +521,25 @@ CREATE POLICY "production_logs_delete_own" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'production-logs' AND (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ============================================================
+-- FEAT-005-password-reset: 관리자 화면의 "전체 사용자" 목록용 RPC
+-- ============================================================
+
+-- 관리자가 테넌트 내 전체 사용자(이메일 포함)를 조회할 때 쓴다.
+-- 가짜 이메일(@internal.taepyeong.invalid)로 가입한 기존 계정은 email을 NULL로 반환해
+-- 화면에서 "미등록"으로 표시할 수 있게 한다. 관리자가 아니면 빈 결과를 반환한다.
+CREATE OR REPLACE FUNCTION public.admin_list_users(p_tenant_id UUID)
+RETURNS TABLE (id UUID, full_name TEXT, team TEXT, role TEXT, status TEXT, email TEXT, created_at TIMESTAMPTZ)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT p.id, p.full_name, p.team, p.role, p.status,
+         CASE WHEN au.email LIKE '%@internal.taepyeong.invalid' THEN NULL ELSE au.email END,
+         p.created_at
+  FROM profiles p
+  JOIN auth.users au ON au.id = p.id
+  WHERE p.tenant_id = p_tenant_id AND public.is_tenant_admin(p_tenant_id)
+  ORDER BY p.full_name;
+$$;
+REVOKE ALL ON FUNCTION public.admin_list_users(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_list_users(UUID) TO authenticated;
