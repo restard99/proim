@@ -71,6 +71,15 @@ export const PRODUCTION_LOGS_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+export const ADMIN_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/admin/view-as",
+    label: "계정으로 보기",
+    iconPath:
+      "M10 2a5 5 0 100 10 5 5 0 000-10zM3 17a7 7 0 0114 0 1 1 0 01-1 1H4a1 1 0 01-1-1z",
+  },
+];
+
 // 거래처별 매출/수금현황: 영업팀 전체, 영업채산팀은 팀장만
 export function canViewSales(team: string | null | undefined, role: string | null | undefined): boolean {
   if (role === "admin") return true;

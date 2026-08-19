@@ -49,11 +49,13 @@ function NavLinkRow({
 function NavLinks({
   pathname,
   businessNavItems,
+  adminNavItems,
   userTeam,
   onNavigate,
 }: {
   pathname: string;
   businessNavItems: NavItem[];
+  adminNavItems: NavItem[];
   userTeam: string;
   onNavigate?: () => void;
 }) {
@@ -67,6 +69,14 @@ function NavLinks({
         <>
           <p className="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">{userTeam}</p>
           {businessNavItems.map((item) => (
+            <NavLinkRow key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={onNavigate} />
+          ))}
+        </>
+      )}
+      {adminNavItems.length > 0 && (
+        <>
+          <p className="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">관리자</p>
+          {adminNavItems.map((item) => (
             <NavLinkRow key={item.href} item={item} active={isActive(pathname, item.href)} onNavigate={onNavigate} />
           ))}
         </>
@@ -122,19 +132,21 @@ export function AppShell({
   userName,
   userTeam,
   businessNavItems = [],
+  adminNavItems = [],
   isViewingAs = false,
   children,
 }: {
   userName: string;
   userTeam: string;
   businessNavItems?: NavItem[];
+  adminNavItems?: NavItem[];
   isViewingAs?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const currentLabel =
-    [...NAV_ITEMS, ...businessNavItems].find((item) => isActive(pathname, item.href))?.label ?? "";
+    [...NAV_ITEMS, ...businessNavItems, ...adminNavItems].find((item) => isActive(pathname, item.href))?.label ?? "";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -167,7 +179,12 @@ export function AppShell({
         <div className="border-b border-white/10 px-6 py-6">
           <LogoBadge />
         </div>
-        <NavLinks pathname={pathname} businessNavItems={businessNavItems} userTeam={userTeam} />
+        <NavLinks
+          pathname={pathname}
+          businessNavItems={businessNavItems}
+          adminNavItems={adminNavItems}
+          userTeam={userTeam}
+        />
         <ProfileFooter userName={userName} userTeam={userTeam} />
       </aside>
 
@@ -189,6 +206,7 @@ export function AppShell({
             <NavLinks
               pathname={pathname}
               businessNavItems={businessNavItems}
+              adminNavItems={adminNavItems}
               userTeam={userTeam}
               onNavigate={() => setMobileOpen(false)}
             />
