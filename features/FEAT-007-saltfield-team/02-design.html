@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FEAT-007 염전관리팀 화면 — 디자인 목업</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: "#14283A",
+          ink2: "#0F1F2E",
+          brine: "#1E6B72",
+          crimson: "#8B2942",
+          crimsond: "#6E1F33",
+          sand: "#C9B896",
+          salt: "#FAF8F3",
+          mist: "#EFEAE1",
+          inktext: "#1F2A33",
+          muted: "#5B6B74",
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; background: #FAF8F3; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+</style>
+</head>
+<body class="text-inktext">
+
+<!-- 목업 네비게이션 (실제 화면 아님) -->
+<div class="sticky top-0 z-50 bg-ink text-salt px-4 py-2.5 flex flex-wrap gap-1.5 text-xs">
+  <span class="font-semibold mr-2 py-1">FEAT-007 목업:</span>
+  <button onclick="show('prod-list')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">① 생산량-목록</button>
+  <button onclick="show('prod-upload')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">② 생산량-업로드</button>
+  <button onclick="show('prod-detail')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">③ 생산량-상세</button>
+  <button onclick="show('prod-empty')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">④ 생산량-빈상태</button>
+  <button onclick="show('inv-list')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">⑤ 부자재재고-목록</button>
+  <button onclick="show('inv-upload')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">⑥ 부자재재고-업로드</button>
+  <button onclick="show('inv-error')" class="tab-btn px-2.5 py-1 rounded hover:bg-white/10">⑦ 업로드-오류</button>
+</div>
+
+<!-- ============ 공통 셸(사이드바+헤더) 생성 함수 대신, 각 화면에 반복 배치 ============ -->
+
+<!-- ① 생산량 목록 -->
+<div id="prod-list" class="screen active">
+<div class="flex min-h-screen">
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">홈</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">일정관리</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">업무일지</a>
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">염전관리팀</p>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">생산량</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">부자재재고현황</a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left"><p class="text-sm font-medium text-salt truncate">김현장</p><p class="text-xs text-salt/50 truncate">염전관리팀</p></div>
+    </div>
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="flex items-center justify-between border-b border-mist bg-white px-5 py-4 lg:px-8">
+      <h1 class="text-lg font-semibold text-inktext">생산량</h1>
+    </header>
+
+    <main class="flex-1 bg-salt px-6 lg:px-10 py-8">
+      <div class="max-w-5xl">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-inktext">생산량 업로드 기록</h2>
+            <p class="mt-1 text-sm text-muted">주간업무보고 엑셀(생산실적 포함)을 올리면 날짜별 생산량이 쌓입니다.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="file" class="hidden" id="prod-file" />
+            <label for="prod-file" class="cursor-pointer rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium px-4 py-2.5 transition-colors">
+              엑셀 업로드
+            </label>
+          </div>
+        </div>
+
+        <!-- 최신 요약 카드 -->
+        <div class="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="rounded-lg border border-mist bg-white p-4">
+            <p class="text-xs text-muted">오늘 생산량</p>
+            <p class="mt-1 text-xl font-semibold text-inktext">2,100<span class="text-sm font-normal text-muted ml-1">포</span></p>
+          </div>
+          <div class="rounded-lg border border-mist bg-white p-4">
+            <p class="text-xs text-muted">이번 주 실적 / 계획</p>
+            <p class="mt-1 text-xl font-semibold text-inktext">27,390<span class="text-sm font-normal text-muted"> / 96,000</span></p>
+          </div>
+          <div class="rounded-lg border border-mist bg-white p-4">
+            <p class="text-xs text-muted">이번 달 달성율</p>
+            <p class="mt-1 text-xl font-semibold text-brine">2.2%</p>
+          </div>
+          <div class="rounded-lg border border-mist bg-white p-4">
+            <p class="text-xs text-muted">연간 진행율</p>
+            <p class="mt-1 text-xl font-semibold text-brine">75.9%</p>
+          </div>
+        </div>
+
+        <!-- 날짜별 목록 -->
+        <div class="mt-6 rounded-lg border border-mist bg-white overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+                <th class="px-4 py-3 font-medium text-left">일자</th>
+                <th class="px-4 py-3 font-medium text-left">일일실적(포)</th>
+                <th class="px-4 py-3 font-medium text-left">등록 파일</th>
+                <th class="px-4 py-3 font-medium text-left">업로드한 사람</th>
+                <th class="px-4 py-3 font-medium text-left">처리</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-mist">
+              <tr class="hover:bg-mist/20 cursor-pointer" onclick="show('prod-detail')">
+                <td class="px-4 py-3.5 font-medium">2026-08-02 (일)</td>
+                <td class="px-4 py-3.5 text-left font-mono">2,100</td>
+                <td class="px-4 py-3.5 text-muted text-xs">태평염전 염전관리팀 2026년 8월 1주차 주간업무보고(생산실적 포함).xlsx</td>
+                <td class="px-4 py-3.5 text-muted">김현장</td>
+                <td class="px-4 py-3.5 text-left"><span class="text-xs text-brine">상세 보기 →</span></td>
+              </tr>
+              <tr class="hover:bg-mist/20 cursor-pointer" onclick="show('prod-detail')">
+                <td class="px-4 py-3.5 font-medium">2026-07-27 (월)</td>
+                <td class="px-4 py-3.5 text-left font-mono">1,850</td>
+                <td class="px-4 py-3.5 text-muted text-xs">태평염전 염전관리팀 2026년 7월 5주차 주간업무보고(생산실적 포함).xlsx</td>
+                <td class="px-4 py-3.5 text-muted">이현장</td>
+                <td class="px-4 py-3.5 text-left"><span class="text-xs text-brine">상세 보기 →</span></td>
+              </tr>
+              <tr class="hover:bg-mist/20 cursor-pointer" onclick="show('prod-detail')">
+                <td class="px-4 py-3.5 font-medium">2026-07-26 (일)</td>
+                <td class="px-4 py-3.5 text-left font-mono">0</td>
+                <td class="px-4 py-3.5 text-muted text-xs">태평염전 염전관리팀 2026년 7월 5주차 주간업무보고(생산실적 포함).xlsx</td>
+                <td class="px-4 py-3.5 text-muted">이현장</td>
+                <td class="px-4 py-3.5 text-left"><span class="text-xs text-brine">상세 보기 →</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+
+<!-- ② 생산량 업로드 진행/성공 -->
+<div id="prod-upload" class="screen">
+<div class="flex min-h-screen">
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">홈</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">일정관리</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">업무일지</a>
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">염전관리팀</p>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">생산량</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">부자재재고현황</a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left"><p class="text-sm font-medium text-salt truncate">김현장</p><p class="text-xs text-salt/50 truncate">염전관리팀</p></div>
+    </div>
+  </aside>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="border-b border-mist bg-white px-5 py-4 lg:px-8"><h1 class="text-lg font-semibold text-inktext">생산량</h1></header>
+    <main class="flex-1 bg-salt flex items-center justify-center px-6 py-8">
+      <div class="w-full max-w-md rounded-lg border border-mist bg-white p-8 text-center">
+        <div class="mx-auto h-14 w-14 rounded-full bg-brine/10 flex items-center justify-center">
+          <svg class="h-7 w-7 text-brine" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z"/></svg>
+        </div>
+        <h2 class="mt-4 text-base font-semibold text-inktext">업로드 완료</h2>
+        <p class="mt-1.5 text-sm text-muted">2026-07-27 ~ 2026-08-02 기간, 7일치 생산량이 저장되었습니다.</p>
+        <div class="mt-5 rounded-md bg-salt border border-mist px-4 py-3 text-left text-sm">
+          <p class="flex justify-between py-1"><span class="text-muted">인식된 날짜 수</span><span class="font-medium">7일</span></p>
+          <p class="flex justify-between py-1"><span class="text-muted">공구/호수 수</span><span class="font-medium">45개</span></p>
+          <p class="flex justify-between py-1"><span class="text-muted">파일명</span><span class="font-medium text-xs">주간업무보고(생산실적 포함).xlsx</span></p>
+        </div>
+        <button onclick="show('prod-list')" class="mt-6 w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium px-4 py-2.5 transition-colors">목록으로</button>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+
+<!-- ③ 생산량 상세 -->
+<div id="prod-detail" class="screen">
+<div class="flex min-h-screen">
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">홈</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">일정관리</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">업무일지</a>
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">염전관리팀</p>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">생산량</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">부자재재고현황</a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left"><p class="text-sm font-medium text-salt truncate">김현장</p><p class="text-xs text-salt/50 truncate">염전관리팀</p></div>
+    </div>
+  </aside>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="flex items-center justify-between border-b border-mist bg-white px-5 py-4 lg:px-8">
+      <div class="flex items-center gap-3">
+        <button onclick="show('prod-list')" class="text-muted hover:text-inktext text-sm">← 목록</button>
+        <h1 class="text-lg font-semibold text-inktext">2026-08-02 (일) 생산량 상세</h1>
+      </div>
+    </header>
+    <main class="flex-1 bg-salt px-6 lg:px-10 py-8">
+      <div class="max-w-5xl space-y-6">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="rounded-lg border border-mist bg-white p-4"><p class="text-xs text-muted">일일실적</p><p class="mt-1 text-xl font-semibold">2,100 포</p></div>
+          <div class="rounded-lg border border-mist bg-white p-4"><p class="text-xs text-muted">주간실적 / 계획</p><p class="mt-1 text-xl font-semibold">27,390 / 96,000</p></div>
+          <div class="rounded-lg border border-mist bg-white p-4"><p class="text-xs text-muted">월간실적 / 계획</p><p class="mt-1 text-xl font-semibold">2,100 / 96,000</p></div>
+          <div class="rounded-lg border border-mist bg-white p-4"><p class="text-xs text-muted">연간실적 / 계획</p><p class="mt-1 text-xl font-semibold">364,520 / 480,000</p></div>
+        </div>
+
+        <div class="rounded-lg border border-mist bg-white overflow-hidden">
+          <div class="border-b border-mist bg-mist/40 px-4 py-2.5 text-xs font-semibold text-muted">1공구 (호수별 생산량, 포)</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[900px]">
+              <thead><tr class="text-left text-xs text-muted border-b border-mist">
+                <th class="px-3 py-2 text-left">1-1호</th><th class="px-3 py-2 text-left">1-2호</th><th class="px-3 py-2 text-left">1-3호</th><th class="px-3 py-2 text-left">1-4호</th><th class="px-3 py-2 text-left">1-6호</th><th class="px-3 py-2 text-left">1-7호</th><th class="px-3 py-2 text-left">1-8호</th><th class="px-3 py-2 text-left">1-9호</th>
+              </tr></thead>
+              <tbody><tr class="text-left font-mono">
+                <td class="px-3 py-2">0</td><td class="px-3 py-2">0</td><td class="px-3 py-2 text-inktext font-semibold">100</td><td class="px-3 py-2 text-inktext font-semibold">100</td><td class="px-3 py-2">0</td><td class="px-3 py-2 text-inktext font-semibold">100</td><td class="px-3 py-2 text-inktext font-semibold">100</td><td class="px-3 py-2 text-inktext font-semibold">100</td>
+              </tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-mist bg-white overflow-hidden">
+          <div class="border-b border-mist bg-mist/40 px-4 py-2.5 text-xs font-semibold text-muted">2공구 / 3공구</div>
+          <div class="px-4 py-6 text-center text-sm text-muted">이번 날짜엔 2·3공구 생산 기록 없음</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+
+<!-- ④ 생산량 빈 상태 -->
+<div id="prod-empty" class="screen">
+<div class="flex min-h-screen">
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">홈</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">일정관리</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">업무일지</a>
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">염전관리팀</p>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">생산량</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">부자재재고현황</a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left"><p class="text-sm font-medium text-salt truncate">김현장</p><p class="text-xs text-salt/50 truncate">염전관리팀</p></div>
+    </div>
+  </aside>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="border-b border-mist bg-white px-5 py-4 lg:px-8"><h1 class="text-lg font-semibold text-inktext">생산량</h1></header>
+    <main class="flex-1 bg-salt px-6 lg:px-10 py-8">
+      <div class="max-w-5xl">
+        <div class="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+          <div class="mx-auto h-12 w-12 rounded-full bg-mist flex items-center justify-center">
+            <svg class="h-6 w-6 text-muted" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Z"/></svg>
+          </div>
+          <p class="mt-4 text-sm font-medium text-inktext">업로드된 생산량 기록이 없습니다</p>
+          <p class="mt-1 text-sm text-muted">주간업무보고 엑셀을 업로드하면 여기에 날짜별로 표시됩니다.</p>
+          <label class="mt-5 inline-block cursor-pointer rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium px-4 py-2.5 transition-colors">엑셀 업로드</label>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+
+<!-- ⑤ 부자재재고현황 목록 -->
+<div id="inv-list" class="screen">
+<div class="flex min-h-screen">
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">홈</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">일정관리</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">업무일지</a>
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">염전관리팀</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">생산량</a>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">부자재재고현황</a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left"><p class="text-sm font-medium text-salt truncate">김현장</p><p class="text-xs text-salt/50 truncate">염전관리팀</p></div>
+    </div>
+  </aside>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="flex items-center justify-between border-b border-mist bg-white px-5 py-4 lg:px-8">
+      <h1 class="text-lg font-semibold text-inktext">부자재재고현황</h1>
+    </header>
+    <main class="flex-1 bg-salt px-6 lg:px-10 py-8">
+      <div class="max-w-5xl">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p class="text-sm text-muted">마지막 업데이트: 2026-08-06 · 업로드: 박부자재</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="search" placeholder="업체명 또는 품명 검색" class="rounded-md border border-mist bg-white px-3.5 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30 w-56" />
+            <label class="cursor-pointer rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium px-4 py-2.5 transition-colors">엑셀 업로드</label>
+          </div>
+        </div>
+
+        <div class="mt-5 rounded-md bg-sand/20 border border-sand/50 px-4 py-2.5 text-xs text-inktext">
+          새 파일을 업로드하면 이 목록 전체가 업로드한 파일 내용으로 교체됩니다.
+        </div>
+
+        <div class="mt-4 rounded-lg border border-mist bg-white overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+                <th class="px-4 py-3 font-medium text-left">업체명</th>
+                <th class="px-4 py-3 font-medium text-left">품명</th>
+                <th class="px-4 py-3 font-medium text-left">단가</th>
+                <th class="px-4 py-3 font-medium text-left">이월재고</th>
+                <th class="px-4 py-3 font-medium text-left">입고</th>
+                <th class="px-4 py-3 font-medium text-left">출고</th>
+                <th class="px-4 py-3 font-medium text-left">재고</th>
+                <th class="px-4 py-3 font-medium text-left">재고금액</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-mist">
+              <tr class="hover:bg-mist/20">
+                <td class="px-4 py-3.5">㈜동원</td><td class="px-4 py-3.5">20kg일반마대</td>
+                <td class="px-4 py-3.5 text-left font-mono">330</td><td class="px-4 py-3.5 text-left font-mono">33,965</td>
+                <td class="px-4 py-3.5 text-left font-mono">0</td><td class="px-4 py-3.5 text-left font-mono">18,500</td>
+                <td class="px-4 py-3.5 text-left font-mono font-semibold">15,465</td><td class="px-4 py-3.5 text-left font-mono">5,103,450</td>
+              </tr>
+              <tr class="hover:bg-mist/20">
+                <td class="px-4 py-3.5">㈜동원</td><td class="px-4 py-3.5">10kg 미싱마대</td>
+                <td class="px-4 py-3.5 text-left font-mono">330</td><td class="px-4 py-3.5 text-left font-mono">3,360</td>
+                <td class="px-4 py-3.5 text-left font-mono">11,000</td><td class="px-4 py-3.5 text-left font-mono">4,560</td>
+                <td class="px-4 py-3.5 text-left font-mono font-semibold">9,800</td><td class="px-4 py-3.5 text-left font-mono">3,234,000</td>
+              </tr>
+              <tr class="hover:bg-mist/20 bg-crimson/5">
+                <td class="px-4 py-3.5">대덕종합전기</td><td class="px-4 py-3.5">누전차단기(4P-50A)</td>
+                <td class="px-4 py-3.5 text-left font-mono">60,000</td><td class="px-4 py-3.5 text-left font-mono">6</td>
+                <td class="px-4 py-3.5 text-left font-mono">0</td><td class="px-4 py-3.5 text-left font-mono">3</td>
+                <td class="px-4 py-3.5 text-left font-mono font-semibold text-crimsond">3</td><td class="px-4 py-3.5 text-left font-mono">180,000</td>
+              </tr>
+              <tr class="hover:bg-mist/20">
+                <td class="px-4 py-3.5">복영산업</td><td class="px-4 py-3.5">내부용 톤백</td>
+                <td class="px-4 py-3.5 text-left font-mono">9,900</td><td class="px-4 py-3.5 text-left font-mono">400</td>
+                <td class="px-4 py-3.5 text-left font-mono">600</td><td class="px-4 py-3.5 text-left font-mono">600</td>
+                <td class="px-4 py-3.5 text-left font-mono font-semibold">400</td><td class="px-4 py-3.5 text-left font-mono">3,960,000</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+
+<!-- ⑥ 부자재재고 업로드 성공 -->
+<div id="inv-upload" class="screen">
+<div class="flex min-h-screen">
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">홈</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">일정관리</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">업무일지</a>
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">염전관리팀</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">생산량</a>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">부자재재고현황</a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left"><p class="text-sm font-medium text-salt truncate">김현장</p><p class="text-xs text-salt/50 truncate">염전관리팀</p></div>
+    </div>
+  </aside>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="border-b border-mist bg-white px-5 py-4 lg:px-8"><h1 class="text-lg font-semibold text-inktext">부자재재고현황</h1></header>
+    <main class="flex-1 bg-salt flex items-center justify-center px-6 py-8">
+      <div class="w-full max-w-md rounded-lg border border-mist bg-white p-8 text-center">
+        <div class="mx-auto h-14 w-14 rounded-full bg-brine/10 flex items-center justify-center">
+          <svg class="h-7 w-7 text-brine" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z"/></svg>
+        </div>
+        <h2 class="mt-4 text-base font-semibold text-inktext">업로드 완료</h2>
+        <p class="mt-1.5 text-sm text-muted">기존 재고현황이 새 파일 내용으로 교체되었습니다.</p>
+        <div class="mt-5 rounded-md bg-salt border border-mist px-4 py-3 text-left text-sm">
+          <p class="flex justify-between py-1"><span class="text-muted">인식된 품목 수</span><span class="font-medium">86개</span></p>
+          <p class="flex justify-between py-1"><span class="text-muted">업체 수</span><span class="font-medium">7곳</span></p>
+        </div>
+        <button onclick="show('inv-list')" class="mt-6 w-full rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium px-4 py-2.5 transition-colors">목록으로</button>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+
+<!-- ⑦ 업로드 오류 -->
+<div id="inv-error" class="screen">
+<div class="flex min-h-screen">
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">홈</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">일정관리</a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">업무일지</a>
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">염전관리팀</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">생산량</a>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">부자재재고현황</a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left"><p class="text-sm font-medium text-salt truncate">김현장</p><p class="text-xs text-salt/50 truncate">염전관리팀</p></div>
+    </div>
+  </aside>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="border-b border-mist bg-white px-5 py-4 lg:px-8"><h1 class="text-lg font-semibold text-inktext">부자재재고현황</h1></header>
+    <main class="flex-1 bg-salt flex items-center justify-center px-6 py-8">
+      <div class="w-full max-w-md rounded-lg border border-mist bg-white p-8 text-center">
+        <div class="mx-auto h-14 w-14 rounded-full bg-crimson/10 flex items-center justify-center">
+          <svg class="h-7 w-7 text-crimsond" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16Zm1-11a1 1 0 10-2 0v4a1 1 0 002 0V7Zm-1 8a1.25 1.25 0 100-2.5 1.25 1.25 0 000 2.5Z"/></svg>
+        </div>
+        <h2 class="mt-4 text-base font-semibold text-inktext">업로드 실패</h2>
+        <p class="mt-1.5 text-sm text-muted">엑셀 양식을 확인할 수 없습니다. "생산-염전" 탭이 있는 파일인지 확인해주세요.</p>
+        <label class="mt-6 inline-block w-full cursor-pointer rounded-md bg-crimson hover:bg-crimsond text-salt text-sm font-medium px-4 py-2.5 transition-colors">다시 시도</label>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+  show('prod-list');
+</script>
+</body>
+</html>

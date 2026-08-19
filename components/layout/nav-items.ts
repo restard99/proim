@@ -71,6 +71,22 @@ export const PRODUCTION_LOGS_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+export const SALTFIELD_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/saltfield-production",
+    label: "생산량",
+    iconPath:
+      "M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z",
+  },
+  {
+    href: "/saltfield-inventory",
+    label: "부자재재고현황",
+    iconPath:
+      "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
+    evenOdd: false,
+  },
+];
+
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   {
     href: "/admin/view-as",
@@ -106,6 +122,12 @@ export function canViewProductionLogs(team: string | null | undefined, role: str
   return team === "생산팀";
 }
 
+// 생산량/부자재재고현황: 염전관리팀 전체(팀원+팀장)
+export function canViewSaltfield(team: string | null | undefined, role: string | null | undefined): boolean {
+  if (role === "admin") return true;
+  return team === "염전관리팀";
+}
+
 export function getVisibleBusinessNavItems(
   team: string | null | undefined,
   role: string | null | undefined,
@@ -115,5 +137,6 @@ export function getVisibleBusinessNavItems(
   if (canViewInventory(team, role)) items.push(...INVENTORY_NAV_ITEMS);
   if (canViewProductionRequests(team, role)) items.push(...PRODUCTION_REQUESTS_NAV_ITEMS);
   if (canViewProductionLogs(team, role)) items.push(...PRODUCTION_LOGS_NAV_ITEMS);
+  if (canViewSaltfield(team, role)) items.push(...SALTFIELD_NAV_ITEMS);
   return items;
 }
