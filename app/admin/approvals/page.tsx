@@ -2,6 +2,8 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ApprovalTable, type PendingProfile } from "@/components/admin/ApprovalTable";
+import { UserAccountTable } from "@/components/admin/UserAccountTable";
+import { listAllUsers } from "@/app/actions/admin-users";
 
 export default async function AdminApprovalsPage() {
   const supabase = await createClient();
@@ -21,6 +23,9 @@ export default async function AdminApprovalsPage() {
     .order("created_at", { ascending: true });
 
   const pendingList = (pending ?? []) as PendingProfile[];
+
+  const usersResult = await listAllUsers();
+  const allUsers = usersResult.ok ? usersResult.users : [];
 
   return (
     <div className="min-h-screen bg-salt">
@@ -46,6 +51,14 @@ export default async function AdminApprovalsPage() {
         <p className="mt-1.5 text-sm text-muted">새로 가입한 계정을 확인하고 승인하거나 반려하세요.</p>
 
         <ApprovalTable pending={pendingList} />
+
+        <div className="mt-12">
+          <h2 className="text-xl font-semibold text-inktext">전체 사용자</h2>
+          <p className="mt-1.5 text-sm text-muted">
+            비밀번호를 잊은 사용자를 위해 임시 비밀번호를 발급할 수 있습니다.
+          </p>
+          <UserAccountTable users={allUsers} />
+        </div>
       </div>
     </div>
   );
