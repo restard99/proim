@@ -670,3 +670,20 @@ CREATE POLICY "saltfield_materials_team_delete" ON saltfield_materials
   );
 
 CREATE INDEX IF NOT EXISTS saltfield_materials_tenant_month_idx ON saltfield_materials(tenant_id, month_label);
+
+-- ============================================================
+-- FIX-003: 로그인 화면 이름 입력 시 소속팀 자동 매칭
+-- ============================================================
+
+-- 이름으로 소속팀 목록만 반환한다(동명이인이면 여러 개). 승인 상태는 반환하지 않아
+-- 미승인 계정 존재 여부가 노출되지 않도록 한다 (기존 lookup_auth_email과 동일한 보안 원칙).
+CREATE OR REPLACE FUNCTION public.lookup_teams_by_name(p_tenant_id UUID, p_full_name TEXT)
+RETURNS TEXT[]
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT COALESCE(array_agg(team), ARRAY[]::TEXT[])
+  FROM profiles
+  WHERE tenant_id = p_tenant_id AND full_name = p_full_name;
+$$;
+REVOKE ALL ON FUNCTION public.lookup_teams_by_name(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.lookup_teams_by_name(UUID, TEXT) TO anon, authenticated;

@@ -1,14 +1,31 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
-import { signIn, type SignInState } from "@/app/actions/auth";
+import { signIn, lookupTeamsByName, type SignInState } from "@/app/actions/auth";
 import { TEAMS } from "@/lib/auth/constants";
 
 const initialState: SignInState = { status: "idle" };
 
 export function LoginForm() {
   const [state, formAction, isPending] = useActionState(signIn, initialState);
+  const teamSelectRef = useRef<HTMLSelectElement>(null);
+  const [isMatching, setIsMatching] = useState(false);
+
+  const handleNameBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const name = e.target.value.trim();
+    if (!name || name.includes("@")) return;
+
+    setIsMatching(true);
+    try {
+      const teams = await lookupTeamsByName(name);
+      if (teams.length === 1 && teamSelectRef.current) {
+        teamSelectRef.current.value = teams[0];
+      }
+    } finally {
+      setIsMatching(false);
+    }
+  };
 
   const fieldErrors = state.status === "error" && state.error === "validation" ? state.fieldErrors : {};
   const isCredentialError = state.status === "error" && state.error === "invalid-credentials";
@@ -60,10 +77,13 @@ export function LoginForm() {
             name="fullName"
             type="text"
             placeholder="홍길동"
+            onBlur={handleNameBlur}
             className={`w-full rounded-md border bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 ${borderClass(!!fieldErrors.fullName || isCredentialError)}`}
           />
           <p className="mt-1 text-xs text-muted">
-            동명이인이 있을 수 있어 소속팀과 함께 계정을 구분합니다. 관리자 계정은 이메일을 입력하세요.
+            {isMatching
+              ? "소속팀을 확인하는 중…"
+              : "동명이인이 있을 수 있어 소속팀과 함께 계정을 구분합니다. 관리자 계정은 이메일을 입력하세요."}
           </p>
           {fieldErrors.fullName && <p className="mt-1 text-xs text-crimsond">{fieldErrors.fullName}</p>}
         </div>
@@ -76,6 +96,7 @@ export function LoginForm() {
             id="team"
             name="team"
             defaultValue=""
+            ref={teamSelectRef}
             className={`w-full rounded-md border bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 ${borderClass(!!fieldErrors.team || isCredentialError)}`}
           >
             <option value="" disabled>

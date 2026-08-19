@@ -217,3 +217,17 @@ export async function signOut() {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+export async function lookupTeamsByName(fullName: string): Promise<string[]> {
+  const name = fullName.trim();
+  if (!name) return [];
+
+  const supabase = await createClient();
+  const tenantId = process.env.DEFAULT_TENANT_ID!;
+  const { data } = await supabase.rpc("lookup_teams_by_name", {
+    p_tenant_id: tenantId,
+    p_full_name: name,
+  });
+
+  return (data ?? []) as string[];
+}
