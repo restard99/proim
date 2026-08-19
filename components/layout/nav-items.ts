@@ -89,6 +89,12 @@ export const SALTFIELD_NAV_ITEMS: NavItem[] = [
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   {
+    href: "/admin/approvals",
+    label: "가입 승인 관리",
+    iconPath:
+      "M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z",
+  },
+  {
     href: "/admin/view-as",
     label: "시스템검토 게시판",
     iconPath:
