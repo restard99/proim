@@ -543,3 +543,130 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.admin_list_users(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_list_users(UUID) TO authenticated;
+
+-- ============================================================
+-- FEAT-007-saltfield-team: 염전관리팀 생산량 / 부자재재고현황
+-- ============================================================
+
+-- 날짜별로 누적되는 생산량 레코드. 같은 날짜를 포함한 파일을 다시 올리면
+-- (tenant_id, record_date) 충돌로 그 날짜만 갱신된다 (정정 업로드 대응).
+CREATE TABLE IF NOT EXISTS saltfield_production_records (
+  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id                 UUID NOT NULL REFERENCES tenants(id),
+  record_date               DATE NOT NULL,
+  daily_total               INTEGER NOT NULL DEFAULT 0,
+  field_data                JSONB NOT NULL,
+  weekly_plan               INTEGER,
+  weekly_actual             INTEGER,
+  plan_ratio                NUMERIC,
+  monthly_plan              INTEGER,
+  monthly_actual            INTEGER,
+  monthly_achievement_rate  NUMERIC,
+  monthly_cum_plan          INTEGER,
+  monthly_cum_actual        INTEGER,
+  monthly_cum_rate          NUMERIC,
+  annual_plan               INTEGER,
+  annual_actual             INTEGER,
+  annual_progress_rate      NUMERIC,
+  uploaded_by               UUID NOT NULL REFERENCES profiles(id),
+  file_name                 TEXT NOT NULL,
+  created_at                TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, record_date)
+);
+ALTER TABLE saltfield_production_records ENABLE ROW LEVEL SECURITY;
+
+-- 조회는 염전관리팀 전체(팀원+팀장) + 관리자
+DROP POLICY IF EXISTS "saltfield_production_team_select" ON saltfield_production_records;
+CREATE POLICY "saltfield_production_team_select" ON saltfield_production_records
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '염전관리팀')
+    )
+  );
+
+-- 업로드는 팀장 제한 없이 염전관리팀 전체 + 관리자 (기존 생산의뢰서와 다른 점)
+DROP POLICY IF EXISTS "saltfield_production_team_insert" ON saltfield_production_records;
+CREATE POLICY "saltfield_production_team_insert" ON saltfield_production_records
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND uploaded_by = auth.uid()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '염전관리팀')
+    )
+  );
+
+-- 같은 날짜 재업로드 시 갱신 가능 (UPDATE 정책도 동일 조건)
+DROP POLICY IF EXISTS "saltfield_production_team_update" ON saltfield_production_records;
+CREATE POLICY "saltfield_production_team_update" ON saltfield_production_records
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '염전관리팀')
+    )
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '염전관리팀')
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS saltfield_production_tenant_date_idx ON saltfield_production_records(tenant_id, record_date DESC);
+
+-- 부자재재고현황. "최신 파일로 교체" 방식이라 업로드 시 기존 테넌트 행을
+-- 전부 지우고 새로 삽입한다 (서버 액션에서 트랜잭션으로 처리).
+CREATE TABLE IF NOT EXISTS saltfield_materials (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id),
+  month_label   TEXT NOT NULL,
+  vendor_name   TEXT NOT NULL,
+  item_name     TEXT NOT NULL,
+  unit_price    NUMERIC,
+  carryover_qty NUMERIC,
+  inbound_qty   NUMERIC,
+  outbound_qty  NUMERIC,
+  stock_qty     NUMERIC,
+  stock_value   NUMERIC,
+  note          TEXT,
+  uploaded_by   UUID NOT NULL REFERENCES profiles(id),
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE saltfield_materials ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "saltfield_materials_team_select" ON saltfield_materials;
+CREATE POLICY "saltfield_materials_team_select" ON saltfield_materials
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '염전관리팀')
+    )
+  );
+
+DROP POLICY IF EXISTS "saltfield_materials_team_insert" ON saltfield_materials;
+CREATE POLICY "saltfield_materials_team_insert" ON saltfield_materials
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND uploaded_by = auth.uid()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '염전관리팀')
+    )
+  );
+
+-- "전체 교체" 업로드 시 기존 행 삭제를 위한 정책
+DROP POLICY IF EXISTS "saltfield_materials_team_delete" ON saltfield_materials;
+CREATE POLICY "saltfield_materials_team_delete" ON saltfield_materials
+  FOR DELETE USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '염전관리팀')
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS saltfield_materials_tenant_month_idx ON saltfield_materials(tenant_id, month_label);
