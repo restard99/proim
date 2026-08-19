@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/AppShell";
 import { getVisibleBusinessNavItems } from "@/components/layout/nav-items";
+import { VIEW_AS_COOKIE } from "@/lib/view-as";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
+  const cookieStore = await cookies();
+  const isViewingAs = Boolean(cookieStore.get(VIEW_AS_COOKIE));
 
   const {
     data: { user },
@@ -21,7 +25,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const businessNavItems = getVisibleBusinessNavItems(profile.team, profile.role);
 
   return (
-    <AppShell userName={profile.full_name ?? ""} userTeam={profile.team ?? ""} businessNavItems={businessNavItems}>
+    <AppShell
+      userName={profile.full_name ?? ""}
+      userTeam={profile.team ?? ""}
+      businessNavItems={businessNavItems}
+      isViewingAs={isViewingAs}
+    >
       {children}
     </AppShell>
   );

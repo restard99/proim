@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, type NavItem } from "./nav-items";
 import { signOut } from "@/app/actions/auth";
+import { stopViewAs } from "@/app/actions/view-as";
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -121,11 +122,13 @@ export function AppShell({
   userName,
   userTeam,
   businessNavItems = [],
+  isViewingAs = false,
   children,
 }: {
   userName: string;
   userTeam: string;
   businessNavItems?: NavItem[];
+  isViewingAs?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -134,7 +137,32 @@ export function AppShell({
     [...NAV_ITEMS, ...businessNavItems].find((item) => isActive(pathname, item.href))?.label ?? "";
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col">
+      {isViewingAs && (
+        <div className="flex items-center justify-between bg-crimson px-4 py-2 text-sm text-salt">
+          <span className="flex items-center gap-2">
+            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M10 2a5 5 0 100 10 5 5 0 000-10zM3 17a7 7 0 0114 0 1 1 0 01-1 1H4a1 1 0 01-1-1z"
+              />
+            </svg>
+            <span className="font-medium">
+              {userName}님({userTeam})으로 보는 중
+            </span>
+          </span>
+          <form action={stopViewAs}>
+            <button
+              type="submit"
+              className="rounded-md bg-white/15 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/25"
+            >
+              관리자로 복귀
+            </button>
+          </form>
+        </div>
+      )}
+      <div className="flex flex-1">
       <aside className="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
         <div className="border-b border-white/10 px-6 py-6">
           <LogoBadge />
@@ -210,6 +238,7 @@ export function AppShell({
         </header>
 
         <main className="flex-1 bg-salt">{children}</main>
+      </div>
       </div>
     </div>
   );

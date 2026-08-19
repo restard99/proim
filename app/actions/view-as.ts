@@ -5,8 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient as createAnonClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-const VIEW_AS_COOKIE = "admin_view_as_session";
+import { VIEW_AS_COOKIE } from "@/lib/view-as";
 
 type StoredSession = { access_token: string; refresh_token: string };
 
