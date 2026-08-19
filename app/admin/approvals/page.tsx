@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ApprovalTable, type PendingProfile } from "@/components/admin/ApprovalTable";
@@ -38,6 +39,9 @@ export default async function AdminApprovalsPage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-6 lg:px-10 py-10">
+        <Link href="/" className="mb-6 inline-flex items-center gap-1 text-xs text-muted hover:text-inktext">
+          ← 홈으로 돌아가기
+        </Link>
         <div className="flex items-baseline gap-3">
           <h1 className="text-xl font-semibold text-inktext">가입 승인 관리</h1>
           <span
