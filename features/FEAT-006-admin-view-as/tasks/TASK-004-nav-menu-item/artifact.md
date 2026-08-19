@@ -1,6 +1,6 @@
 # TASK-004: 사이드바 메뉴 항목 추가 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 사이드바에 admin 역할일 때만 보이는 "관리자" 섹션을 추가하고, 그 안에 "계정으로 보기"(`/admin/view-as`) 항목을 넣었다. `getVisibleBusinessNavItems`와 동일한 패턴으로 `app/(app)/layout.tsx`에서 `profile.role === "admin"`일 때만 `ADMIN_NAV_ITEMS`를 계산해 내려준다. 담당자 계정으로 전환된 상태(view-as 중)에서는 세션의 `profile.role`이 그 담당자 role이므로 이 섹션이 자연히 사라진다(01-spec.md 제외 항목: 관리자 전용 메뉴 비노출).

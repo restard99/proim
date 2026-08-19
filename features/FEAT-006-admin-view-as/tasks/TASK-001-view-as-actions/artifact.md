@@ -1,6 +1,6 @@
 # TASK-001: 세션 전환 서버 액션 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 관리자가 대상 계정 세션으로 전환하는 `startViewAs`와 관리자 세션으로 복원하는 `stopViewAs` 서버 액션을 구현했다. Supabase Admin API의 `generateLink`(magiclink) + `verifyOtp` 조합으로 실제 메일 발송 없이 대상 계정의 정식 세션을 발급받고, 관리자의 원본 세션은 httpOnly 쿠키에 보관했다가 복귀 시 되돌린다.

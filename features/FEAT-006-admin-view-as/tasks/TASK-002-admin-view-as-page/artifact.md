@@ -1,6 +1,6 @@
 # TASK-002: 담당자 선택 페이지 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `/admin/view-as` 페이지를 만들었다. 기존 `admin_list_users` 기반 `listAllUsers()`를 재사용해 admin이 아니고 승인된 계정만 걸러 부서 탭 + 담당자 카드 그리드로 보여주고, 카드를 클릭하면 TASK-001의 `startViewAs`를 호출한다. 기존 `/admin/approvals` 페이지와 동일하게 AppShell 사이드바 없이 단독 헤더를 쓰는 관리자 페이지 스타일을 따랐다.

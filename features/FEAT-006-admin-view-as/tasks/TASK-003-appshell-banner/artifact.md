@@ -1,6 +1,6 @@
 # TASK-003: 복귀 배너 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `AppShell`에 `isViewingAs` prop을 추가해 true일 때 화면 최상단에 크림슨 배너("OO님(부서)으로 보는 중" + "관리자로 복귀")를 렌더링하도록 했다. 배너의 이름/부서는 이미 세션이 대상 계정으로 교체된 상태이므로 기존 `userName`/`userTeam` 값을 그대로 재사용한다. 복귀 버튼은 TASK-001의 `stopViewAs`를 호출하는 `<form>`이다. `app/(app)/layout.tsx`에서 `admin_view_as_session` 쿠키 존재 여부로 `isViewingAs`를 계산해 전달한다. 쿠키 이름 문자열이 두 파일(서버 액션/레이아웃)에서 중복되지 않도록 `lib/view-as.ts`에 `VIEW_AS_COOKIE` 상수로 분리했다(“use server” 파일은 async 함수 외의 값을 export할 수 없어 별도 파일이 필요했다).
