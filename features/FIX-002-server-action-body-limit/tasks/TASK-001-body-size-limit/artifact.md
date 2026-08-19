@@ -1,6 +1,6 @@
 # TASK-001: 서버 액션 바디 크기 제한 상향 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 수정 내용
 `next.config.ts`에 `experimental.serverActions.bodySizeLimit: "15mb"`를 추가해 업로드 액션들의 자체 검증 한도(15MB)와 프레임워크 제한을 일치시켰다.
