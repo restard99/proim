@@ -1,6 +1,6 @@
 # TASK-004: 생산량 화면 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `/saltfield-production` 목록(요약 카드 + 날짜별 업로드 기록 + 빈 상태) 화면과 `/saltfield-production/[date]` 상세(공구별 호수별 생산량 표) 화면을 만들었다. 사이드바는 TASK-001에서 이미 연결된 `AppShell`/`getVisibleBusinessNavItems`를 그대로 사용하므로 별도 마크업 없이 자동으로 뜬다.

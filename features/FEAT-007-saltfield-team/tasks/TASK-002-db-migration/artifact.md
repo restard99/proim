@@ -1,6 +1,6 @@
 # TASK-002: DB 마이그레이션 — 아티팩트
 
-## 상태: 완료 (Supabase 반영 대기)
+## 상태: 배포 완료 (Supabase 반영 확인됨)
 
 ## 구현 내용
 생산량(`saltfield_production_records`, 날짜별 upsert)과 부자재재고현황(`saltfield_materials`, 업로드 시 전체 교체) 두 테이블과 RLS 정책을 작성했다.
