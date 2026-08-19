@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { resetUserPassword, type AdminUserRow } from "@/app/actions/admin-users";
+import { useRouter } from "next/navigation";
+import { resetUserPassword, updateUserEmail, type AdminUserRow } from "@/app/actions/admin-users";
 import { SIGNUP_ROLES } from "@/lib/auth/constants";
 
 function roleLabel(role: string) {
@@ -55,6 +56,74 @@ function ResetResultModal({ tempPassword, onClose }: { tempPassword: string; onC
   );
 }
 
+function EmailCell({ userId, email }: { userId: string; email: string | null }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(email ?? "");
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await updateUserEmail(userId, value);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setEditing(false);
+      router.refresh();
+    });
+  };
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setValue(email ?? "");
+          setError(null);
+          setEditing(true);
+        }}
+        className="text-left hover:underline decoration-dotted"
+        title="클릭해서 이메일 수정"
+      >
+        {email ?? <span className="text-muted/60">미등록</span>}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="email"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        disabled={isPending}
+        autoFocus
+        className="w-48 rounded-md border border-mist bg-white px-2 py-1 text-xs outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+      />
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={isPending}
+        className="rounded-md bg-crimson hover:bg-crimsond disabled:opacity-60 text-salt text-xs font-medium px-2 py-1 transition-colors"
+      >
+        저장
+      </button>
+      <button
+        type="button"
+        onClick={() => setEditing(false)}
+        disabled={isPending}
+        className="text-xs text-muted hover:text-inktext"
+      >
+        취소
+      </button>
+      {error && <span className="text-xs text-crimsond">{error}</span>}
+    </div>
+  );
+}
+
 function UserRow({ user, onReset }: { user: AdminUserRow; onReset: (id: string) => void }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +147,7 @@ function UserRow({ user, onReset }: { user: AdminUserRow; onReset: (id: string) 
       <td className="px-4 py-3.5 text-muted">{roleLabel(user.role)}</td>
       <td className="px-4 py-3.5 text-muted">{statusLabel(user.status)}</td>
       <td className="px-4 py-3.5 text-muted">
-        {user.email ?? <span className="text-muted/60">미등록</span>}
+        <EmailCell userId={user.id} email={user.email} />
       </td>
       <td className="px-4 py-3.5">
         <div className="flex justify-end items-center gap-2">
