@@ -1,6 +1,6 @@
 # TASK-003: 비밀번호 찾기 페이지 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 로그인 화면에서 진입하는 `/forgot-password` 페이지를 만들었다. 이름+소속팀을 입력하면 `lookup_auth_email` RPC로 이메일을 찾아 Supabase의 `resetPasswordForEmail`을 호출하고, 계정 존재 여부와 무관하게 항상 동일한 안내 문구를 보여준다.

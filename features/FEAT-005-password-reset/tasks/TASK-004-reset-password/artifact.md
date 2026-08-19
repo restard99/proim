@@ -1,6 +1,6 @@
 # TASK-004: 새 비밀번호 설정 페이지 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 이메일의 재설정 링크가 도착하는 `/reset-password` 페이지를 만들었다. 클라이언트에서 Supabase의 `onAuthStateChange`로 `PASSWORD_RECOVERY` 이벤트를 감지해 recovery 세션 여부를 확인하고, 새 비밀번호를 `supabase.auth.updateUser()`로 직접 반영한다(recovery 세션은 브라우저에만 있어 서버 액션이 아니라 브라우저 클라이언트로 처리).
