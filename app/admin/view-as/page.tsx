@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { listAllUsers } from "@/app/actions/admin-users";
@@ -31,7 +32,10 @@ export default async function AdminViewAsPage() {
       </header>
 
       <div className="mx-auto max-w-4xl px-6 py-10 lg:px-10">
-        <h1 className="text-xl font-semibold text-inktext">계정으로 보기</h1>
+        <Link href="/" className="mb-6 inline-flex items-center gap-1 text-xs text-muted hover:text-inktext">
+          ← 홈으로 돌아가기
+        </Link>
+        <h1 className="text-xl font-semibold text-inktext">시스템검토 게시판</h1>
         <p className="mt-1.5 text-sm text-muted">
           부서를 선택하고 담당자를 클릭하면, 그 계정으로 로그인한 것처럼 화면을 확인할 수 있습니다.
         </p>
