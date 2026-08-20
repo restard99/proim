@@ -35,7 +35,7 @@ function NavLinkRow({
     <Link
       href={item.href}
       onClick={onNavigate}
-      className={`nav-link flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium ${active ? "active" : ""}`}
+      className={`nav-link flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium ${active ? "active" : ""}`}
     >
       <span className="nav-accent" />
       <span className="nav-icon-wrap">
@@ -43,7 +43,7 @@ function NavLinkRow({
           <path d={item.iconPath} fillRule={item.evenOdd ? "evenodd" : undefined} clipRule={item.evenOdd ? "evenodd" : undefined} />
         </svg>
       </span>
-      <span className="flex-1 truncate">{item.label}</span>
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {showTeamBadge && item.team && (
         <span className="shrink-0 rounded bg-black/25 px-1.5 py-0.5 text-[10px] font-medium text-salt/60">
           {item.team}

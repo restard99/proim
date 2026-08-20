@@ -63,7 +63,7 @@ export const PRODUCTION_REQUESTS_NAV_ITEMS: NavItem[] = [
     iconPath:
       "M5 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.828a2 2 0 0 0-.586-1.414l-3.828-3.828A2 2 0 0 0 11.172 2H5Zm1 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H6Zm0 4a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z",
     evenOdd: true,
-    team: "영업채산·생산",
+    team: "영업채산",
   },
 ];
 
