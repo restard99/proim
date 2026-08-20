@@ -3,6 +3,7 @@ export type NavItem = {
   label: string;
   iconPath: string;
   evenOdd?: boolean;
+  team?: string;
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -32,6 +33,7 @@ export const SALES_NAV_ITEMS: NavItem[] = [
     label: "거래처별 매출",
     iconPath:
       "M2 11a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-6ZM8 7a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V7ZM14 3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V3Z",
+    team: "영업",
   },
   {
     href: "/collections",
@@ -39,6 +41,7 @@ export const SALES_NAV_ITEMS: NavItem[] = [
     iconPath:
       "M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Zm7 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM5 7a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Zm10 0a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Z",
     evenOdd: true,
+    team: "영업",
   },
 ];
 
@@ -49,6 +52,7 @@ export const INVENTORY_NAV_ITEMS: NavItem[] = [
     iconPath:
       "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
     evenOdd: false,
+    team: "영업채산",
   },
 ];
 
@@ -59,6 +63,7 @@ export const PRODUCTION_REQUESTS_NAV_ITEMS: NavItem[] = [
     iconPath:
       "M5 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.828a2 2 0 0 0-.586-1.414l-3.828-3.828A2 2 0 0 0 11.172 2H5Zm1 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H6Zm0 4a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z",
     evenOdd: true,
+    team: "영업채산·생산",
   },
 ];
 
@@ -68,6 +73,7 @@ export const PRODUCTION_LOGS_NAV_ITEMS: NavItem[] = [
     label: "생산일지",
     iconPath:
       "M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z",
+    team: "생산",
   },
 ];
 
@@ -77,6 +83,7 @@ export const SALTFIELD_NAV_ITEMS: NavItem[] = [
     label: "생산량",
     iconPath:
       "M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z",
+    team: "염전관리",
   },
   {
     href: "/saltfield-inventory",
@@ -84,6 +91,7 @@ export const SALTFIELD_NAV_ITEMS: NavItem[] = [
     iconPath:
       "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
     evenOdd: false,
+    team: "염전관리",
   },
 ];
 
