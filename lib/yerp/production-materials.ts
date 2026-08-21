@@ -97,16 +97,25 @@ export async function getMaterialStatusForItems(
 
   if (motherCodes.length > 0) {
     const today = todayYmd();
+    // BOM 조회와 자재 재고 조회를 OUTER APPLY로 한 번의 왕복에 묶는다
+    // (자재별 재고는 BOM 행마다 상관 서브쿼리로 계산 — 쿼리를 2번 나눠 부르던 것을 1번으로 줄임).
     const bomRows = await yerpQuery<{
       MOTHER_ITEM_CD: string;
       CHIDL_ITM_CD: string;
       REAL_DEMAND_QTY: number | null;
       ITM_NM: string | null;
+      QTY: number | null;
     }>(
       `
-      SELECT b.MOTHER_ITEM_CD, b.CHIDL_ITM_CD, b.REAL_DEMAND_QTY, i.ITM_NM
+      SELECT b.MOTHER_ITEM_CD, b.CHIDL_ITM_CD, b.REAL_DEMAND_QTY, i.ITM_NM, s.QTY
       FROM SHUSER.PD_BOM_MGMT b
       JOIN SHUSER.PM_ITEM i ON i.ITM_CD = b.CHIDL_ITM_CD AND i.CORP_CODE = b.CORP_CODE
+      OUTER APPLY (
+        SELECT SUM(CASE WHEN ioc.INOUT_SEC = '1' THEN q.QTY ELSE -q.QTY END) AS QTY
+        FROM SHUSER.PM_QTY_IO q
+        JOIN SHUSER.PM_IO_CODE ioc ON ioc.IO_SEC = q.IO_SEC AND ioc.CORP_CODE = q.CORP_CODE
+        WHERE q.CORP_CODE = b.CORP_CODE AND q.QTY_DT <= @today AND q.ITM_CD = b.CHIDL_ITM_CD
+      ) s
       WHERE b.CORP_CODE = @corpCode AND i.ASET_SEC = @pkgSec
         AND b.MOTHER_ITEM_CD IN (${motherCodes.map((_, i) => `@m${i}`).join(", ")})
         AND (b.DT_END IS NULL OR b.DT_END >= @today)
@@ -123,22 +132,9 @@ export async function getMaterialStatusForItems(
       const list = bomByMother.get(row.MOTHER_ITEM_CD) ?? [];
       list.push(row);
       bomByMother.set(row.MOTHER_ITEM_CD, list);
-    }
-
-    const childCodes = [...new Set(bomRows.map((r) => r.CHIDL_ITM_CD))];
-    if (childCodes.length > 0) {
-      const stockRows = await yerpQuery<{ ITM_CD: string; QTY: number | null }>(
-        `
-        SELECT q.ITM_CD, SUM(CASE WHEN ioc.INOUT_SEC = '1' THEN q.QTY ELSE -q.QTY END) AS QTY
-        FROM SHUSER.PM_QTY_IO q
-        JOIN SHUSER.PM_IO_CODE ioc ON ioc.IO_SEC = q.IO_SEC AND ioc.CORP_CODE = q.CORP_CODE
-        WHERE q.CORP_CODE = @corpCode AND q.QTY_DT <= @today
-          AND q.ITM_CD IN (${childCodes.map((_, i) => `@c${i}`).join(", ")})
-        GROUP BY q.ITM_CD
-        `,
-        { corpCode: CORP_CODE, today, ...Object.fromEntries(childCodes.map((c, i) => [`c${i}`, c])) },
-      );
-      for (const r of stockRows) stockMap.set(r.ITM_CD, Number(r.QTY ?? 0));
+      if (!stockMap.has(row.CHIDL_ITM_CD)) {
+        stockMap.set(row.CHIDL_ITM_CD, Number(row.QTY ?? 0));
+      }
     }
   }
 
