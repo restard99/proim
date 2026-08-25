@@ -1,0 +1,358 @@
+<title>태평염전 · 출금조회 화면 · 디자인 목업</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Song+Myung&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#14283A',
+          ink2: '#0F1F2E',
+          brine: '#1E6B72',
+          crimson: '#8B2942',
+          crimsond: '#6E1F33',
+          sand: '#C9B896',
+          salt: '#FAF8F3',
+          mist: '#EFEAE1',
+          inktext: '#1F2A33',
+          muted: '#5B6B74',
+        },
+        fontFamily: {
+          display: ['"Song Myung"', 'serif'],
+          sans: ['PretendardVariable', 'Pretendard', 'system-ui', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  body { font-family: 'PretendardVariable', 'Pretendard', system-ui, sans-serif; }
+  .app-view.hidden { display: none; }
+  .switcher-btn { transition: background-color .15s ease, color .15s ease; }
+
+  .nav-link { position: relative; color: rgba(250,248,243,0.55); transition: background-color .15s ease, color .15s ease; }
+  .nav-link:hover { background-color: rgba(255,255,255,0.05); color: #FAF8F3; }
+  .nav-link.active { background-color: rgba(255,255,255,0.09); color: #FAF8F3; }
+  .nav-accent { position: absolute; left: -0.75rem; top: 50%; transform: translateY(-50%); height: 1.15rem; width: 3px; border-radius: 999px; background: transparent; transition: background-color .15s ease; }
+  .nav-link.active .nav-accent { background: #C9B896; }
+  .nav-icon-wrap { display: flex; align-items: center; justify-content: center; height: 2rem; width: 2rem; border-radius: 0.5rem; background: rgba(255,255,255,0.06); color: rgba(250,248,243,0.6); transition: background-color .15s ease, color .15s ease; }
+  .nav-link.active .nav-icon-wrap { background: #8B2942; color: #FAF8F3; }
+  .nav-link:hover .nav-icon-wrap { color: #FAF8F3; }
+  .nav-section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: rgba(250,248,243,0.32); text-transform: uppercase; }
+
+  .skeleton { background: linear-gradient(90deg, #EFEAE1 25%, #F6F2EA 37%, #EFEAE1 63%); background-size: 400% 100%; animation: skeleton-loading 1.4s ease infinite; }
+  @keyframes skeleton-loading { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+</style>
+
+<body class="bg-salt text-inktext antialiased">
+
+  <!-- 디자인 검토용 화면 전환 (실제 제품 UI 아님) -->
+  <div class="sticky top-0 z-50 border-b border-mist bg-salt/95 backdrop-blur px-4 py-2.5 overflow-x-auto">
+    <div class="flex items-center gap-2 min-w-max">
+      <span class="text-xs font-medium text-muted mr-1 shrink-0">화면 상태 미리보기 →</span>
+      <button data-target="view-default" onclick="showView('view-default')" class="switcher-btn bg-ink text-salt text-xs font-medium px-3 py-1.5 rounded-full">출금조회·기본(원장 펼침)</button>
+      <button data-target="view-loading" onclick="showView('view-loading')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">출금조회·로딩</button>
+      <button data-target="view-empty" onclick="showView('view-empty')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">출금조회·빈 상태</button>
+    </div>
+  </div>
+
+  <!-- ============ 사이드바 매크로 (목업 특성상 각 뷰마다 반복) ============ -->
+
+  <!-- ============ 1. 기본 화면 (원장 펼침 상태) ============ -->
+  <div id="view-default" class="app-view">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">메뉴</p>
+          <a class="nav-link flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 8.5V18h5v-6h6v6h5V8.5L10 2Z"/></svg></span>
+            홈
+          </a>
+          <p class="nav-section-label px-1 pt-4 pb-2">영업부</p>
+          <a class="nav-link flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-6ZM8 7a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V7ZM14 3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V3Z"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">거래처별 매출</span>
+          </a>
+          <a class="nav-link flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Zm7 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM5 7a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Zm10 0a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Z" clip-rule="evenodd"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">수금현황</span>
+          </a>
+          <a class="nav-link flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7" clip-rule="evenodd"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">재고현황</span>
+          </a>
+          <!-- 신규: 출금조회 (재고현황 바로 아래, 관리자 전용) -->
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2H3V5Zm0 4h14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Zm3 3a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">출금조회</span>
+            <span class="shrink-0 rounded bg-black/25 px-1.5 py-0.5 text-[10px] font-medium text-salt/60">관리자</span>
+          </a>
+        </nav>
+        <button class="mx-3 mb-3 px-3 py-3 rounded-lg hover:bg-white/5 flex items-center gap-3 transition-colors">
+          <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">관</div>
+          <div class="min-w-0 text-left">
+            <p class="text-sm font-medium text-salt truncate">관리자</p>
+            <p class="text-xs text-salt/50 truncate">시스템 관리자</p>
+          </div>
+        </button>
+      </aside>
+
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4 flex items-center justify-between">
+          <h1 class="text-lg font-semibold text-inktext">출금조회</h1>
+        </header>
+
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex items-center gap-2">
+                <label class="text-sm text-muted">조회기간</label>
+                <input type="date" value="2026-01-01" class="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+                <span class="text-sm text-muted">~</span>
+                <input type="date" value="2026-08-25" class="rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+              </div>
+              <div class="flex min-w-[200px] flex-1 items-center gap-2">
+                <label class="text-sm text-muted">매입처 검색</label>
+                <input type="text" placeholder="거래처명" class="flex-1 rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div class="rounded-lg border border-mist bg-white p-4">
+                <p class="text-xs text-muted">기간 지급액</p>
+                <p class="mt-1 text-xl font-semibold text-inktext">312,450,000원</p>
+              </div>
+              <div class="rounded-lg border border-mist bg-white p-4">
+                <p class="text-xs text-muted">미지급 잔액</p>
+                <p class="mt-1 text-xl font-semibold text-crimsond">86,920,000원</p>
+              </div>
+              <div class="hidden rounded-lg border border-mist bg-white p-4 sm:block">
+                <p class="text-xs text-muted">미지급 매입처</p>
+                <p class="mt-1 text-xl font-semibold text-inktext">7곳</p>
+              </div>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+                    <th class="px-4 py-3 font-medium">매입처</th>
+                    <th class="px-4 py-3 text-right font-medium">기초잔액</th>
+                    <th class="px-4 py-3 text-right font-medium">매입발생</th>
+                    <th class="px-4 py-3 text-right font-medium">지급액</th>
+                    <th class="px-4 py-3 text-right font-medium">기말잔액</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-mist">
+                  <tr class="cursor-pointer transition-colors bg-crimson/5">
+                    <td class="px-4 py-3.5 font-medium">삼진포장산업</td>
+                    <td class="px-4 py-3.5 text-right font-mono text-xs text-muted">18,200,000</td>
+                    <td class="px-4 py-3.5 text-right font-mono text-brine">42,000,000</td>
+                    <td class="px-4 py-3.5 text-right font-mono">35,500,000</td>
+                    <td class="px-4 py-3.5 text-right font-mono"><span class="text-crimsond">24,700,000</span></td>
+                  </tr>
+                  <tr>
+                    <td colspan="5" class="bg-salt px-4 py-4">
+                      <div class="overflow-x-auto rounded-md border border-mist bg-white">
+                        <table class="w-full min-w-[600px] text-xs">
+                          <thead>
+                            <tr class="border-b border-mist bg-mist/40 text-left text-muted">
+                              <th class="px-3 py-2 font-medium">일자</th>
+                              <th class="px-3 py-2 font-medium">구분</th>
+                              <th class="px-3 py-2 font-medium">적요/상대계정</th>
+                              <th class="px-3 py-2 text-right font-medium">금액</th>
+                              <th class="px-3 py-2 text-right font-medium">잔액</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-mist">
+                            <tr class="bg-mist/20 font-medium text-inktext">
+                              <td class="px-3 py-2" colspan="4">기초잔액</td>
+                              <td class="px-3 py-2 text-right font-mono">18,200,000</td>
+                            </tr>
+                            <tr>
+                              <td class="px-3 py-2 font-mono text-muted">2026.02.03</td>
+                              <td class="px-3 py-2"><span class="rounded-full bg-brine/10 px-2 py-0.5 text-brine">매입발생</span></td>
+                              <td class="px-3 py-2 text-muted">부자재(PE포장재) 2월 납품분</td>
+                              <td class="px-3 py-2 text-right font-mono">15,000,000</td>
+                              <td class="px-3 py-2 text-right font-mono">33,200,000</td>
+                            </tr>
+                            <tr>
+                              <td class="px-3 py-2 font-mono text-muted">2026.02.20</td>
+                              <td class="px-3 py-2"><span class="rounded-full bg-crimson/10 px-2 py-0.5 text-crimsond">지급</span></td>
+                              <td class="px-3 py-2 text-muted">보통예금 이체</td>
+                              <td class="px-3 py-2 text-right font-mono">20,000,000</td>
+                              <td class="px-3 py-2 text-right font-mono">13,200,000</td>
+                            </tr>
+                            <tr>
+                              <td class="px-3 py-2 font-mono text-muted">2026.05.11</td>
+                              <td class="px-3 py-2"><span class="rounded-full bg-brine/10 px-2 py-0.5 text-brine">매입발생</span></td>
+                              <td class="px-3 py-2 text-muted">부자재(PP마대) 5월 납품분</td>
+                              <td class="px-3 py-2 text-right font-mono">27,000,000</td>
+                              <td class="px-3 py-2 text-right font-mono">40,200,000</td>
+                            </tr>
+                            <tr>
+                              <td class="px-3 py-2 font-mono text-muted">2026.06.02</td>
+                              <td class="px-3 py-2"><span class="rounded-full bg-crimson/10 px-2 py-0.5 text-crimsond">지급</span></td>
+                              <td class="px-3 py-2 text-muted">받을어음 결제</td>
+                              <td class="px-3 py-2 text-right font-mono">15,500,000</td>
+                              <td class="px-3 py-2 text-right font-mono">24,700,000</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr class="cursor-pointer transition-colors hover:bg-mist/30">
+                    <td class="px-4 py-3.5 font-medium">동양염료</td>
+                    <td class="px-4 py-3.5 text-right font-mono text-xs text-muted">0</td>
+                    <td class="px-4 py-3.5 text-right font-mono text-brine">28,600,000</td>
+                    <td class="px-4 py-3.5 text-right font-mono">28,600,000</td>
+                    <td class="px-4 py-3.5 text-right font-mono"><span class="text-brine">0</span></td>
+                  </tr>
+                  <tr class="cursor-pointer transition-colors hover:bg-mist/30">
+                    <td class="px-4 py-3.5 font-medium">한마음물류</td>
+                    <td class="px-4 py-3.5 text-right font-mono text-xs text-muted">4,120,000</td>
+                    <td class="px-4 py-3.5 text-right font-mono text-brine">9,800,000</td>
+                    <td class="px-4 py-3.5 text-right font-mono">1,700,000</td>
+                    <td class="px-4 py-3.5 text-right font-mono"><span class="text-crimsond">12,220,000</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="text-xs text-muted">※ 외상매입금(0251) 계정 일반전표 기준. 품목/자재 단위 세부 내역은 원장에 기록되지 않아 조회할 수 없습니다.</p>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2. 로딩 상태 ============ -->
+  <div id="view-loading" class="app-view hidden">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">영업부</p>
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2H3V5Zm0 4h14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Zm3 3a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">출금조회</span>
+            <span class="shrink-0 rounded bg-black/25 px-1.5 py-0.5 text-[10px] font-medium text-salt/60">관리자</span>
+          </a>
+        </nav>
+      </aside>
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4">
+          <h1 class="text-lg font-semibold text-inktext">출금조회</h1>
+        </header>
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div class="h-16 rounded-lg skeleton"></div>
+              <div class="h-16 rounded-lg skeleton"></div>
+              <div class="hidden h-16 rounded-lg skeleton sm:block"></div>
+            </div>
+            <div class="space-y-2">
+              <div class="h-11 rounded-lg skeleton"></div>
+              <div class="h-11 rounded-lg skeleton"></div>
+              <div class="h-11 rounded-lg skeleton"></div>
+              <div class="h-11 rounded-lg skeleton"></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. 빈 상태 ============ -->
+  <div id="view-empty" class="app-view hidden">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">영업부</p>
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2H3V5Zm0 4h14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Zm3 3a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">출금조회</span>
+            <span class="shrink-0 rounded bg-black/25 px-1.5 py-0.5 text-[10px] font-medium text-salt/60">관리자</span>
+          </a>
+        </nav>
+      </aside>
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4">
+          <h1 class="text-lg font-semibold text-inktext">출금조회</h1>
+        </header>
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex items-center gap-2">
+                <label class="text-sm text-muted">조회기간</label>
+                <input type="date" value="2026-08-01" class="rounded-md border border-mist px-3 py-2 text-sm outline-none">
+                <span class="text-sm text-muted">~</span>
+                <input type="date" value="2026-08-25" class="rounded-md border border-mist px-3 py-2 text-sm outline-none">
+              </div>
+            </div>
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+                    <th class="px-4 py-3 font-medium">매입처</th>
+                    <th class="px-4 py-3 text-right font-medium">기초잔액</th>
+                    <th class="px-4 py-3 text-right font-medium">매입발생</th>
+                    <th class="px-4 py-3 text-right font-medium">지급액</th>
+                    <th class="px-4 py-3 text-right font-medium">기말잔액</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="5" class="px-4 py-10 text-center text-sm text-muted">해당 기간 출금 데이터가 없습니다.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showView(id) {
+      document.querySelectorAll('.app-view').forEach((el) => el.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+      document.querySelectorAll('.switcher-btn').forEach((btn) => {
+        if (btn.dataset.target === id) {
+          btn.classList.remove('bg-mist', 'text-inktext');
+          btn.classList.add('bg-ink', 'text-salt');
+        } else {
+          btn.classList.remove('bg-ink', 'text-salt');
+          btn.classList.add('bg-mist', 'text-inktext');
+        }
+      });
+    }
+  </script>
+</body>
