@@ -56,6 +56,15 @@ export const INVENTORY_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+export const DISBURSEMENT_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/disbursements",
+    label: "출금조회",
+    iconPath: "M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2H3V5Zm0 4h14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Zm3 3a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z",
+    team: "관리자",
+  },
+];
+
 export const PRODUCTION_REQUESTS_NAV_ITEMS: NavItem[] = [
   {
     href: "/production-requests",
@@ -124,6 +133,11 @@ export function canViewInventory(team: string | null | undefined, role: string |
   return team === "영업채산팀";
 }
 
+// 출금조회(외상매입금 원장): 관리자 전용
+export function canViewDisbursements(team: string | null | undefined, role: string | null | undefined): boolean {
+  return role === "admin";
+}
+
 // 생산의뢰서(=생산계획서): 영업채산팀 전체(업로드/수정은 팀장만) + 생산팀 전체(조회 전용)
 export function canViewProductionRequests(team: string | null | undefined, role: string | null | undefined): boolean {
   if (role === "admin") return true;
@@ -149,6 +163,7 @@ export function getVisibleBusinessNavItems(
   const items: NavItem[] = [];
   if (canViewSales(team, role)) items.push(...SALES_NAV_ITEMS);
   if (canViewInventory(team, role)) items.push(...INVENTORY_NAV_ITEMS);
+  if (canViewDisbursements(team, role)) items.push(...DISBURSEMENT_NAV_ITEMS);
   if (canViewProductionRequests(team, role)) items.push(...PRODUCTION_REQUESTS_NAV_ITEMS);
   if (canViewProductionLogs(team, role)) items.push(...PRODUCTION_LOGS_NAV_ITEMS);
   if (canViewSaltfield(team, role)) items.push(...SALTFIELD_NAV_ITEMS);
