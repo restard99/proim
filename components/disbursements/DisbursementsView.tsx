@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { getDisbursementsData, getVendorLedgerData, type DisbursementsData } from "@/app/actions/disbursements";
-import { DISBURSEMENT_CORPS, type DisbursementCorpCode } from "@/lib/yerp/disbursement-corps";
+import { YERP_CORPS, type YerpCorpCode } from "@/lib/yerp/corps";
 import type { VendorLedger } from "@/lib/yerp/disbursements";
 
 function pad(n: number) {
@@ -27,7 +27,7 @@ function formatSlipDate(ymd: string) {
 
 export function DisbursementsView() {
   const today = useMemo(() => new Date(), []);
-  const [corpCode, setCorpCode] = useState<DisbursementCorpCode>(DISBURSEMENT_CORPS[0].corpCode);
+  const [corpCode, setCorpCode] = useState<YerpCorpCode>(YERP_CORPS[0].corpCode);
   const [startDate, setStartDate] = useState(() => toDateInputValue(new Date(today.getFullYear(), 0, 1)));
   const [endDate, setEndDate] = useState(() => toDateInputValue(today));
   const [search, setSearch] = useState("");
@@ -67,7 +67,7 @@ export function DisbursementsView() {
   return (
     <div className="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
       <div className="flex flex-wrap items-center gap-2">
-        {DISBURSEMENT_CORPS.map((corp) => (
+        {YERP_CORPS.map((corp) => (
           <button
             key={corp.corpCode}
             type="button"

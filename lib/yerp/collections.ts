@@ -1,8 +1,10 @@
 import "server-only";
 import { yerpQuery } from "./client";
 import { sortByPriorityCustomer } from "./customer-sort";
+import type { YerpCorpCode } from "./corps";
 
-const CORP_CODE = "0460";
+export type { YerpCorpCode };
+
 // 회계 담당자가 수금 전용 화면 대신 일반전표에 직접 분개하는 관행이라,
 // 매출채권 계정(외상매출금 0108, 받을어음 0110)의 전표로 원장을 구성한다.
 // 차변(3) = 매출 발생(외상 증가), 대변(4) = 수금(외상 감소).
@@ -25,6 +27,7 @@ export type CustomerCollection = {
 };
 
 export async function getCollectionsByCustomer(params: {
+  corpCode: YerpCorpCode;
   startDate: string;
   endDate: string;
   search?: string;
@@ -45,7 +48,7 @@ export async function getCollectionsByCustomer(params: {
         ${searchClause}
       GROUP BY g.CUST_CD
       `,
-      { corpCode: CORP_CODE, startDate: params.startDate, ...arAccountParams(), ...searchParams },
+      { corpCode: params.corpCode, startDate: params.startDate, ...arAccountParams(), ...searchParams },
     ),
     yerpQuery<{ CUST_CD: string | null; CUST_NM: string | null; DEBIT: number | null; RECEIPT: number | null }>(
       `
@@ -61,7 +64,7 @@ export async function getCollectionsByCustomer(params: {
       GROUP BY g.CUST_CD
       `,
       {
-        corpCode: CORP_CODE,
+        corpCode: params.corpCode,
         startDate: params.startDate,
         endDate: params.endDate,
         ...arAccountParams(),
@@ -126,6 +129,7 @@ export type CustomerLedger = {
 };
 
 export async function getCustomerLedger(params: {
+  corpCode: YerpCorpCode;
   customerCode: string;
   startDate: string;
   endDate: string;
@@ -140,7 +144,12 @@ export async function getCustomerLedger(params: {
         AND ${arAccountClause("g")}
         AND g.SLIP_DT < @startDate
       `,
-      { corpCode: CORP_CODE, custCode: params.customerCode, startDate: params.startDate, ...arAccountParams() },
+      {
+        corpCode: params.corpCode,
+        custCode: params.customerCode,
+        startDate: params.startDate,
+        ...arAccountParams(),
+      },
     ),
     yerpQuery<{
       SLIP_NO: string;
@@ -166,7 +175,7 @@ export async function getCustomerLedger(params: {
       ORDER BY g.SLIP_DT ASC, g.SLIP_NO ASC
       `,
       {
-        corpCode: CORP_CODE,
+        corpCode: params.corpCode,
         custCode: params.customerCode,
         startDate: params.startDate,
         endDate: params.endDate,

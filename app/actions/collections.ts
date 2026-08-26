@@ -5,6 +5,7 @@ import {
   getCustomerLedger,
   type CustomerCollection,
   type CustomerLedger,
+  type YerpCorpCode,
 } from "@/lib/yerp/collections";
 
 export type CollectionsData = {
@@ -15,11 +16,13 @@ export type CollectionsData = {
 };
 
 export async function getCollectionsData(input: {
+  corpCode: YerpCorpCode;
   startDate: string;
   endDate: string;
   search?: string;
 }): Promise<CollectionsData> {
   const rows = await getCollectionsByCustomer({
+    corpCode: input.corpCode,
     startDate: input.startDate,
     endDate: input.endDate,
     search: input.search,
@@ -33,6 +36,7 @@ export async function getCollectionsData(input: {
 }
 
 export async function getCustomerLedgerData(input: {
+  corpCode: YerpCorpCode;
   customerCode: string;
   startDate: string;
   endDate: string;
