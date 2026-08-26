@@ -2,7 +2,8 @@
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { getDisbursementsData, getVendorLedgerData, type DisbursementsData } from "@/app/actions/disbursements";
-import { DISBURSEMENT_CORPS, type DisbursementCorpCode, type VendorLedger } from "@/lib/yerp/disbursements";
+import { DISBURSEMENT_CORPS, type DisbursementCorpCode } from "@/lib/yerp/disbursement-corps";
+import type { VendorLedger } from "@/lib/yerp/disbursements";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");

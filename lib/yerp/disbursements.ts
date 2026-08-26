@@ -1,13 +1,8 @@
 import "server-only";
 import { yerpQuery } from "./client";
+import type { DisbursementCorpCode } from "./disbursement-corps";
 
-// 관리 대상 3개 법인 (Y-ERP는 한 DB에서 여러 법인을 CORP_CODE로 구분해 관리하는 멀티코퍼레이션 구조).
-export const DISBURSEMENT_CORPS = [
-  { corpCode: "0460", corpName: "태평소금" },
-  { corpCode: "0400", corpName: "태평염전" },
-  { corpCode: "0360", corpName: "섬들채" },
-] as const;
-export type DisbursementCorpCode = (typeof DISBURSEMENT_CORPS)[number]["corpCode"];
+export type { DisbursementCorpCode };
 
 // 외상매입금(0251, 원재료 매입)과 미지급금(0253, 부재료·포장재 등 매입) 둘 다 대상.
 // Y-ERP는 원재료(소금) 매입은 0251로, 부재료(부자재)는 0253으로 계정을 나눠 쓴다 —
