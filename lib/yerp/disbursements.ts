@@ -2,10 +2,20 @@ import "server-only";
 import { yerpQuery } from "./client";
 
 const CORP_CODE = "0460";
-// 외상매입금(0251)만 대상. 부채 계정이라 자산 계정인 매출채권(collections.ts)과
-// 차변/대변 방향이 반대다 — 실제 매입 전표(AC_PURC_SALE_T)와 대조 검증한 결과,
-// 매입 발생은 전부 대변(4)으로 기록됨. 대변(4) = 매입발생(부채 증가), 차변(3) = 지급(부채 감소).
-const AP_ACCOUNT_CODE = "0251";
+// 외상매입금(0251, 원재료 매입)과 미지급금(0253, 부재료·포장재 등 매입) 둘 다 대상.
+// Y-ERP는 원재료(소금) 매입은 0251로, 부재료(부자재)는 0253으로 계정을 나눠 쓴다 —
+// 0251만 조회하면 부자재 매입처(수정실업/원지/제일산업 등)가 전부 누락되는 문제가 실사용 중 발견됨.
+// 둘 다 부채 계정이라 자산 계정인 매출채권(collections.ts)과 차변/대변 방향이 반대다 —
+// 실제 매입 전표(AC_PURC_SALE_T)와 대조 검증한 결과, 두 계정 모두 매입 발생은 전부 대변(4)으로 기록됨.
+// 대변(4) = 매입발생(부채 증가), 차변(3) = 지급(부채 감소).
+const AP_ACCOUNT_CODES = ["0251", "0253"];
+
+function apAccountClause(alias: string) {
+  return `${alias}.ACC_SBJ_CD IN (${AP_ACCOUNT_CODES.map((_, i) => `@accCode${i}`).join(", ")})`;
+}
+function apAccountParams() {
+  return Object.fromEntries(AP_ACCOUNT_CODES.map((c, i) => [`accCode${i}`, c]));
+}
 
 export type VendorDisbursement = {
   vendorCode: string;
@@ -31,13 +41,13 @@ export async function getDisbursementsByVendor(params: {
         SUM(CASE WHEN g.DEB_CRD = '4' THEN g.AMT ELSE -g.AMT END) AS BEGIN_BAL
       FROM SHUSER.AC_GNR_SLIP_T g
       WHERE g.CORP_CODE = @corpCode
-        AND g.ACC_SBJ_CD = @accCode
+        AND ${apAccountClause("g")}
         AND g.SLIP_DT < @startDate
         AND g.CUST_CD IS NOT NULL AND g.CUST_CD <> ''
         ${searchClause}
       GROUP BY g.CUST_CD
       `,
-      { corpCode: CORP_CODE, accCode: AP_ACCOUNT_CODE, startDate: params.startDate, ...searchParams },
+      { corpCode: CORP_CODE, startDate: params.startDate, ...apAccountParams(), ...searchParams },
     ),
     yerpQuery<{ CUST_CD: string | null; CUST_NM: string | null; PURCHASE: number | null; PAYMENT: number | null }>(
       `
@@ -46,7 +56,7 @@ export async function getDisbursementsByVendor(params: {
         SUM(CASE WHEN g.DEB_CRD = '3' THEN g.AMT ELSE 0 END) AS PAYMENT
       FROM SHUSER.AC_GNR_SLIP_T g
       WHERE g.CORP_CODE = @corpCode
-        AND g.ACC_SBJ_CD = @accCode
+        AND ${apAccountClause("g")}
         AND g.SLIP_DT BETWEEN @startDate AND @endDate
         AND g.CUST_CD IS NOT NULL AND g.CUST_CD <> ''
         ${searchClause}
@@ -54,9 +64,9 @@ export async function getDisbursementsByVendor(params: {
       `,
       {
         corpCode: CORP_CODE,
-        accCode: AP_ACCOUNT_CODE,
         startDate: params.startDate,
         endDate: params.endDate,
+        ...apAccountParams(),
         ...searchParams,
       },
     ),
@@ -129,10 +139,10 @@ export async function getVendorLedger(params: {
         SUM(CASE WHEN g.DEB_CRD = '4' THEN g.AMT ELSE -g.AMT END) AS BEGIN_BAL
       FROM SHUSER.AC_GNR_SLIP_T g
       WHERE g.CORP_CODE = @corpCode AND g.CUST_CD = @vendorCode
-        AND g.ACC_SBJ_CD = @accCode
+        AND ${apAccountClause("g")}
         AND g.SLIP_DT < @startDate
       `,
-      { corpCode: CORP_CODE, accCode: AP_ACCOUNT_CODE, vendorCode: params.vendorCode, startDate: params.startDate },
+      { corpCode: CORP_CODE, vendorCode: params.vendorCode, startDate: params.startDate, ...apAccountParams() },
     ),
     yerpQuery<{
       SLIP_NO: string;
@@ -149,20 +159,20 @@ export async function getVendorLedger(params: {
          FROM SHUSER.AC_GNR_SLIP_T g2
          JOIN SHUSER.AC_ACC_SBJ_T s2 ON s2.ACC_SBJ_CD = g2.ACC_SBJ_CD AND s2.CORP_CODE = g2.CORP_CODE
          WHERE g2.CORP_CODE = g.CORP_CODE AND g2.SLIP_NO = g.SLIP_NO AND g2.SLIP_DT = g.SLIP_DT
-           AND g2.DEB_CRD <> g.DEB_CRD AND g2.ACC_SBJ_CD <> @accCode
+           AND g2.DEB_CRD <> g.DEB_CRD AND g2.ACC_SBJ_CD NOT IN (${AP_ACCOUNT_CODES.map((_, i) => `@accCode${i}`).join(", ")})
         ) AS COUNTER_ACCT
       FROM SHUSER.AC_GNR_SLIP_T g
       WHERE g.CORP_CODE = @corpCode AND g.CUST_CD = @vendorCode
-        AND g.ACC_SBJ_CD = @accCode
+        AND ${apAccountClause("g")}
         AND g.SLIP_DT BETWEEN @startDate AND @endDate
       ORDER BY g.SLIP_DT ASC, g.SLIP_NO ASC
       `,
       {
         corpCode: CORP_CODE,
-        accCode: AP_ACCOUNT_CODE,
         vendorCode: params.vendorCode,
         startDate: params.startDate,
         endDate: params.endDate,
+        ...apAccountParams(),
       },
     ),
   ]);
