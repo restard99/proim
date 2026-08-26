@@ -3,6 +3,7 @@
 import {
   getDisbursementsByVendor,
   getVendorLedger,
+  type DisbursementCorpCode,
   type VendorDisbursement,
   type VendorLedger,
 } from "@/lib/yerp/disbursements";
@@ -15,11 +16,13 @@ export type DisbursementsData = {
 };
 
 export async function getDisbursementsData(input: {
+  corpCode: DisbursementCorpCode;
   startDate: string;
   endDate: string;
   search?: string;
 }): Promise<DisbursementsData> {
   const rows = await getDisbursementsByVendor({
+    corpCode: input.corpCode,
     startDate: input.startDate,
     endDate: input.endDate,
     search: input.search,
@@ -33,6 +36,7 @@ export async function getDisbursementsData(input: {
 }
 
 export async function getVendorLedgerData(input: {
+  corpCode: DisbursementCorpCode;
   vendorCode: string;
   startDate: string;
   endDate: string;

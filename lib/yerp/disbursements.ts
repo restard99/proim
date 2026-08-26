@@ -1,7 +1,14 @@
 import "server-only";
 import { yerpQuery } from "./client";
 
-const CORP_CODE = "0460";
+// 관리 대상 3개 법인 (Y-ERP는 한 DB에서 여러 법인을 CORP_CODE로 구분해 관리하는 멀티코퍼레이션 구조).
+export const DISBURSEMENT_CORPS = [
+  { corpCode: "0460", corpName: "태평소금" },
+  { corpCode: "0400", corpName: "태평염전" },
+  { corpCode: "0360", corpName: "섬들채" },
+] as const;
+export type DisbursementCorpCode = (typeof DISBURSEMENT_CORPS)[number]["corpCode"];
+
 // 외상매입금(0251, 원재료 매입)과 미지급금(0253, 부재료·포장재 등 매입) 둘 다 대상.
 // Y-ERP는 원재료(소금) 매입은 0251로, 부재료(부자재)는 0253으로 계정을 나눠 쓴다 —
 // 0251만 조회하면 부자재 매입처(수정실업/원지/제일산업 등)가 전부 누락되는 문제가 실사용 중 발견됨.
@@ -27,6 +34,7 @@ export type VendorDisbursement = {
 };
 
 export async function getDisbursementsByVendor(params: {
+  corpCode: DisbursementCorpCode;
   startDate: string;
   endDate: string;
   search?: string;
@@ -47,7 +55,7 @@ export async function getDisbursementsByVendor(params: {
         ${searchClause}
       GROUP BY g.CUST_CD
       `,
-      { corpCode: CORP_CODE, startDate: params.startDate, ...apAccountParams(), ...searchParams },
+      { corpCode: params.corpCode, startDate: params.startDate, ...apAccountParams(), ...searchParams },
     ),
     yerpQuery<{ CUST_CD: string | null; CUST_NM: string | null; PURCHASE: number | null; PAYMENT: number | null }>(
       `
@@ -63,7 +71,7 @@ export async function getDisbursementsByVendor(params: {
       GROUP BY g.CUST_CD
       `,
       {
-        corpCode: CORP_CODE,
+        corpCode: params.corpCode,
         startDate: params.startDate,
         endDate: params.endDate,
         ...apAccountParams(),
@@ -128,6 +136,7 @@ export type VendorLedger = {
 };
 
 export async function getVendorLedger(params: {
+  corpCode: DisbursementCorpCode;
   vendorCode: string;
   startDate: string;
   endDate: string;
@@ -142,7 +151,12 @@ export async function getVendorLedger(params: {
         AND ${apAccountClause("g")}
         AND g.SLIP_DT < @startDate
       `,
-      { corpCode: CORP_CODE, vendorCode: params.vendorCode, startDate: params.startDate, ...apAccountParams() },
+      {
+        corpCode: params.corpCode,
+        vendorCode: params.vendorCode,
+        startDate: params.startDate,
+        ...apAccountParams(),
+      },
     ),
     yerpQuery<{
       SLIP_NO: string;
@@ -168,7 +182,7 @@ export async function getVendorLedger(params: {
       ORDER BY g.SLIP_DT ASC, g.SLIP_NO ASC
       `,
       {
-        corpCode: CORP_CODE,
+        corpCode: params.corpCode,
         vendorCode: params.vendorCode,
         startDate: params.startDate,
         endDate: params.endDate,

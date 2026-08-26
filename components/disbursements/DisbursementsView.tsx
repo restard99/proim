@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { getDisbursementsData, getVendorLedgerData, type DisbursementsData } from "@/app/actions/disbursements";
-import type { VendorLedger } from "@/lib/yerp/disbursements";
+import { DISBURSEMENT_CORPS, type DisbursementCorpCode, type VendorLedger } from "@/lib/yerp/disbursements";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -26,6 +26,7 @@ function formatSlipDate(ymd: string) {
 
 export function DisbursementsView() {
   const today = useMemo(() => new Date(), []);
+  const [corpCode, setCorpCode] = useState<DisbursementCorpCode>(DISBURSEMENT_CORPS[0].corpCode);
   const [startDate, setStartDate] = useState(() => toDateInputValue(new Date(today.getFullYear(), 0, 1)));
   const [endDate, setEndDate] = useState(() => toDateInputValue(today));
   const [search, setSearch] = useState("");
@@ -43,10 +44,10 @@ export function DisbursementsView() {
     startTransition(async () => {
       setExpandedCode(null);
       setLedgerCache({});
-      const result = await getDisbursementsData({ startDate: start, endDate: end, search: search || undefined });
+      const result = await getDisbursementsData({ corpCode, startDate: start, endDate: end, search: search || undefined });
       setData(result);
     });
-  }, [start, end, search]);
+  }, [corpCode, start, end, search]);
 
   function toggleExpand(vendorCode: string) {
     if (expandedCode === vendorCode) {
@@ -56,7 +57,7 @@ export function DisbursementsView() {
     setExpandedCode(vendorCode);
     if (!ledgerCache[vendorCode]) {
       startLedgerTransition(async () => {
-        const ledger = await getVendorLedgerData({ vendorCode, startDate: start, endDate: end });
+        const ledger = await getVendorLedgerData({ corpCode, vendorCode, startDate: start, endDate: end });
         setLedgerCache((prev) => ({ ...prev, [vendorCode]: ledger }));
       });
     }
@@ -64,6 +65,20 @@ export function DisbursementsView() {
 
   return (
     <div className="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+      <div className="flex flex-wrap items-center gap-2">
+        {DISBURSEMENT_CORPS.map((corp) => (
+          <button
+            key={corp.corpCode}
+            type="button"
+            onClick={() => setCorpCode(corp.corpCode)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              corpCode === corp.corpCode ? "bg-ink text-salt" : "bg-mist text-inktext hover:bg-mist/70"
+            }`}
+          >
+            {corp.corpName}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="text-sm text-muted">조회기간</label>
