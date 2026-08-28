@@ -1,8 +1,8 @@
 import "server-only";
 import { yerpQuery } from "./client";
-import type { DisbursementCorpCode } from "./disbursement-corps";
+import type { YerpCorpCode } from "./corps";
 
-export type { DisbursementCorpCode };
+export type DisbursementCorpCode = YerpCorpCode;
 
 // 외상매입금(0251, 원재료 매입)과 미지급금(0253, 부재료·포장재 등 매입) 둘 다 대상.
 // Y-ERP는 원재료(소금) 매입은 0251로, 부재료(부자재)는 0253으로 계정을 나눠 쓴다 —

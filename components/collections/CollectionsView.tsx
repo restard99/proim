@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { getCollectionsData, getCustomerLedgerData, type CollectionsData } from "@/app/actions/collections";
+import { YERP_CORPS, type YerpCorpCode } from "@/lib/yerp/corps";
 import type { CustomerLedger } from "@/lib/yerp/collections";
 
 function pad(n: number) {
@@ -26,6 +27,7 @@ function formatSlipDate(ymd: string) {
 
 export function CollectionsView() {
   const today = useMemo(() => new Date(), []);
+  const [corpCode, setCorpCode] = useState<YerpCorpCode>(YERP_CORPS[0].corpCode);
   const [startDate, setStartDate] = useState(() => toDateInputValue(new Date(today.getFullYear(), 0, 1)));
   const [endDate, setEndDate] = useState(() => toDateInputValue(today));
   const [search, setSearch] = useState("");
@@ -43,10 +45,10 @@ export function CollectionsView() {
     startTransition(async () => {
       setExpandedCode(null);
       setLedgerCache({});
-      const result = await getCollectionsData({ startDate: start, endDate: end, search: search || undefined });
+      const result = await getCollectionsData({ corpCode, startDate: start, endDate: end, search: search || undefined });
       setData(result);
     });
-  }, [start, end, search]);
+  }, [corpCode, start, end, search]);
 
   function toggleExpand(customerCode: string) {
     if (expandedCode === customerCode) {
@@ -56,7 +58,7 @@ export function CollectionsView() {
     setExpandedCode(customerCode);
     if (!ledgerCache[customerCode]) {
       startLedgerTransition(async () => {
-        const ledger = await getCustomerLedgerData({ customerCode, startDate: start, endDate: end });
+        const ledger = await getCustomerLedgerData({ corpCode, customerCode, startDate: start, endDate: end });
         setLedgerCache((prev) => ({ ...prev, [customerCode]: ledger }));
       });
     }
@@ -64,6 +66,20 @@ export function CollectionsView() {
 
   return (
     <div className="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+      <div className="flex flex-wrap items-center gap-2">
+        {YERP_CORPS.map((corp) => (
+          <button
+            key={corp.corpCode}
+            type="button"
+            onClick={() => setCorpCode(corp.corpCode)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              corpCode === corp.corpCode ? "bg-ink text-salt" : "bg-mist text-inktext hover:bg-mist/70"
+            }`}
+          >
+            {corp.corpName}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="text-sm text-muted">조회기간</label>
