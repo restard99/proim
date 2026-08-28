@@ -11,6 +11,17 @@ export function LoginForm() {
   const [state, formAction, isPending] = useActionState(signIn, initialState);
   const teamSelectRef = useRef<HTMLSelectElement>(null);
   const [isMatching, setIsMatching] = useState(false);
+  // 사용자가 소속팀을 직접 선택한 뒤에는 이름 자동완성이 그 값을 덮어쓰면 안 된다.
+  const teamTouchedRef = useRef(false);
+
+  const handleNameChange = () => {
+    // 이름이 바뀌면 이전 자동완성/수동 선택은 더 이상 유효하지 않으므로 다시 자동완성을 허용한다.
+    teamTouchedRef.current = false;
+  };
+
+  const handleTeamChange = () => {
+    teamTouchedRef.current = true;
+  };
 
   const handleNameBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     const name = e.target.value.trim();
@@ -19,7 +30,7 @@ export function LoginForm() {
     setIsMatching(true);
     try {
       const teams = await lookupTeamsByName(name);
-      if (teams.length === 1 && teamSelectRef.current) {
+      if (teams.length === 1 && teamSelectRef.current && !teamTouchedRef.current) {
         teamSelectRef.current.value = teams[0];
       }
     } finally {
@@ -78,6 +89,7 @@ export function LoginForm() {
             type="text"
             placeholder="홍길동"
             onBlur={handleNameBlur}
+            onChange={handleNameChange}
             className={`w-full rounded-md border bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 ${borderClass(!!fieldErrors.fullName || isCredentialError)}`}
           />
           <p className="mt-1 text-xs text-muted">
@@ -97,6 +109,7 @@ export function LoginForm() {
             name="team"
             defaultValue=""
             ref={teamSelectRef}
+            onChange={handleTeamChange}
             className={`w-full rounded-md border bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 ${borderClass(!!fieldErrors.team || isCredentialError)}`}
           >
             <option value="" disabled>
