@@ -8,6 +8,7 @@ export const TEAMS = [
   "증도지원팀",
   "전략기획실",
   "염전관리팀",
+  "임원실",
 ] as const;
 
 export type Team = (typeof TEAMS)[number];
