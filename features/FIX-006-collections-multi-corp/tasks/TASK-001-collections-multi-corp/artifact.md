@@ -1,6 +1,6 @@
 # TASK-001: 수금현황 법인 선택 탭 추가 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 수정 내용
 FEAT-009 출금조회에서 만든 법인 상수 파일을 `lib/yerp/disbursement-corps.ts` → `lib/yerp/corps.ts`(`YERP_CORPS`/`YerpCorpCode`)로 범용화하고, 수금현황도 `CORP_CODE` 하드코딩을 제거해 파라미터로 받도록 수정했다. 화면 상단에 출금조회와 동일한 스타일의 법인 선택 탭을 추가했다.
