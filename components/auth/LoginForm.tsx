@@ -10,9 +10,12 @@ const initialState: SignInState = { status: "idle" };
 export function LoginForm() {
   const [state, formAction, isPending] = useActionState(signIn, initialState);
   const teamSelectRef = useRef<HTMLSelectElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [isMatching, setIsMatching] = useState(false);
   // 사용자가 소속팀을 직접 선택한 뒤에는 이름 자동완성이 그 값을 덮어쓰면 안 된다.
   const teamTouchedRef = useRef(false);
+  // 엔터 키 처리에서 이미 조회를 실행했다면, 뒤이어 발생하는 blur에서 중복 조회하지 않는다.
+  const enterHandledRef = useRef(false);
 
   const handleNameChange = () => {
     // 이름이 바뀌면 이전 자동완성/수동 선택은 더 이상 유효하지 않으므로 다시 자동완성을 허용한다.
@@ -23,8 +26,7 @@ export function LoginForm() {
     teamTouchedRef.current = true;
   };
 
-  const handleNameBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-    const name = e.target.value.trim();
+  const runTeamLookup = async (name: string) => {
     if (!name || name.includes("@")) return;
 
     setIsMatching(true);
@@ -36,6 +38,22 @@ export function LoginForm() {
     } finally {
       setIsMatching(false);
     }
+  };
+
+  const handleNameBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    if (enterHandledRef.current) {
+      enterHandledRef.current = false;
+      return;
+    }
+    await runTeamLookup(e.target.value.trim());
+  };
+
+  const handleNameKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    enterHandledRef.current = true;
+    await runTeamLookup(e.currentTarget.value.trim());
+    passwordRef.current?.focus();
   };
 
   const fieldErrors = state.status === "error" && state.error === "validation" ? state.fieldErrors : {};
@@ -90,12 +108,13 @@ export function LoginForm() {
             placeholder="홍길동"
             onBlur={handleNameBlur}
             onChange={handleNameChange}
+            onKeyDown={handleNameKeyDown}
             className={`w-full rounded-md border bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 ${borderClass(!!fieldErrors.fullName || isCredentialError)}`}
           />
           <p className="mt-1 text-xs text-muted">
             {isMatching
               ? "소속팀을 확인하는 중…"
-              : "동명이인이 있을 수 있어 소속팀과 함께 계정을 구분합니다. 관리자 계정은 이메일을 입력하세요."}
+              : "동명이인이 있을 수 있어 소속팀과 함께 계정을 구분합니다. 입력 후 엔터를 치세요."}
           </p>
           {fieldErrors.fullName && <p className="mt-1 text-xs text-crimsond">{fieldErrors.fullName}</p>}
         </div>
@@ -138,6 +157,7 @@ export function LoginForm() {
             name="password"
             type="password"
             placeholder="••••••••"
+            ref={passwordRef}
             className={`w-full rounded-md border bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 ${borderClass(!!fieldErrors.password || isCredentialError)}`}
           />
           {fieldErrors.password && <p className="mt-1 text-xs text-crimsond">{fieldErrors.password}</p>}
