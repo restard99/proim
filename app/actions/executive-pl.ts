@@ -69,6 +69,8 @@ export type PeriodTotals = {
     monthsWithConfirmed: number;
     totalMonths: number;
   } | null;
+  // 손익추정 업로드 여부와 무관하게, 순수 Y-ERP 전산 집계만 더한 값 (매출원가는 Y-ERP에 없어 0으로 고정).
+  systemOnly: { revenue: number; sga: number; operatingProfit: number };
 };
 
 export type TrendValues = { revenue: number; cogs: number; sga: number; operatingProfit: number; isEstimate: boolean };
@@ -190,6 +192,9 @@ async function getPeriodTotals(
   let confirmedSga = 0;
   let monthsWithConfirmed = 0;
 
+  let systemRevenue = 0;
+  let systemSga = 0;
+
   for (const c of comparisons) {
     const r = representative(c);
     revenue += r.revenue;
@@ -203,6 +208,9 @@ async function getPeriodTotals(
       confirmedSga += c.confirmed.sga ?? 0;
       monthsWithConfirmed += 1;
     }
+
+    systemRevenue += c.systemRevenue;
+    systemSga += c.systemSga;
   }
 
   return {
@@ -222,6 +230,7 @@ async function getPeriodTotals(
             monthsWithConfirmed,
             totalMonths: months.length,
           },
+    systemOnly: { revenue: systemRevenue, sga: systemSga, operatingProfit: systemRevenue - systemSga },
   };
 }
 
@@ -287,15 +296,15 @@ export async function exportProfitLossExcel(corpCode: ExecutiveCorpCode, yearMon
   }
 
   ws.addRow([]);
-  ws.addRow(["월누적(YTD)", "당해", `당해 확정(회계팀, ${yearMonth.slice(0, 4)}년)`, "전년"]);
-  ws.addRow(["매출", data.ytd.revenue, data.ytd.confirmedOnly?.revenue ?? null, data.lastYearYtd.revenue]);
-  ws.addRow(["매출원가", data.ytd.cogs, data.ytd.confirmedOnly?.cogs ?? null, data.lastYearYtd.cogs]);
-  ws.addRow(["판관비", data.ytd.sga, data.ytd.confirmedOnly?.sga ?? null, data.lastYearYtd.sga]);
+  ws.addRow(["월누적(YTD)", "전산 누계", "손익추정 누계", "전년 누계(전산)"]);
+  ws.addRow(["매출", data.ytd.systemOnly.revenue, data.ytd.confirmedOnly?.revenue ?? null, data.lastYearYtd.systemOnly.revenue]);
+  ws.addRow(["매출원가", null, data.ytd.confirmedOnly?.cogs ?? null, null]);
+  ws.addRow(["판관비", data.ytd.systemOnly.sga, data.ytd.confirmedOnly?.sga ?? null, data.lastYearYtd.systemOnly.sga]);
   ws.addRow([
     "영업이익",
-    data.ytd.operatingProfit,
+    data.ytd.systemOnly.operatingProfit,
     data.ytd.confirmedOnly?.operatingProfit ?? null,
-    data.lastYearYtd.operatingProfit,
+    data.lastYearYtd.systemOnly.operatingProfit,
   ]);
 
   ws.getRow(1).font = { bold: true, size: 13 };

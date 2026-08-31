@@ -241,13 +241,13 @@ export function ProfitLossView({
 
               <div className="overflow-hidden rounded-lg border border-mist bg-white">
                 <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">
-                  ■ 월 누적(YTD) 손익 (전년 대비, 확정 우선 값) [단위: 원]
+                  ■ 월 누적(YTD) 손익 — 전산 vs 손익추정, 전년 대비 [단위: 원]
                 </div>
                 <table className="w-full grid-table text-sm">
                   <thead>
                     <tr>
                       <th className="text-left">구분</th>
-                      <th>{yearMonth.slice(0, 4)}년 누계</th>
+                      <th>{yearMonth.slice(0, 4)}년 전산 누계</th>
                       <th>
                         {yearMonth.slice(0, 4)}년 손익추정 누계
                         {data.ytd.confirmedOnly && data.ytd.confirmedOnly.monthsWithConfirmed < data.ytd.confirmedOnly.totalMonths && (
@@ -256,41 +256,41 @@ export function ProfitLossView({
                           </span>
                         )}
                       </th>
-                      <th>{data.lastYearSameMonth.yearMonth.slice(0, 4)}년 누계</th>
-                      <th>전년대비</th>
+                      <th>{data.lastYearSameMonth.yearMonth.slice(0, 4)}년 전산 누계</th>
+                      <th>전년대비(전산)</th>
                     </tr>
                   </thead>
                   <tbody className="text-center">
                     <YtdRow
                       label="매출"
-                      current={data.ytd.revenue}
+                      current={data.ytd.systemOnly.revenue}
                       confirmed={data.ytd.confirmedOnly?.revenue ?? null}
-                      lastYear={data.lastYearYtd.revenue}
+                      lastYear={data.lastYearYtd.systemOnly.revenue}
                     />
                     <YtdRow
                       label="매출원가"
-                      current={data.ytd.cogs}
+                      current={null}
                       confirmed={data.ytd.confirmedOnly?.cogs ?? null}
-                      lastYear={data.lastYearYtd.cogs}
+                      lastYear={null}
                     />
                     <YtdRow
                       label="판관비"
-                      current={data.ytd.sga}
+                      current={data.ytd.systemOnly.sga}
                       confirmed={data.ytd.confirmedOnly?.sga ?? null}
-                      lastYear={data.lastYearYtd.sga}
+                      lastYear={data.lastYearYtd.systemOnly.sga}
                     />
                     <YtdRow
                       label="영업이익"
-                      current={data.ytd.operatingProfit}
+                      current={data.ytd.systemOnly.operatingProfit}
                       confirmed={data.ytd.confirmedOnly?.operatingProfit ?? null}
-                      lastYear={data.lastYearYtd.operatingProfit}
+                      lastYear={data.lastYearYtd.systemOnly.operatingProfit}
                       isTotal
                     />
                   </tbody>
                 </table>
-                {(data.ytd.hasEstimatedMonths || data.lastYearYtd.hasEstimatedMonths) && (
-                  <p className="px-4 py-2 text-xs text-muted">※ &ldquo;당해 누계&rdquo;는 손익추정 자료가 없는 달이 있으면 전산값(매출원가 0)으로 잠정 계산한 값이 섞여 있습니다. 손익추정 누계는 손익추정 자료가 있는 달만 합산한 값입니다.</p>
-                )}
+                <p className="px-4 py-2 text-xs text-muted">
+                  ※ &ldquo;전산 누계&rdquo;는 Y-ERP 자동집계만 더한 값(매출원가는 계산 불가)이고, &ldquo;손익추정 누계&rdquo;는 관리자가 업로드한 손익추정 자료가 있는 달만 합산한 값입니다. 서로 다른 두 출처를 나란히 보여드리는 것으로, 하나로 섞은 값이 아닙니다.
+                </p>
               </div>
 
               {corpCode === SEOMDEULCHAE_CORP && (
@@ -367,18 +367,21 @@ function YtdRow({
   isTotal,
 }: {
   label: string;
-  current: number;
+  current: number | null;
   confirmed: number | null;
-  lastYear: number;
+  lastYear: number | null;
   isTotal?: boolean;
 }) {
+  const hasComparison = current !== null && lastYear !== null;
   return (
     <tr className={isTotal ? "total-row" : undefined}>
       <td className="text-left font-sans font-medium text-inktext">{label}</td>
       <td>{won(current)}</td>
       <td>{won(confirmed)}</td>
       <td>{won(lastYear)}</td>
-      <td className={current < lastYear ? "text-crimsond" : "text-brine"}>{pctText(current, lastYear)}</td>
+      <td className={hasComparison && current < lastYear ? "text-crimsond" : hasComparison ? "text-brine" : undefined}>
+        {hasComparison ? pctText(current, lastYear) : "-"}
+      </td>
     </tr>
   );
 }
