@@ -171,27 +171,34 @@ body {
 .grid-table {
   border-collapse: collapse;
   width: 100%;
+  table-layout: fixed;
 }
 .grid-table th,
 .grid-table td {
   border: 1px solid var(--color-mist);
-  padding: 9px 14px;
+  padding: 10px 14px !important;
 }
 .grid-table thead th {
   background: #E6DFD1;
   color: var(--color-inktext);
   font-weight: 700;
   font-size: 12.5px;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: keep-all;
+  line-height: 1.35;
 }
 .grid-table tbody td {
-  font-size: 15px;
+  font-size: 14.5px;
   line-height: 1.3;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .grid-table tbody td.font-sans {
   font-size: 14.5px;
   font-family: var(--font-sans);
+  text-align: left;
+  font-variant-numeric: normal;
 }
 .grid-table tbody tr:nth-child(even) {
   background: rgba(239, 234, 225, 0.35);
@@ -199,5 +206,5 @@ body {
 .grid-table tr.total-row td {
   background: #E6DFD1;
   font-weight: 700;
-  font-size: 15.5px;
+  font-size: 15px;
 }
