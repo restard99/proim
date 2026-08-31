@@ -197,8 +197,8 @@ export function ProfitLossView({
                   <thead>
                     <tr>
                       <th className="text-left">구분</th>
-                      <th>{yearMonth} (당월)</th>
                       <th>{data.previousMonth.yearMonth}</th>
+                      <th>{yearMonth} (당월)</th>
                       <th>전월대비</th>
                       <th>{data.lastYearSameMonth.yearMonth}</th>
                       <th>전년동월대비</th>
@@ -350,8 +350,8 @@ function TrendRow({
   return (
     <tr className={isTotal ? "total-row" : undefined}>
       <td className="text-left font-sans font-medium text-inktext">{label}</td>
-      <td>{won(current)}</td>
       <td>{won(prevMonth)}</td>
+      <td>{won(current)}</td>
       <td className={current < prevMonth ? "text-crimsond" : "text-brine"}>{pctText(current, prevMonth)}</td>
       <td>{won(lastYear)}</td>
       <td className={current < lastYear ? "text-crimsond" : "text-brine"}>{pctText(current, lastYear)}</td>
