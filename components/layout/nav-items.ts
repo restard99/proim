@@ -104,6 +104,23 @@ export const SALTFIELD_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+export const EXECUTIVE_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/executive/report",
+    label: "주간업무보고",
+    iconPath:
+      "M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z",
+    evenOdd: true,
+    team: "임원실",
+  },
+  {
+    href: "/executive/pl",
+    label: "손익자료",
+    iconPath: "M3 17V3h2v14H3Zm4 0V8h2v9H7Zm4 0V5h2v12h-2Zm4 0v-6h2v6h-2Z",
+    team: "임원실",
+  },
+];
+
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   {
     href: "/admin/approvals",
@@ -116,6 +133,13 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     label: "시스템검토 게시판",
     iconPath:
       "M10 2a5 5 0 100 10 5 5 0 000-10zM3 17a7 7 0 0114 0 1 1 0 01-1 1H4a1 1 0 01-1-1z",
+  },
+  {
+    href: "/admin/executive-targets",
+    label: "임원실 목표 관리",
+    iconPath:
+      "M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z",
+    evenOdd: true,
   },
 ];
 
@@ -156,6 +180,12 @@ export function canViewSaltfield(team: string | null | undefined, role: string |
   return team === "염전관리팀";
 }
 
+// 주간업무보고/손익자료: 임원실 전용 (사장/회장)
+export function canViewExecutive(team: string | null | undefined, role: string | null | undefined): boolean {
+  if (role === "admin") return true;
+  return team === "임원실";
+}
+
 export function getVisibleBusinessNavItems(
   team: string | null | undefined,
   role: string | null | undefined,
@@ -167,5 +197,6 @@ export function getVisibleBusinessNavItems(
   if (canViewProductionRequests(team, role)) items.push(...PRODUCTION_REQUESTS_NAV_ITEMS);
   if (canViewProductionLogs(team, role)) items.push(...PRODUCTION_LOGS_NAV_ITEMS);
   if (canViewSaltfield(team, role)) items.push(...SALTFIELD_NAV_ITEMS);
+  if (canViewExecutive(team, role)) items.push(...EXECUTIVE_NAV_ITEMS);
   return items;
 }
