@@ -1,17 +1,19 @@
 # TASK-009: 손익자료 화면
 
 ## 목적
-TASK-005의 손익 집계 모듈을 화면으로 연결하고, 엑셀/PDF 내보내기를 붙인다.
+TASK-005(전산 자동집계)와 TASK-006(회계팀 확정 업로드)을 화면에서 "전산 / 확정 / 차이" 형태로 나란히 보여주고, 엑셀/PDF 내보내기를 붙인다. (`섬들채_1-8월_월별업장별_손익_수식.xlsx`의 `08_상반기_회계팀발표_대조` 시트와 같은 비교 구조.)
 
 ## 작업 범위
 - 생성할 파일:
-  - `app/actions/executive-pl.ts`: `getProfitLoss(corpCode, yearMonth)`, `exportProfitLossExcel(corpCode, yearMonth)`
+  - `app/actions/executive-pl.ts`: `getProfitLoss(corpCode, yearMonth)` — TASK-005 전산 집계 + TASK-006 확정 업로드를 합쳐서 반환, `exportProfitLossExcel(corpCode, yearMonth)`
   - `app/(app)/executive/pl/page.tsx`
   - `components/executive/ProfitLossView.tsx`
 
 ## 완료 기준
 - [ ] 법인 탭(태평소금/태평염전/섬들채) 전환 시 해당 법인 데이터로 갱신
-- [ ] 월 선택 시 당월(전월·전년동월 대비), 월누적(YTD, 전년 대비) 표 모두 갱신
+- [ ] 매출/매출원가/판관비/영업이익 각 행에 "전산" / "확정(회계팀)" / "차이" 3열 표시. 전산 매출원가처럼 계산 불가한 항목은 "전산" 칸에 "-" 표시, "차이" 칸도 공란
+- [ ] 확정 자료가 아직 업로드 안 된 월은 "확정" 칸에 "미입력" 표시, 전산 값은 정상 표시
+- [ ] 월 선택 시 당월(전월 대비), 월누적(YTD, 전년 대비) 표 모두 갱신
 - [ ] 엑셀 내보내기 클릭 시 현재 화면 데이터로 .xlsx 다운로드
 - [ ] PDF 내보내기(인쇄) 클릭 시 인쇄 미리보기로 표가 잘리지 않고 표시
 - [ ] `npx tsc --noEmit` 통과, 브라우저에서 실제 데이터로 확인

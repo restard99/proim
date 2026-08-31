@@ -774,3 +774,50 @@ CREATE POLICY "executive_weekly_comments_insert" ON executive_weekly_comments
 
 CREATE INDEX IF NOT EXISTS executive_weekly_comments_week_idx
   ON executive_weekly_comments(tenant_id, week_start_date);
+
+-- 회계팀 확정 손익 (관리자 엑셀 업로드). Y-ERP 자동집계("전산")와 나란히 비교 표시하기 위한 것으로,
+-- 둘이 정확히 일치하지 않는 게 정상이다 (회계팀이 관리하는 사업장별 원가배분 워크북과
+-- 시스템 집계가 원래도 차이가 남 — 03-decisions.md 참고).
+CREATE TABLE IF NOT EXISTS executive_pl_confirmed (
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id               UUID NOT NULL REFERENCES tenants(id),
+  corp_code               TEXT NOT NULL,   -- '0460'/'0400'/'0360' (박물관 제외)
+  year_month              TEXT NOT NULL,   -- 'YYYY-MM'
+  revenue                 NUMERIC,
+  cogs                    NUMERIC,
+  sga                     NUMERIC,
+  non_operating_income    NUMERIC,
+  non_operating_expense   NUMERIC,
+  uploaded_by             UUID REFERENCES profiles(id),
+  file_name               TEXT,
+  created_at              TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, corp_code, year_month)
+);
+ALTER TABLE executive_pl_confirmed ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "executive_pl_confirmed_select" ON executive_pl_confirmed;
+CREATE POLICY "executive_pl_confirmed_select" ON executive_pl_confirmed
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+    )
+  );
+
+DROP POLICY IF EXISTS "executive_pl_confirmed_admin_insert" ON executive_pl_confirmed;
+CREATE POLICY "executive_pl_confirmed_admin_insert" ON executive_pl_confirmed
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_pl_confirmed_admin_update" ON executive_pl_confirmed;
+CREATE POLICY "executive_pl_confirmed_admin_update" ON executive_pl_confirmed
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+CREATE INDEX IF NOT EXISTS executive_pl_confirmed_lookup_idx
+  ON executive_pl_confirmed(tenant_id, corp_code, year_month);
