@@ -368,6 +368,33 @@ function BusinessUnitTable({ title, rows }: { title: string; rows: BusinessUnitP
     }),
     { revenue: 0, cogs: 0, grossProfit: 0, sga: 0, operatingProfit: 0, pretaxProfit: 0 },
   );
+  const totalGrossMarginPct = total.revenue !== 0 ? (total.grossProfit / total.revenue) * 100 : null;
+  const totalOperatingMarginPct = total.revenue !== 0 ? (total.operatingProfit / total.revenue) * 100 : null;
+
+  const lines: {
+    label: string;
+    isTotal?: boolean;
+    value: (r: BusinessUnitPL) => number;
+    pctValue?: (r: BusinessUnitPL) => number | null;
+    totalValue: number;
+    totalPct?: number | null;
+    negativeRed?: boolean;
+  }[] = [
+    { label: "매출", value: (r) => r.revenue, totalValue: total.revenue },
+    { label: "매출원가", value: (r) => r.cogs, totalValue: total.cogs },
+    { label: "매출총이익", value: (r) => r.grossProfit, pctValue: (r) => r.grossMarginPct, totalValue: total.grossProfit, totalPct: totalGrossMarginPct },
+    { label: "판관비", value: (r) => r.sga, totalValue: total.sga },
+    {
+      label: "영업이익",
+      value: (r) => r.operatingProfit,
+      pctValue: (r) => r.operatingMarginPct,
+      totalValue: total.operatingProfit,
+      totalPct: totalOperatingMarginPct,
+      negativeRed: true,
+      isTotal: true,
+    },
+    { label: "세전이익", value: (r) => r.pretaxProfit, totalValue: total.pretaxProfit, negativeRed: true },
+  ];
 
   return (
     <div className="overflow-hidden rounded-lg border border-mist bg-white">
@@ -377,47 +404,39 @@ function BusinessUnitTable({ title, rows }: { title: string; rows: BusinessUnitP
           업로드된 부문별 손익이 없습니다. 관리자 페이지에서 &ldquo;섬들채 부문별 손익&rdquo;을 업로드하면 표시됩니다.
         </p>
       ) : (
-        <table className="w-full grid-table text-sm">
-          <thead>
-            <tr>
-              <th className="text-left">업장</th>
-              <th>매출</th>
-              <th>매출원가</th>
-              <th>매출총이익</th>
-              <th>매출총이익률</th>
-              <th>판관비</th>
-              <th>영업이익</th>
-              <th>영업이익률</th>
-              <th>세전이익</th>
-            </tr>
-          </thead>
-          <tbody className="text-center">
-            {rows.map((r) => (
-              <tr key={r.businessUnit}>
-                <td className="text-left font-sans">{r.businessUnit}</td>
-                <td>{won(r.revenue)}</td>
-                <td>{won(r.cogs)}</td>
-                <td>{won(r.grossProfit)}</td>
-                <td>{pct(r.grossMarginPct)}</td>
-                <td>{won(r.sga)}</td>
-                <td className={r.operatingProfit < 0 ? "text-crimsond" : "text-brine"}>{won(r.operatingProfit)}</td>
-                <td>{pct(r.operatingMarginPct)}</td>
-                <td>{won(r.pretaxProfit)}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full grid-table text-sm">
+            <thead>
+              <tr>
+                <th className="text-left">구분</th>
+                {rows.map((r) => (
+                  <th key={r.businessUnit}>{r.businessUnit}</th>
+                ))}
+                <th>합계</th>
               </tr>
-            ))}
-            <tr className="total-row">
-              <td className="text-left font-sans">합계</td>
-              <td>{won(total.revenue)}</td>
-              <td>{won(total.cogs)}</td>
-              <td>{won(total.grossProfit)}</td>
-              <td>{pct(total.revenue !== 0 ? (total.grossProfit / total.revenue) * 100 : null)}</td>
-              <td>{won(total.sga)}</td>
-              <td>{won(total.operatingProfit)}</td>
-              <td>{pct(total.revenue !== 0 ? (total.operatingProfit / total.revenue) * 100 : null)}</td>
-              <td>{won(total.pretaxProfit)}</td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="text-center">
+              {lines.map((line) => (
+                <tr key={line.label} className={line.isTotal ? "total-row" : undefined}>
+                  <td className="text-left font-sans font-medium text-inktext">
+                    {line.label}
+                    {line.pctValue && <span className="block text-xs text-muted font-sans">(이익률)</span>}
+                  </td>
+                  {rows.map((r) => (
+                    <td key={r.businessUnit} className={line.negativeRed && line.value(r) < 0 ? "text-crimsond" : undefined}>
+                      {won(line.value(r))}
+                      {line.pctValue && <span className="block text-xs text-muted">{pct(line.pctValue(r))}</span>}
+                    </td>
+                  ))}
+                  <td className={line.negativeRed && line.totalValue < 0 ? "text-crimsond" : undefined}>
+                    {won(line.totalValue)}
+                    {line.pctValue && <span className="block text-xs text-muted">{pct(line.totalPct ?? null)}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
