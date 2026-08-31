@@ -60,6 +60,15 @@ export type PeriodTotals = {
   sga: number;
   operatingProfit: number;
   hasEstimatedMonths: boolean; // 확정 자료가 없어 매출원가를 0으로 취급한 달이 하나라도 있으면 true
+  // 확정(회계팀) 자료가 있는 달만 모아 별도로 합산한 값. 확정 자료가 한 달도 없으면 null.
+  confirmedOnly: {
+    revenue: number;
+    cogs: number;
+    sga: number;
+    operatingProfit: number;
+    monthsWithConfirmed: number;
+    totalMonths: number;
+  } | null;
 };
 
 export type TrendValues = { revenue: number; cogs: number; sga: number; operatingProfit: number; isEstimate: boolean };
@@ -175,14 +184,45 @@ async function getPeriodTotals(
   let cogs = 0;
   let sga = 0;
   let hasEstimatedMonths = false;
+
+  let confirmedRevenue = 0;
+  let confirmedCogs = 0;
+  let confirmedSga = 0;
+  let monthsWithConfirmed = 0;
+
   for (const c of comparisons) {
     const r = representative(c);
     revenue += r.revenue;
     cogs += r.cogs;
     sga += r.sga;
     if (r.isEstimate) hasEstimatedMonths = true;
+
+    if (c.confirmed && c.confirmed.revenue !== null) {
+      confirmedRevenue += c.confirmed.revenue ?? 0;
+      confirmedCogs += c.confirmed.cogs ?? 0;
+      confirmedSga += c.confirmed.sga ?? 0;
+      monthsWithConfirmed += 1;
+    }
   }
-  return { revenue, cogs, sga, operatingProfit: revenue - cogs - sga, hasEstimatedMonths };
+
+  return {
+    revenue,
+    cogs,
+    sga,
+    operatingProfit: revenue - cogs - sga,
+    hasEstimatedMonths,
+    confirmedOnly:
+      monthsWithConfirmed === 0
+        ? null
+        : {
+            revenue: confirmedRevenue,
+            cogs: confirmedCogs,
+            sga: confirmedSga,
+            operatingProfit: confirmedRevenue - confirmedCogs - confirmedSga,
+            monthsWithConfirmed,
+            totalMonths: months.length,
+          },
+  };
 }
 
 function monthsFromJanTo(yearMonth: string): string[] {
@@ -247,11 +287,16 @@ export async function exportProfitLossExcel(corpCode: ExecutiveCorpCode, yearMon
   }
 
   ws.addRow([]);
-  ws.addRow(["월누적(YTD)", "당해", "전년"]);
-  ws.addRow(["매출", data.ytd.revenue, data.lastYearYtd.revenue]);
-  ws.addRow(["매출원가", data.ytd.cogs, data.lastYearYtd.cogs]);
-  ws.addRow(["판관비", data.ytd.sga, data.lastYearYtd.sga]);
-  ws.addRow(["영업이익", data.ytd.operatingProfit, data.lastYearYtd.operatingProfit]);
+  ws.addRow(["월누적(YTD)", "당해", `당해 확정(회계팀, ${yearMonth.slice(0, 4)}년)`, "전년"]);
+  ws.addRow(["매출", data.ytd.revenue, data.ytd.confirmedOnly?.revenue ?? null, data.lastYearYtd.revenue]);
+  ws.addRow(["매출원가", data.ytd.cogs, data.ytd.confirmedOnly?.cogs ?? null, data.lastYearYtd.cogs]);
+  ws.addRow(["판관비", data.ytd.sga, data.ytd.confirmedOnly?.sga ?? null, data.lastYearYtd.sga]);
+  ws.addRow([
+    "영업이익",
+    data.ytd.operatingProfit,
+    data.ytd.confirmedOnly?.operatingProfit ?? null,
+    data.lastYearYtd.operatingProfit,
+  ]);
 
   ws.getRow(1).font = { bold: true, size: 13 };
   ws.getRow(3).font = { bold: true };

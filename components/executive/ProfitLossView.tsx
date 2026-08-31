@@ -248,24 +248,48 @@ export function ProfitLossView({
                     <tr>
                       <th className="text-left">구분</th>
                       <th>{yearMonth.slice(0, 4)}년 누계</th>
+                      <th>
+                        {yearMonth.slice(0, 4)}년 확정(회계팀) 누계
+                        {data.ytd.confirmedOnly && data.ytd.confirmedOnly.monthsWithConfirmed < data.ytd.confirmedOnly.totalMonths && (
+                          <span className="block font-normal text-[11px] text-muted">
+                            {data.ytd.confirmedOnly.monthsWithConfirmed}/{data.ytd.confirmedOnly.totalMonths}개월분
+                          </span>
+                        )}
+                      </th>
                       <th>{data.lastYearSameMonth.yearMonth.slice(0, 4)}년 누계</th>
                       <th>전년대비</th>
                     </tr>
                   </thead>
                   <tbody className="text-center">
-                    <YtdRow label="매출" current={data.ytd.revenue} lastYear={data.lastYearYtd.revenue} />
-                    <YtdRow label="매출원가" current={data.ytd.cogs} lastYear={data.lastYearYtd.cogs} />
-                    <YtdRow label="판관비" current={data.ytd.sga} lastYear={data.lastYearYtd.sga} />
+                    <YtdRow
+                      label="매출"
+                      current={data.ytd.revenue}
+                      confirmed={data.ytd.confirmedOnly?.revenue ?? null}
+                      lastYear={data.lastYearYtd.revenue}
+                    />
+                    <YtdRow
+                      label="매출원가"
+                      current={data.ytd.cogs}
+                      confirmed={data.ytd.confirmedOnly?.cogs ?? null}
+                      lastYear={data.lastYearYtd.cogs}
+                    />
+                    <YtdRow
+                      label="판관비"
+                      current={data.ytd.sga}
+                      confirmed={data.ytd.confirmedOnly?.sga ?? null}
+                      lastYear={data.lastYearYtd.sga}
+                    />
                     <YtdRow
                       label="영업이익"
                       current={data.ytd.operatingProfit}
+                      confirmed={data.ytd.confirmedOnly?.operatingProfit ?? null}
                       lastYear={data.lastYearYtd.operatingProfit}
                       isTotal
                     />
                   </tbody>
                 </table>
                 {(data.ytd.hasEstimatedMonths || data.lastYearYtd.hasEstimatedMonths) && (
-                  <p className="px-4 py-2 text-xs text-muted">※ 확정 자료가 없는 달이 포함되어 있어 잠정치입니다.</p>
+                  <p className="px-4 py-2 text-xs text-muted">※ &ldquo;당해 누계&rdquo;는 확정 자료가 없는 달이 있으면 전산값(매출원가 0)으로 잠정 계산한 값이 섞여 있습니다. 확정(회계팀) 누계는 확정 자료가 있는 달만 합산한 값입니다.</p>
                 )}
               </div>
 
@@ -338,11 +362,13 @@ function TrendRow({
 function YtdRow({
   label,
   current,
+  confirmed,
   lastYear,
   isTotal,
 }: {
   label: string;
   current: number;
+  confirmed: number | null;
   lastYear: number;
   isTotal?: boolean;
 }) {
@@ -350,6 +376,7 @@ function YtdRow({
     <tr className={isTotal ? "total-row" : undefined}>
       <td className="text-left font-sans font-medium text-inktext">{label}</td>
       <td>{won(current)}</td>
+      <td>{won(confirmed)}</td>
       <td>{won(lastYear)}</td>
       <td className={current < lastYear ? "text-crimsond" : "text-brine"}>{pctText(current, lastYear)}</td>
     </tr>
