@@ -45,6 +45,7 @@ function cellNumber(cell: ExcelJS.Cell): number | null {
 
 export async function parsePlConfirmedWorkbook(buffer: Buffer): Promise<ParsePlConfirmedResult> {
   const wb = new ExcelJS.Workbook();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- exceljs의 Buffer 타입과 @types/node 버전이 어긋나 있음 (기존 parse-production.ts와 동일한 처리)
   await wb.xlsx.load(buffer as any);
   const ws = wb.worksheets[0];
   if (!ws) return { ok: false, errors: ["시트를 찾을 수 없습니다."] };

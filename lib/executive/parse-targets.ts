@@ -2,7 +2,6 @@ import "server-only";
 import ExcelJS from "exceljs";
 import { EXECUTIVE_CORPS } from "@/lib/yerp/executive-corps";
 
-const HEADER_ROW = 1;
 const DATA_START_ROW = 2;
 const CORP_NAME_TO_CODE = new Map<string, string>(EXECUTIVE_CORPS.map((c) => [c.corpName, c.corpCode]));
 const PRODUCTION_CATEGORIES = new Set(["천일염", "가공염"]);
@@ -56,6 +55,7 @@ function normalizePeriodKey(periodType: "week" | "month", raw: string): string |
 
 export async function parseExecutiveTargetsWorkbook(buffer: Buffer): Promise<ParseTargetsResult> {
   const wb = new ExcelJS.Workbook();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- exceljs의 Buffer 타입과 @types/node 버전이 어긋나 있음 (기존 parse-production.ts와 동일한 처리)
   await wb.xlsx.load(buffer as any);
   const ws = wb.worksheets[0];
   if (!ws) return { ok: false, errors: ["시트를 찾을 수 없습니다."] };

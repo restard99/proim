@@ -1,0 +1,318 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { getProfitLoss, exportProfitLossExcel, type ProfitLossData } from "@/app/actions/executive-pl";
+import { EXECUTIVE_PL_CORPS, type ExecutiveCorpCode } from "@/lib/yerp/executive-corps";
+
+function won(n: number | null | undefined) {
+  if (n === null || n === undefined) return "미입력";
+  return Math.round(n).toLocaleString("ko-KR");
+}
+
+function diffText(diff: number | null) {
+  if (diff === null) return "-";
+  const sign = diff > 0 ? "+" : "";
+  return `${sign}${Math.round(diff).toLocaleString("ko-KR")}`;
+}
+
+function pctText(current: number, base: number) {
+  if (base === 0) return "-";
+  const rate = ((current - base) / Math.abs(base)) * 100;
+  const sign = rate > 0 ? "+" : "";
+  return `${sign}${rate.toFixed(1)}%`;
+}
+
+function downloadBase64(base64: string, fileName: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function ProfitLossView({
+  initialCorpCode,
+  initialYearMonth,
+  initialData,
+}: {
+  initialCorpCode: ExecutiveCorpCode;
+  initialYearMonth: string;
+  initialData: ProfitLossData | null;
+}) {
+  const [corpCode, setCorpCode] = useState(initialCorpCode);
+  const [yearMonth, setYearMonth] = useState(initialYearMonth);
+  const [data, setData] = useState(initialData);
+  const [isPending, startTransition] = useTransition();
+  const [isExporting, startExporting] = useTransition();
+
+  const reload = (nextCorp: ExecutiveCorpCode, nextMonth: string) => {
+    startTransition(async () => {
+      const result = await getProfitLoss(nextCorp, nextMonth);
+      setCorpCode(nextCorp);
+      setYearMonth(nextMonth);
+      setData(result);
+    });
+  };
+
+  const handleExport = () => {
+    startExporting(async () => {
+      const result = await exportProfitLossExcel(corpCode, yearMonth);
+      if (result.ok) downloadBase64(result.base64, result.fileName);
+    });
+  };
+
+  return (
+    <div className="flex-1 flex flex-col min-w-0">
+      <header className="border-b border-mist bg-white px-5 lg:px-8 py-4 flex items-center justify-between flex-wrap gap-2 print:hidden">
+        <h1 className="text-lg font-semibold text-inktext">손익자료</h1>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting || !data}
+            className="flex items-center gap-1.5 rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40 disabled:opacity-50"
+          >
+            엑셀
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40"
+          >
+            PDF
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+          <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
+            <div className="flex gap-5 border-b border-mist">
+              {EXECUTIVE_PL_CORPS.map((c) => (
+                <button
+                  key={c.corpCode}
+                  type="button"
+                  onClick={() => reload(c.corpCode, yearMonth)}
+                  className={`px-1 pb-2 text-sm ${
+                    corpCode === c.corpCode ? "border-b-2 border-crimson font-semibold text-inktext" : "text-muted"
+                  }`}
+                >
+                  {c.corpName}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted">조회월</label>
+              <input
+                type="month"
+                value={yearMonth}
+                onChange={(e) => reload(corpCode, e.target.value)}
+                className="rounded-md border border-mist px-3 py-2 text-sm outline-none"
+              />
+            </div>
+          </div>
+
+          {isPending && <p className="text-sm text-muted">불러오는 중…</p>}
+
+          {!data ? (
+            <div className="rounded-lg border border-mist bg-white px-4 py-10 text-center text-sm text-muted">
+              데이터를 불러올 수 없습니다.
+            </div>
+          ) : (
+            <>
+              <div className="overflow-hidden rounded-lg border border-mist bg-white">
+                <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">
+                  ■ {yearMonth} 당월 손익 — 전산(Y-ERP 자동집계) vs 확정(회계팀) [단위: 원]
+                </div>
+                <table className="w-full grid-table text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left">구분</th>
+                      <th>전산</th>
+                      <th>확정(회계팀)</th>
+                      <th>차이</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-center">
+                    <PLRow label="매출" system={data.current.systemRevenue} confirmed={data.current.confirmed?.revenue ?? null} />
+                    <PLRow label="매출원가" system={null} confirmed={data.current.confirmed?.cogs ?? null} />
+                    <PLRow label="판관비" system={data.current.systemSga} confirmed={data.current.confirmed?.sga ?? null} />
+                    <PLRow
+                      label="영업이익"
+                      system={data.current.systemRevenue - data.current.systemSga}
+                      confirmed={
+                        data.current.confirmed && data.current.confirmed.revenue !== null
+                          ? (data.current.confirmed.revenue ?? 0) -
+                            (data.current.confirmed.cogs ?? 0) -
+                            (data.current.confirmed.sga ?? 0)
+                          : null
+                      }
+                      isTotal
+                    />
+                  </tbody>
+                </table>
+                <p className="px-4 py-2 text-xs text-muted">
+                  ※ 전산 매출원가는 Y-ERP 일반전표에 기록되지 않아 계산할 수 없습니다. 확정(회계팀) 자료가 업로드되지
+                  않은 항목은 &ldquo;미입력&rdquo;으로 표시됩니다.
+                </p>
+              </div>
+
+              <div className="overflow-hidden rounded-lg border border-mist bg-white">
+                <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">
+                  ■ 당월 손익 (전월·전년동월 대비, 확정 우선 값) [단위: 원]
+                </div>
+                <table className="w-full grid-table text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left">구분</th>
+                      <th>{yearMonth} (당월)</th>
+                      <th>{data.previousMonth.yearMonth}</th>
+                      <th>전월대비</th>
+                      <th>{data.lastYearSameMonth.yearMonth}</th>
+                      <th>전년동월대비</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-center">
+                    <TrendRow
+                      label="매출"
+                      current={data.trend.current.revenue}
+                      prevMonth={data.trend.previousMonth.revenue}
+                      lastYear={data.trend.lastYearSameMonth.revenue}
+                    />
+                    <TrendRow
+                      label="매출원가"
+                      current={data.trend.current.cogs}
+                      prevMonth={data.trend.previousMonth.cogs}
+                      lastYear={data.trend.lastYearSameMonth.cogs}
+                    />
+                    <TrendRow
+                      label="판관비"
+                      current={data.trend.current.sga}
+                      prevMonth={data.trend.previousMonth.sga}
+                      lastYear={data.trend.lastYearSameMonth.sga}
+                    />
+                    <TrendRow
+                      label="영업이익"
+                      current={data.trend.current.operatingProfit}
+                      prevMonth={data.trend.previousMonth.operatingProfit}
+                      lastYear={data.trend.lastYearSameMonth.operatingProfit}
+                      isTotal
+                    />
+                  </tbody>
+                </table>
+                {(data.trend.current.isEstimate || data.trend.previousMonth.isEstimate || data.trend.lastYearSameMonth.isEstimate) && (
+                  <p className="px-4 py-2 text-xs text-muted">
+                    ※ 확정 자료가 없는 달은 전산 매출/판관비만으로 잠정 계산한 값입니다 (매출원가 0으로 취급).
+                  </p>
+                )}
+              </div>
+
+              <div className="overflow-hidden rounded-lg border border-mist bg-white">
+                <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">
+                  ■ 월 누적(YTD) 손익 (전년 대비, 확정 우선 값) [단위: 원]
+                </div>
+                <table className="w-full grid-table text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left">구분</th>
+                      <th>{yearMonth.slice(0, 4)}년 누계</th>
+                      <th>{data.lastYearSameMonth.yearMonth.slice(0, 4)}년 누계</th>
+                      <th>전년대비</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-center">
+                    <YtdRow label="매출" current={data.ytd.revenue} lastYear={data.lastYearYtd.revenue} />
+                    <YtdRow label="매출원가" current={data.ytd.cogs} lastYear={data.lastYearYtd.cogs} />
+                    <YtdRow label="판관비" current={data.ytd.sga} lastYear={data.lastYearYtd.sga} />
+                    <YtdRow
+                      label="영업이익"
+                      current={data.ytd.operatingProfit}
+                      lastYear={data.lastYearYtd.operatingProfit}
+                      isTotal
+                    />
+                  </tbody>
+                </table>
+                {(data.ytd.hasEstimatedMonths || data.lastYearYtd.hasEstimatedMonths) && (
+                  <p className="px-4 py-2 text-xs text-muted">※ 확정 자료가 없는 달이 포함되어 있어 잠정치입니다.</p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function PLRow({
+  label,
+  system,
+  confirmed,
+  isTotal,
+}: {
+  label: string;
+  system: number | null;
+  confirmed: number | null;
+  isTotal?: boolean;
+}) {
+  const diff = system !== null && confirmed !== null ? confirmed - system : null;
+  return (
+    <tr className={isTotal ? "total-row" : undefined}>
+      <td className="text-left font-sans font-medium text-inktext">{label}</td>
+      <td>{won(system)}</td>
+      <td>{won(confirmed)}</td>
+      <td className={diff !== null && diff < 0 ? "text-crimsond" : diff !== null && diff > 0 ? "text-brine" : undefined}>
+        {diffText(diff)}
+      </td>
+    </tr>
+  );
+}
+
+function TrendRow({
+  label,
+  current,
+  prevMonth,
+  lastYear,
+  isTotal,
+}: {
+  label: string;
+  current: number;
+  prevMonth: number;
+  lastYear: number;
+  isTotal?: boolean;
+}) {
+  return (
+    <tr className={isTotal ? "total-row" : undefined}>
+      <td className="text-left font-sans font-medium text-inktext">{label}</td>
+      <td>{won(current)}</td>
+      <td>{won(prevMonth)}</td>
+      <td className={current < prevMonth ? "text-crimsond" : "text-brine"}>{pctText(current, prevMonth)}</td>
+      <td>{won(lastYear)}</td>
+      <td className={current < lastYear ? "text-crimsond" : "text-brine"}>{pctText(current, lastYear)}</td>
+    </tr>
+  );
+}
+
+function YtdRow({
+  label,
+  current,
+  lastYear,
+  isTotal,
+}: {
+  label: string;
+  current: number;
+  lastYear: number;
+  isTotal?: boolean;
+}) {
+  return (
+    <tr className={isTotal ? "total-row" : undefined}>
+      <td className="text-left font-sans font-medium text-inktext">{label}</td>
+      <td>{won(current)}</td>
+      <td>{won(lastYear)}</td>
+      <td className={current < lastYear ? "text-crimsond" : "text-brine"}>{pctText(current, lastYear)}</td>
+    </tr>
+  );
+}
