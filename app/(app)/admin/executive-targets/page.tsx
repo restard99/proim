@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getTargetUploadHistory } from "@/app/actions/executive-targets";
 import { getPlConfirmedUploadHistory } from "@/app/actions/executive-pl-confirmed";
+import { getPlBusinessUnitUploadHistory } from "@/app/actions/executive-pl-business-unit";
 import { ExecutiveTargetUpload } from "@/components/admin/ExecutiveTargetUpload";
 
 export default async function ExecutiveTargetsAdminPage() {
@@ -15,9 +16,10 @@ export default async function ExecutiveTargetsAdminPage() {
   const { data: viewer } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (viewer?.role !== "admin") redirect("/");
 
-  const [targetHistory, plConfirmedHistory] = await Promise.all([
+  const [targetHistory, plConfirmedHistory, plBusinessUnitHistory] = await Promise.all([
     getTargetUploadHistory(),
     getPlConfirmedUploadHistory(),
+    getPlBusinessUnitUploadHistory(),
   ]);
 
   return (
@@ -27,7 +29,11 @@ export default async function ExecutiveTargetsAdminPage() {
         임원실 주간업무보고/손익자료 화면에 쓰일 목표(계획)와 회계팀 확정 손익을 엑셀로 업로드합니다.
       </p>
       <div className="mt-6">
-        <ExecutiveTargetUpload targetHistory={targetHistory} plConfirmedHistory={plConfirmedHistory} />
+        <ExecutiveTargetUpload
+          targetHistory={targetHistory}
+          plConfirmedHistory={plConfirmedHistory}
+          plBusinessUnitHistory={plBusinessUnitHistory}
+        />
       </div>
     </div>
   );

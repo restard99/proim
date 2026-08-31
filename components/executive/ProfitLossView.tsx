@@ -1,8 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { getProfitLoss, exportProfitLossExcel, type ProfitLossData } from "@/app/actions/executive-pl";
+import {
+  getBusinessUnitBreakdown,
+  getBusinessUnitBreakdownYtd,
+  type BusinessUnitPL,
+} from "@/app/actions/executive-pl-business-unit";
 import { EXECUTIVE_PL_CORPS, type ExecutiveCorpCode } from "@/lib/yerp/executive-corps";
+
+const SEOMDEULCHAE_CORP: ExecutiveCorpCode = "0360";
+
+function pct(n: number | null) {
+  return n === null ? "-" : `${n.toFixed(1)}%`;
+}
 
 function won(n: number | null | undefined) {
   if (n === null || n === undefined) return "미입력";
@@ -47,6 +58,8 @@ export function ProfitLossView({
   const [data, setData] = useState(initialData);
   const [isPending, startTransition] = useTransition();
   const [isExporting, startExporting] = useTransition();
+  const [businessUnits, setBusinessUnits] = useState<BusinessUnitPL[]>([]);
+  const [businessUnitsYtd, setBusinessUnitsYtd] = useState<BusinessUnitPL[]>([]);
 
   const reload = (nextCorp: ExecutiveCorpCode, nextMonth: string) => {
     startTransition(async () => {
@@ -56,6 +69,22 @@ export function ProfitLossView({
       setData(result);
     });
   };
+
+  useEffect(() => {
+    if (corpCode !== SEOMDEULCHAE_CORP) return;
+    let cancelled = false;
+    Promise.all([getBusinessUnitBreakdown(yearMonth), getBusinessUnitBreakdownYtd(yearMonth)]).then(
+      ([month, ytd]) => {
+        if (!cancelled) {
+          setBusinessUnits(month);
+          setBusinessUnitsYtd(ytd);
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [corpCode, yearMonth]);
 
   const handleExport = () => {
     startExporting(async () => {
@@ -239,6 +268,16 @@ export function ProfitLossView({
                   <p className="px-4 py-2 text-xs text-muted">※ 확정 자료가 없는 달이 포함되어 있어 잠정치입니다.</p>
                 )}
               </div>
+
+              {corpCode === SEOMDEULCHAE_CORP && (
+                <>
+                  <BusinessUnitTable title={`■ ${yearMonth} 부문별 손익 [단위: 원]`} rows={businessUnits} />
+                  <BusinessUnitTable
+                    title={`■ ${yearMonth.slice(0, 4)}년 1~${Number(yearMonth.slice(5, 7))}월 누계 부문별 손익 [단위: 원]`}
+                    rows={businessUnitsYtd}
+                  />
+                </>
+              )}
             </>
           )}
         </div>
@@ -314,5 +353,72 @@ function YtdRow({
       <td>{won(lastYear)}</td>
       <td className={current < lastYear ? "text-crimsond" : "text-brine"}>{pctText(current, lastYear)}</td>
     </tr>
+  );
+}
+
+function BusinessUnitTable({ title, rows }: { title: string; rows: BusinessUnitPL[] }) {
+  const total = rows.reduce(
+    (acc, r) => ({
+      revenue: acc.revenue + r.revenue,
+      cogs: acc.cogs + r.cogs,
+      grossProfit: acc.grossProfit + r.grossProfit,
+      sga: acc.sga + r.sga,
+      operatingProfit: acc.operatingProfit + r.operatingProfit,
+      pretaxProfit: acc.pretaxProfit + r.pretaxProfit,
+    }),
+    { revenue: 0, cogs: 0, grossProfit: 0, sga: 0, operatingProfit: 0, pretaxProfit: 0 },
+  );
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-mist bg-white">
+      <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">{title}</div>
+      {rows.length === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-muted">
+          업로드된 부문별 손익이 없습니다. 관리자 페이지에서 &ldquo;섬들채 부문별 손익&rdquo;을 업로드하면 표시됩니다.
+        </p>
+      ) : (
+        <table className="w-full grid-table text-sm">
+          <thead>
+            <tr>
+              <th className="text-left">업장</th>
+              <th>매출</th>
+              <th>매출원가</th>
+              <th>매출총이익</th>
+              <th>매출총이익률</th>
+              <th>판관비</th>
+              <th>영업이익</th>
+              <th>영업이익률</th>
+              <th>세전이익</th>
+            </tr>
+          </thead>
+          <tbody className="text-center">
+            {rows.map((r) => (
+              <tr key={r.businessUnit}>
+                <td className="text-left font-sans">{r.businessUnit}</td>
+                <td>{won(r.revenue)}</td>
+                <td>{won(r.cogs)}</td>
+                <td>{won(r.grossProfit)}</td>
+                <td>{pct(r.grossMarginPct)}</td>
+                <td>{won(r.sga)}</td>
+                <td className={r.operatingProfit < 0 ? "text-crimsond" : "text-brine"}>{won(r.operatingProfit)}</td>
+                <td>{pct(r.operatingMarginPct)}</td>
+                <td>{won(r.pretaxProfit)}</td>
+              </tr>
+            ))}
+            <tr className="total-row">
+              <td className="text-left font-sans">합계</td>
+              <td>{won(total.revenue)}</td>
+              <td>{won(total.cogs)}</td>
+              <td>{won(total.grossProfit)}</td>
+              <td>{pct(total.revenue !== 0 ? (total.grossProfit / total.revenue) * 100 : null)}</td>
+              <td>{won(total.sga)}</td>
+              <td>{won(total.operatingProfit)}</td>
+              <td>{pct(total.revenue !== 0 ? (total.operatingProfit / total.revenue) * 100 : null)}</td>
+              <td>{won(total.pretaxProfit)}</td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }

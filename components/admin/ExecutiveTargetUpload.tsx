@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { uploadTargets, type TargetUploadHistoryRow } from "@/app/actions/executive-targets";
 import { uploadPlConfirmed, type PlConfirmedUploadHistoryRow } from "@/app/actions/executive-pl-confirmed";
+import { uploadPlBusinessUnit, type PlBusinessUnitUploadHistoryRow } from "@/app/actions/executive-pl-business-unit";
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -124,12 +125,133 @@ function UploadSection({
   );
 }
 
+function BusinessUnitUploadSection({ history }: { history: PlBusinessUnitUploadHistoryRow[] }) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMessage(null);
+    setErrors([]);
+
+    const formData = new FormData();
+    formData.set("file", file);
+    formData.set("year", String(year));
+
+    startTransition(async () => {
+      const result = await uploadPlBusinessUnit(formData);
+      if (!result.ok) {
+        setMessage(result.message);
+        setErrors(result.errors ?? []);
+      } else {
+        setMessage(`${result.recordCount}건 반영 완료`);
+        router.refresh();
+      }
+      if (inputRef.current) inputRef.current.value = "";
+    });
+  };
+
+  return (
+    <div className="rounded-lg border border-mist bg-white">
+      <div className="border-b border-mist px-5 py-4">
+        <h2 className="text-sm font-semibold text-inktext">섬들채 부문별 손익</h2>
+        <p className="mt-1 text-xs text-muted">
+          섬들채 업장별(소금가게/쇼핑몰/소금항카페/힐링스파/아이스크림/힐링카라반) 월별 손익. 회계팀이 쓰는
+          워크북(업장별 시트마다 &ldquo;구분/1월/2월/…&rdquo; 표)을 그 구조 그대로 업로드하면 됩니다 — 손익자료 화면의
+          섬들채 탭 하단에 부문별 상세로 표시됩니다.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 px-5 py-4">
+        <label className="flex items-center gap-2 text-sm text-muted">
+          연도
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="rounded-md border border-mist px-2 py-1.5 text-sm outline-none"
+          >
+            {[year - 1, year, year + 1].map((y) => (
+              <option key={y} value={y}>
+                {y}년
+              </option>
+            ))}
+          </select>
+        </label>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx"
+          className="hidden"
+          id="upload-business-unit"
+          onChange={handleChange}
+          disabled={isPending}
+        />
+        <label
+          htmlFor="upload-business-unit"
+          className={`cursor-pointer rounded-md bg-ink hover:bg-ink2 text-salt text-sm font-medium px-4 py-2 transition-colors ${isPending ? "opacity-70 pointer-events-none" : ""}`}
+        >
+          {isPending ? "업로드하는 중…" : "엑셀 업로드"}
+        </label>
+        {message && <span className="text-sm text-muted">{message}</span>}
+      </div>
+
+      {errors.length > 0 && (
+        <div className="mx-5 mb-4 rounded-lg border border-crimsond/30 bg-crimson/5 p-4 text-sm text-crimsond">
+          <p className="font-medium">오류 {errors.length}건</p>
+          <ul className="mt-2 list-disc pl-5 space-y-1">
+            {errors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="border-t border-mist">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+              <th className="px-5 py-2 font-medium">업로드 일시</th>
+              <th className="px-5 py-2 font-medium">파일명</th>
+              <th className="px-5 py-2 font-medium">업로드자</th>
+              <th className="px-5 py-2 font-medium">건수</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-mist">
+            {history.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-5 py-6 text-center text-sm text-muted">
+                  업로드 이력이 없습니다.
+                </td>
+              </tr>
+            ) : (
+              history.map((h, i) => (
+                <tr key={i}>
+                  <td className="px-5 py-3 font-mono text-xs text-muted">{formatDateTime(h.created_at)}</td>
+                  <td className="px-5 py-3">{h.file_name ?? "-"}</td>
+                  <td className="px-5 py-3">{h.uploaded_by_name ?? "-"}</td>
+                  <td className="px-5 py-3">{h.row_count}건</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function ExecutiveTargetUpload({
   targetHistory,
   plConfirmedHistory,
+  plBusinessUnitHistory,
 }: {
   targetHistory: TargetUploadHistoryRow[];
   plConfirmedHistory: PlConfirmedUploadHistoryRow[];
+  plBusinessUnitHistory: PlBusinessUnitUploadHistoryRow[];
 }) {
   return (
     <div className="space-y-6">
@@ -147,6 +269,7 @@ export function ExecutiveTargetUpload({
         history={plConfirmedHistory}
         upload={uploadPlConfirmed}
       />
+      <BusinessUnitUploadSection history={plBusinessUnitHistory} />
     </div>
   );
 }

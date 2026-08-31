@@ -821,3 +821,51 @@ CREATE POLICY "executive_pl_confirmed_admin_update" ON executive_pl_confirmed
 
 CREATE INDEX IF NOT EXISTS executive_pl_confirmed_lookup_idx
   ON executive_pl_confirmed(tenant_id, corp_code, year_month);
+
+-- 섬들채 부문별(업장별) 확정 손익. 사용자가 참고자료로 준 "섬들채_1-8월_월별업장별_손익_수식.xlsx"의
+-- 업장별 시트(01_소금가게~06_힐링카라반) 구조를 그대로 업로드받기 위한 테이블.
+-- executive_pl_confirmed(법인 합계)과 별개로, 손익자료 화면에서 법인 합계 아래 부문별 상세로 보여준다.
+CREATE TABLE IF NOT EXISTS executive_pl_business_unit (
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id               UUID NOT NULL REFERENCES tenants(id),
+  corp_code               TEXT NOT NULL,   -- '0360'(섬들채) 고정
+  business_unit           TEXT NOT NULL,   -- '소금가게'/'쇼핑몰'/'소금항카페'/'힐링스파'/'아이스크림'/'힐링카라반'
+  year_month              TEXT NOT NULL,   -- 'YYYY-MM'
+  revenue                 NUMERIC,
+  cogs                    NUMERIC,
+  sga                     NUMERIC,
+  non_operating_income    NUMERIC,
+  non_operating_expense   NUMERIC,
+  uploaded_by             UUID REFERENCES profiles(id),
+  file_name               TEXT,
+  created_at              TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, corp_code, business_unit, year_month)
+);
+ALTER TABLE executive_pl_business_unit ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "executive_pl_business_unit_select" ON executive_pl_business_unit;
+CREATE POLICY "executive_pl_business_unit_select" ON executive_pl_business_unit
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+    )
+  );
+
+DROP POLICY IF EXISTS "executive_pl_business_unit_admin_insert" ON executive_pl_business_unit;
+CREATE POLICY "executive_pl_business_unit_admin_insert" ON executive_pl_business_unit
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_pl_business_unit_admin_update" ON executive_pl_business_unit;
+CREATE POLICY "executive_pl_business_unit_admin_update" ON executive_pl_business_unit
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+CREATE INDEX IF NOT EXISTS executive_pl_business_unit_lookup_idx
+  ON executive_pl_business_unit(tenant_id, corp_code, year_month);
