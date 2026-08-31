@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parsePlBusinessUnitWorkbook } from "@/lib/executive/parse-pl-business-unit";
+import { EXECUTIVE_PL_CORPS, type ExecutiveCorpCode } from "@/lib/yerp/executive-corps";
 
 const MAX_SIZE = 15 * 1024 * 1024;
-const SEOMDEULCHAE_CORP = "0360";
+const VALID_CORP_CODES = new Set<string>(EXECUTIVE_PL_CORPS.map((c) => c.corpCode));
 
 export type UploadResult = { ok: true; recordCount: number } | { ok: false; message: string; errors?: string[] };
 
@@ -31,11 +32,13 @@ async function getSelf(supabase: Awaited<ReturnType<typeof createClient>>) {
 export async function uploadPlBusinessUnit(formData: FormData): Promise<UploadResult> {
   const file = formData.get("file");
   const yearRaw = formData.get("year");
+  const corpCode = formData.get("corpCode");
   if (!(file instanceof File) || file.size === 0) return { ok: false, message: "파일을 선택하세요." };
   if (file.size > MAX_SIZE) return { ok: false, message: "파일 크기는 15MB 이하만 가능합니다." };
   if (!/\.xlsx$/i.test(file.name)) return { ok: false, message: "엑셀(.xlsx) 파일만 업로드할 수 있습니다." };
   const year = Number(yearRaw);
   if (!year || year < 2000 || year > 2100) return { ok: false, message: "연도를 선택하세요." };
+  if (typeof corpCode !== "string" || !VALID_CORP_CODES.has(corpCode)) return { ok: false, message: "법인을 선택하세요." };
 
   const supabase = await createClient();
   const self = await getSelf(supabase);
@@ -55,7 +58,7 @@ export async function uploadPlBusinessUnit(formData: FormData): Promise<UploadRe
 
   const rows = parsed.rows.map((r) => ({
     tenant_id: self.tenantId,
-    corp_code: SEOMDEULCHAE_CORP,
+    corp_code: corpCode,
     business_unit: r.businessUnit,
     year_month: r.yearMonth,
     revenue: r.revenue,
@@ -143,24 +146,25 @@ function toBusinessUnitPL(businessUnit: string, revenue: number, cogs: number, s
 async function fetchRows(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
+  corpCode: string,
   yearMonths: string[],
 ) {
   const { data } = await supabase
     .from("executive_pl_business_unit")
     .select("business_unit, year_month, revenue, cogs, sga, non_operating_income, non_operating_expense")
     .eq("tenant_id", tenantId)
-    .eq("corp_code", SEOMDEULCHAE_CORP)
+    .eq("corp_code", corpCode)
     .in("year_month", yearMonths);
   return data ?? [];
 }
 
 // 선택한 월의 부문별 손익 (없는 값은 0으로 취급해 합계가 어긋나지 않게 한다).
-export async function getBusinessUnitBreakdown(yearMonth: string): Promise<BusinessUnitPL[]> {
+export async function getBusinessUnitBreakdown(corpCode: ExecutiveCorpCode, yearMonth: string): Promise<BusinessUnitPL[]> {
   const supabase = await createClient();
   const self = await getSelf(supabase);
   if (!self || (self.role !== "admin" && self.team !== "임원실")) return [];
 
-  const rows = await fetchRows(supabase, self.tenantId, [yearMonth]);
+  const rows = await fetchRows(supabase, self.tenantId, corpCode, [yearMonth]);
   return rows
     .map((r) =>
       toBusinessUnitPL(
@@ -176,14 +180,14 @@ export async function getBusinessUnitBreakdown(yearMonth: string): Promise<Busin
 }
 
 // 연초~선택월 누계 부문별 손익.
-export async function getBusinessUnitBreakdownYtd(yearMonth: string): Promise<BusinessUnitPL[]> {
+export async function getBusinessUnitBreakdownYtd(corpCode: ExecutiveCorpCode, yearMonth: string): Promise<BusinessUnitPL[]> {
   const supabase = await createClient();
   const self = await getSelf(supabase);
   if (!self || (self.role !== "admin" && self.team !== "임원실")) return [];
 
   const [year, month] = yearMonth.split("-").map(Number);
   const months = Array.from({ length: month }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
-  const rows = await fetchRows(supabase, self.tenantId, months);
+  const rows = await fetchRows(supabase, self.tenantId, corpCode, months);
 
   const byUnit = new Map<string, { revenue: number; cogs: number; sga: number; nonOpIncome: number; nonOpExpense: number }>();
   for (const r of rows) {

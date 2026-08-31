@@ -85,20 +85,21 @@ export type ProfitLossData = {
   lastYearYtd: PeriodTotals;
 };
 
-// 섬들채(0360)는 법인 단위 확정 손익을 따로 올리지 않아도, 부문별(업장별) 업로드
-// (executive_pl_business_unit)를 합산해서 확정값으로 쓴다 — 사용자가 참고 워크북 구조 그대로
-// 부문별로만 올려도 상단 법인 합계 비교 표(전산/확정/차이)가 비게 되는 문제를 막기 위함.
+// 법인 단위 확정 손익을 따로 올리지 않아도, 부문별(업장별/부문별) 업로드
+// (executive_pl_business_unit)를 합산해서 확정값으로 쓴다 — 회계팀 참고 워크북 구조 그대로
+// 부문별로만 올려도 상단 법인 합계 비교 표(전산/손익추정/차이)가 비게 되는 문제를 막기 위함.
 // 부문별 업로드가 없으면 법인 단위 executive_pl_confirmed로 폴백한다.
 async function getConfirmedFromBusinessUnits(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
+  corpCode: string,
   yearMonth: string,
 ): Promise<ConfirmedPL | null> {
   const { data } = await supabase
     .from("executive_pl_business_unit")
     .select("revenue, cogs, sga, non_operating_income, non_operating_expense")
     .eq("tenant_id", tenantId)
-    .eq("corp_code", "0360")
+    .eq("corp_code", corpCode)
     .eq("year_month", yearMonth);
 
   if (!data || data.length === 0) return null;
@@ -121,10 +122,8 @@ async function getConfirmed(
   corpCode: string,
   yearMonth: string,
 ): Promise<ConfirmedPL | null> {
-  if (corpCode === "0360") {
-    const fromUnits = await getConfirmedFromBusinessUnits(supabase, tenantId, yearMonth);
-    if (fromUnits) return fromUnits;
-  }
+  const fromUnits = await getConfirmedFromBusinessUnits(supabase, tenantId, corpCode, yearMonth);
+  if (fromUnits) return fromUnits;
 
   const { data } = await supabase
     .from("executive_pl_confirmed")

@@ -9,8 +9,6 @@ import {
 } from "@/app/actions/executive-pl-business-unit";
 import { EXECUTIVE_PL_CORPS, type ExecutiveCorpCode } from "@/lib/yerp/executive-corps";
 
-const SEOMDEULCHAE_CORP: ExecutiveCorpCode = "0360";
-
 function pct(n: number | null) {
   return n === null ? "-" : `${n.toFixed(1)}%`;
 }
@@ -71,9 +69,8 @@ export function ProfitLossView({
   };
 
   useEffect(() => {
-    if (corpCode !== SEOMDEULCHAE_CORP) return;
     let cancelled = false;
-    Promise.all([getBusinessUnitBreakdown(yearMonth), getBusinessUnitBreakdownYtd(yearMonth)]).then(
+    Promise.all([getBusinessUnitBreakdown(corpCode, yearMonth), getBusinessUnitBreakdownYtd(corpCode, yearMonth)]).then(
       ([month, ytd]) => {
         if (!cancelled) {
           setBusinessUnits(month);
@@ -293,15 +290,11 @@ export function ProfitLossView({
                 </p>
               </div>
 
-              {corpCode === SEOMDEULCHAE_CORP && (
-                <>
-                  <BusinessUnitTable title={`■ ${yearMonth} 부문별 손익 [단위: 원]`} rows={businessUnits} />
-                  <BusinessUnitTable
-                    title={`■ ${yearMonth.slice(0, 4)}년 1~${Number(yearMonth.slice(5, 7))}월 누계 부문별 손익 [단위: 원]`}
-                    rows={businessUnitsYtd}
-                  />
-                </>
-              )}
+              <BusinessUnitTable title={`■ ${yearMonth} 부문별 손익 [단위: 원]`} rows={businessUnits} />
+              <BusinessUnitTable
+                title={`■ ${yearMonth.slice(0, 4)}년 1~${Number(yearMonth.slice(5, 7))}월 누계 부문별 손익 [단위: 원]`}
+                rows={businessUnitsYtd}
+              />
             </>
           )}
         </div>
@@ -431,7 +424,7 @@ function BusinessUnitTable({ title, rows }: { title: string; rows: BusinessUnitP
       <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">{title}</div>
       {rows.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted">
-          업로드된 부문별 손익이 없습니다. 관리자 페이지에서 &ldquo;섬들채 부문별 손익&rdquo;을 업로드하면 표시됩니다.
+          업로드된 부문별 손익이 없습니다. 관리자 페이지에서 &ldquo;부문별 손익&rdquo;을 업로드하면 표시됩니다.
         </p>
       ) : (
         <div className="overflow-x-auto">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { uploadTargets, type TargetUploadHistoryRow } from "@/app/actions/executive-targets";
 import { uploadPlConfirmed, type PlConfirmedUploadHistoryRow } from "@/app/actions/executive-pl-confirmed";
 import { uploadPlBusinessUnit, type PlBusinessUnitUploadHistoryRow } from "@/app/actions/executive-pl-business-unit";
+import { EXECUTIVE_PL_CORPS } from "@/lib/yerp/executive-corps";
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -129,6 +130,7 @@ function BusinessUnitUploadSection({ history }: { history: PlBusinessUnitUploadH
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [corpCode, setCorpCode] = useState<string>(EXECUTIVE_PL_CORPS[0].corpCode);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
@@ -142,6 +144,7 @@ function BusinessUnitUploadSection({ history }: { history: PlBusinessUnitUploadH
     const formData = new FormData();
     formData.set("file", file);
     formData.set("year", String(year));
+    formData.set("corpCode", corpCode);
 
     startTransition(async () => {
       const result = await uploadPlBusinessUnit(formData);
@@ -159,14 +162,29 @@ function BusinessUnitUploadSection({ history }: { history: PlBusinessUnitUploadH
   return (
     <div className="rounded-lg border border-mist bg-white">
       <div className="border-b border-mist px-5 py-4">
-        <h2 className="text-sm font-semibold text-inktext">섬들채 부문별 손익</h2>
+        <h2 className="text-sm font-semibold text-inktext">부문별 손익</h2>
         <p className="mt-1 text-xs text-muted">
-          섬들채 업장별(소금가게/쇼핑몰/소금항카페/힐링스파/아이스크림/힐링카라반) 월별 손익. 회계팀이 쓰는
-          워크북(업장별 시트마다 &ldquo;구분/1월/2월/…&rdquo; 표)을 그 구조 그대로 업로드하면 됩니다 — 손익자료 화면의
-          섬들채 탭 하단에 부문별 상세로 표시됩니다.
+          법인 산하 부문별(섬들채: 소금가게/쇼핑몰/… 업장별 / 태평소금·태평염전: 제품매출·상품매출 등 부문별) 월별
+          손익. 회계팀이 쓰는 워크북을 그 구조 그대로 업로드하면 됩니다 — 시트 하나에 부문 하나(섬들채 방식)이거나,
+          한 시트 안에 &ldquo;③-1 OO 손익&rdquo;처럼 부문별 구획이 여러 개(태평소금 방식)인 경우 모두 지원합니다.
+          손익자료 화면의 해당 법인 탭 하단에 부문별 상세로 표시됩니다.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3 px-5 py-4">
+        <label className="flex items-center gap-2 text-sm text-muted">
+          법인
+          <select
+            value={corpCode}
+            onChange={(e) => setCorpCode(e.target.value)}
+            className="rounded-md border border-mist px-2 py-1.5 text-sm outline-none"
+          >
+            {EXECUTIVE_PL_CORPS.map((c) => (
+              <option key={c.corpCode} value={c.corpCode}>
+                {c.corpName}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-sm text-muted">
           연도
           <select
