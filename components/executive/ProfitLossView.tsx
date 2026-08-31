@@ -1,17 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { getProfitLoss, exportProfitLossExcel, type ProfitLossData } from "@/app/actions/executive-pl";
-import {
-  getBusinessUnitBreakdown,
-  getBusinessUnitBreakdownYtd,
-  type BusinessUnitPL,
-} from "@/app/actions/executive-pl-business-unit";
 import { EXECUTIVE_PL_CORPS, type ExecutiveCorpCode } from "@/lib/yerp/executive-corps";
-
-function pct(n: number | null) {
-  return n === null ? "-" : `${n.toFixed(1)}%`;
-}
 
 function won(n: number | null | undefined) {
   if (n === null || n === undefined) return "미입력";
@@ -56,8 +47,6 @@ export function ProfitLossView({
   const [data, setData] = useState(initialData);
   const [isPending, startTransition] = useTransition();
   const [isExporting, startExporting] = useTransition();
-  const [businessUnits, setBusinessUnits] = useState<BusinessUnitPL[]>([]);
-  const [businessUnitsYtd, setBusinessUnitsYtd] = useState<BusinessUnitPL[]>([]);
 
   const reload = (nextCorp: ExecutiveCorpCode, nextMonth: string) => {
     startTransition(async () => {
@@ -67,21 +56,6 @@ export function ProfitLossView({
       setData(result);
     });
   };
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([getBusinessUnitBreakdown(corpCode, yearMonth), getBusinessUnitBreakdownYtd(corpCode, yearMonth)]).then(
-      ([month, ytd]) => {
-        if (!cancelled) {
-          setBusinessUnits(month);
-          setBusinessUnitsYtd(ytd);
-        }
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [corpCode, yearMonth]);
 
   const handleExport = () => {
     startExporting(async () => {
@@ -289,12 +263,6 @@ export function ProfitLossView({
                   ※ &ldquo;전산 누계&rdquo;는 Y-ERP 자동집계만 더한 값(매출원가는 계산 불가)이고, &ldquo;손익추정 누계&rdquo;는 관리자가 업로드한 손익추정 자료가 있는 달만 합산한 값입니다. 서로 다른 두 출처를 나란히 보여드리는 것으로, 하나로 섞은 값이 아닙니다.
                 </p>
               </div>
-
-              <BusinessUnitTable title={`■ ${yearMonth} 부문별 손익 [단위: 원]`} rows={businessUnits} />
-              <BusinessUnitTable
-                title={`■ ${yearMonth.slice(0, 4)}년 1~${Number(yearMonth.slice(5, 7))}월 누계 부문별 손익 [단위: 원]`}
-                rows={businessUnitsYtd}
-              />
             </>
           )}
         </div>
@@ -376,91 +344,5 @@ function YtdRow({
         {hasComparison ? pctText(current, lastYear) : "-"}
       </td>
     </tr>
-  );
-}
-
-function BusinessUnitTable({ title, rows }: { title: string; rows: BusinessUnitPL[] }) {
-  const total = rows.reduce(
-    (acc, r) => ({
-      revenue: acc.revenue + r.revenue,
-      cogs: acc.cogs + r.cogs,
-      grossProfit: acc.grossProfit + r.grossProfit,
-      sga: acc.sga + r.sga,
-      operatingProfit: acc.operatingProfit + r.operatingProfit,
-      pretaxProfit: acc.pretaxProfit + r.pretaxProfit,
-    }),
-    { revenue: 0, cogs: 0, grossProfit: 0, sga: 0, operatingProfit: 0, pretaxProfit: 0 },
-  );
-  const totalGrossMarginPct = total.revenue !== 0 ? (total.grossProfit / total.revenue) * 100 : null;
-  const totalOperatingMarginPct = total.revenue !== 0 ? (total.operatingProfit / total.revenue) * 100 : null;
-
-  const lines: {
-    label: string;
-    isTotal?: boolean;
-    value: (r: BusinessUnitPL) => number;
-    pctValue?: (r: BusinessUnitPL) => number | null;
-    totalValue: number;
-    totalPct?: number | null;
-    negativeRed?: boolean;
-  }[] = [
-    { label: "매출", value: (r) => r.revenue, totalValue: total.revenue },
-    { label: "매출원가", value: (r) => r.cogs, totalValue: total.cogs },
-    { label: "매출총이익", value: (r) => r.grossProfit, pctValue: (r) => r.grossMarginPct, totalValue: total.grossProfit, totalPct: totalGrossMarginPct },
-    { label: "판관비", value: (r) => r.sga, totalValue: total.sga },
-    {
-      label: "영업이익",
-      value: (r) => r.operatingProfit,
-      pctValue: (r) => r.operatingMarginPct,
-      totalValue: total.operatingProfit,
-      totalPct: totalOperatingMarginPct,
-      negativeRed: true,
-      isTotal: true,
-    },
-    { label: "세전이익", value: (r) => r.pretaxProfit, totalValue: total.pretaxProfit, negativeRed: true },
-  ];
-
-  return (
-    <div className="overflow-hidden rounded-lg border border-mist bg-white">
-      <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">{title}</div>
-      {rows.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted">
-          업로드된 부문별 손익이 없습니다. 관리자 페이지에서 &ldquo;부문별 손익&rdquo;을 업로드하면 표시됩니다.
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full grid-table text-sm">
-            <thead>
-              <tr>
-                <th className="text-left">구분</th>
-                {rows.map((r) => (
-                  <th key={r.businessUnit}>{r.businessUnit}</th>
-                ))}
-                <th>합계</th>
-              </tr>
-            </thead>
-            <tbody className="text-center">
-              {lines.map((line) => (
-                <tr key={line.label} className={line.isTotal ? "total-row" : undefined}>
-                  <td className="text-left font-sans font-medium text-inktext">
-                    {line.label}
-                    {line.pctValue && <span className="block text-xs text-muted font-sans">(이익률)</span>}
-                  </td>
-                  {rows.map((r) => (
-                    <td key={r.businessUnit} className={line.negativeRed && line.value(r) < 0 ? "text-crimsond" : undefined}>
-                      {won(line.value(r))}
-                      {line.pctValue && <span className="block text-xs text-muted">{pct(line.pctValue(r))}</span>}
-                    </td>
-                  ))}
-                  <td className={line.negativeRed && line.totalValue < 0 ? "text-crimsond" : undefined}>
-                    {won(line.totalValue)}
-                    {line.pctValue && <span className="block text-xs text-muted">{pct(line.totalPct ?? null)}</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
   );
 }
