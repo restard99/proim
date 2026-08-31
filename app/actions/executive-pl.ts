@@ -60,7 +60,7 @@ export type PeriodTotals = {
   sga: number;
   operatingProfit: number;
   hasEstimatedMonths: boolean; // 확정 자료가 없어 매출원가를 0으로 취급한 달이 하나라도 있으면 true
-  // 확정(회계팀) 자료가 있는 달만 모아 별도로 합산한 값. 확정 자료가 한 달도 없으면 null.
+  // 손익추정 자료가 있는 달만 모아 별도로 합산한 값. 확정 자료가 한 달도 없으면 null.
   confirmedOnly: {
     revenue: number;
     cogs: number;
@@ -269,7 +269,7 @@ export async function exportProfitLossExcel(corpCode: ExecutiveCorpCode, yearMon
 
   ws.addRow([`${corpName} 손익자료 (${yearMonth})`]);
   ws.addRow([]);
-  ws.addRow(["구분", "전산", "확정(회계팀)", "차이"]);
+  ws.addRow(["구분", "전산", "손익추정", "차이"]);
   const opConfirmed =
     data.current.confirmed && data.current.confirmed.revenue !== null
       ? (data.current.confirmed.revenue ?? 0) - (data.current.confirmed.cogs ?? 0) - (data.current.confirmed.sga ?? 0)

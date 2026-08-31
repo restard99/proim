@@ -154,14 +154,14 @@ export function ProfitLossView({
             <>
               <div className="overflow-hidden rounded-lg border border-mist bg-white">
                 <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">
-                  ■ {yearMonth} 당월 손익 — 전산(Y-ERP 자동집계) vs 확정(회계팀) [단위: 원]
+                  ■ {yearMonth} 당월 손익 — 전산(Y-ERP 자동집계) vs 손익추정 [단위: 원]
                 </div>
                 <table className="w-full grid-table text-sm">
                   <thead>
                     <tr>
                       <th className="text-left">구분</th>
                       <th>전산</th>
-                      <th>확정(회계팀)</th>
+                      <th>손익추정</th>
                       <th>차이</th>
                     </tr>
                   </thead>
@@ -184,7 +184,7 @@ export function ProfitLossView({
                   </tbody>
                 </table>
                 <p className="px-4 py-2 text-xs text-muted">
-                  ※ 전산 매출원가는 Y-ERP 일반전표에 기록되지 않아 계산할 수 없습니다. 확정(회계팀) 자료가 업로드되지
+                  ※ 전산 매출원가는 Y-ERP 일반전표에 기록되지 않아 계산할 수 없습니다. 손익추정 자료가 업로드되지
                   않은 항목은 &ldquo;미입력&rdquo;으로 표시됩니다.
                 </p>
               </div>
@@ -249,7 +249,7 @@ export function ProfitLossView({
                       <th className="text-left">구분</th>
                       <th>{yearMonth.slice(0, 4)}년 누계</th>
                       <th>
-                        {yearMonth.slice(0, 4)}년 확정(회계팀) 누계
+                        {yearMonth.slice(0, 4)}년 손익추정 누계
                         {data.ytd.confirmedOnly && data.ytd.confirmedOnly.monthsWithConfirmed < data.ytd.confirmedOnly.totalMonths && (
                           <span className="block font-normal text-[11px] text-muted">
                             {data.ytd.confirmedOnly.monthsWithConfirmed}/{data.ytd.confirmedOnly.totalMonths}개월분
@@ -289,7 +289,7 @@ export function ProfitLossView({
                   </tbody>
                 </table>
                 {(data.ytd.hasEstimatedMonths || data.lastYearYtd.hasEstimatedMonths) && (
-                  <p className="px-4 py-2 text-xs text-muted">※ &ldquo;당해 누계&rdquo;는 확정 자료가 없는 달이 있으면 전산값(매출원가 0)으로 잠정 계산한 값이 섞여 있습니다. 확정(회계팀) 누계는 확정 자료가 있는 달만 합산한 값입니다.</p>
+                  <p className="px-4 py-2 text-xs text-muted">※ &ldquo;당해 누계&rdquo;는 손익추정 자료가 없는 달이 있으면 전산값(매출원가 0)으로 잠정 계산한 값이 섞여 있습니다. 손익추정 누계는 손익추정 자료가 있는 달만 합산한 값입니다.</p>
                 )}
               </div>
 
