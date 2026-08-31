@@ -1,0 +1,704 @@
+<title>태평염전 · 임원실 대시보드 · 디자인 목업</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Song+Myung&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#14283A',
+          ink2: '#0F1F2E',
+          brine: '#1E6B72',
+          crimson: '#8B2942',
+          crimsond: '#6E1F33',
+          sand: '#C9B896',
+          salt: '#FAF8F3',
+          mist: '#EFEAE1',
+          inktext: '#1F2A33',
+          muted: '#5B6B74',
+        },
+        fontFamily: {
+          display: ['"Song Myung"', 'serif'],
+          sans: ['PretendardVariable', 'Pretendard', 'system-ui', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  body { font-family: 'PretendardVariable', 'Pretendard', system-ui, sans-serif; }
+  .app-view.hidden { display: none; }
+  .sub-page.hidden { display: none; }
+  .switcher-btn { transition: background-color .15s ease, color .15s ease; }
+
+  .nav-link { position: relative; color: rgba(250,248,243,0.55); transition: background-color .15s ease, color .15s ease; }
+  .nav-link:hover { background-color: rgba(255,255,255,0.05); color: #FAF8F3; }
+  .nav-link.active { background-color: rgba(255,255,255,0.09); color: #FAF8F3; }
+  .nav-accent { position: absolute; left: -0.75rem; top: 50%; transform: translateY(-50%); height: 1.15rem; width: 3px; border-radius: 999px; background: transparent; transition: background-color .15s ease; }
+  .nav-link.active .nav-accent { background: #C9B896; }
+  .nav-icon-wrap { display: flex; align-items: center; justify-content: center; height: 2rem; width: 2rem; border-radius: 0.5rem; background: rgba(255,255,255,0.06); color: rgba(250,248,243,0.6); transition: background-color .15s ease, color .15s ease; }
+  .nav-link.active .nav-icon-wrap { background: #8B2942; color: #FAF8F3; }
+  .nav-link:hover .nav-icon-wrap { color: #FAF8F3; }
+  .nav-section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: rgba(250,248,243,0.32); text-transform: uppercase; }
+
+  .page-tab { transition: background-color .15s ease, color .15s ease; }
+  .page-tab.active { background: #14283A; color: #FAF8F3; }
+  .page-tab:not(.active) { background: #fff; color: #5B6B74; border: 1px solid #EFEAE1; }
+
+  .corp-tab.active { border-bottom: 2px solid #8B2942; color: #1F2A33; font-weight: 600; }
+  .corp-tab:not(.active) { border-bottom: 2px solid transparent; color: #5B6B74; }
+
+  /* 실적/손익 표: PPT 원본처럼 셀 격자선 + 넉넉한 여백 + 큰 숫자로 가독성 확보 */
+  .grid-table { border-collapse: collapse; width: 100%; }
+  .grid-table th, .grid-table td { border: 1px solid #EFEAE1; padding: 9px 14px !important; }
+  .grid-table thead th { background: #E6DFD1; color: #1F2A33; font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+  .grid-table tbody td { font-size: 15px; line-height: 1.3; }
+  .grid-table tbody td.font-sans { font-size: 14.5px; }
+  .grid-table tbody tr:nth-child(even) { background: rgba(239,234,225,0.35); }
+  .grid-table tfoot td, .grid-table tr.total-row td { background: #E6DFD1 !important; font-weight: 700; font-size: 15.5px; }
+
+  .skeleton { background: linear-gradient(90deg, #EFEAE1 25%, #F6F2EA 37%, #EFEAE1 63%); background-size: 400% 100%; animation: skeleton-loading 1.4s ease infinite; }
+  @keyframes skeleton-loading { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+</style>
+
+<body class="bg-salt text-inktext antialiased">
+
+  <!-- 디자인 검토용 화면 전환 (실제 제품 UI 아님) -->
+  <div class="sticky top-0 z-50 border-b border-mist bg-salt/95 backdrop-blur px-4 py-2.5 overflow-x-auto">
+    <div class="flex items-center gap-2 min-w-max">
+      <span class="text-xs font-medium text-muted mr-1 shrink-0">화면 상태 미리보기 →</span>
+      <button data-target="view-report" onclick="showView('view-report')" class="switcher-btn bg-ink text-salt text-xs font-medium px-3 py-1.5 rounded-full">주간업무보고·기본</button>
+      <button data-target="view-report-empty" onclick="showView('view-report-empty')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">주간업무보고·목표 미입력</button>
+      <button data-target="view-pl" onclick="showView('view-pl')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">손익자료·기본</button>
+      <button data-target="view-pl-loading" onclick="showView('view-pl-loading')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">손익자료·로딩</button>
+      <button data-target="view-admin-upload" onclick="showView('view-admin-upload')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">관리자·목표 업로드</button>
+      <button data-target="view-admin-error" onclick="showView('view-admin-error')" class="switcher-btn bg-mist text-inktext text-xs font-medium px-3 py-1.5 rounded-full">관리자·업로드 오류</button>
+    </div>
+  </div>
+
+  <!-- ============ 사이드바 매크로 (임원실 계정 기준, 목업 특성상 각 뷰마다 반복) ============ -->
+
+  <!-- ============ 1. 주간업무보고 · 기본 ============ -->
+  <div id="view-report" class="app-view">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">메뉴</p>
+          <a class="nav-link flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 8.5V18h5v-6h6v6h5V8.5L10 2Z"/></svg></span>
+            홈
+          </a>
+          <p class="nav-section-label px-1 pt-4 pb-2">임원실</p>
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z" clip-rule="evenodd"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">주간업무보고</span>
+          </a>
+          <a class="nav-link flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 17V3h2v14H3Zm4 0V8h2v9H7Zm4 0V5h2v12h-2Zm4 0v-6h2v6h-2Z"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">손익자료</span>
+          </a>
+        </nav>
+        <button class="mx-3 mb-3 px-3 py-3 rounded-lg hover:bg-white/5 flex items-center gap-3 transition-colors">
+          <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">회</div>
+          <div class="min-w-0 text-left">
+            <p class="text-sm font-medium text-salt truncate">이철수 회장</p>
+            <p class="text-xs text-salt/50 truncate">임원실</p>
+          </div>
+        </button>
+      </aside>
+
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4 flex items-center justify-between">
+          <h1 class="text-lg font-semibold text-inktext">주간업무보고</h1>
+          <div class="flex items-center gap-2">
+            <button class="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40">← 지난 주</button>
+            <span class="text-sm font-medium text-inktext px-2">2026.07.06 ~ 2026.07.12</span>
+            <button class="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40">다음 주 →</button>
+          </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+
+            <!-- 페이지 탭 -->
+            <div class="flex flex-wrap gap-2">
+              <button onclick="showPage('page1')" data-page="page1" class="page-tab active rounded-full px-3.5 py-1.5 text-xs font-medium">1. 전 사업장 매출실적</button>
+              <button onclick="showPage('page2')" data-page="page2" class="page-tab rounded-full px-3.5 py-1.5 text-xs font-medium">2. 태평염전 매출</button>
+              <button onclick="showPage('page3')" data-page="page3" class="page-tab rounded-full px-3.5 py-1.5 text-xs font-medium">3. 태평염전 생산</button>
+              <button onclick="showPage('page4')" data-page="page4" class="page-tab rounded-full px-3.5 py-1.5 text-xs font-medium">4. 태평소금 생산</button>
+              <button onclick="showPage('page5')" data-page="page5" class="page-tab rounded-full px-3.5 py-1.5 text-xs font-medium">5. 태평소금 영업</button>
+              <button onclick="showPage('page6')" data-page="page6" class="page-tab rounded-full px-3.5 py-1.5 text-xs font-medium">6. 섬들채 매출</button>
+            </div>
+
+            <!-- PAGE 1: 전 사업장 매출실적 -->
+            <div id="page1" class="sub-page space-y-4">
+              <div class="flex items-center gap-2 text-xs text-muted">
+                <span class="rounded-full bg-brine/10 text-brine px-2 py-0.5">실적 · Y-ERP 자동집계</span>
+                <span class="rounded-full bg-crimson/10 text-crimsond px-2 py-0.5">계획 · 관리자 업로드</span>
+              </div>
+              <div class="overflow-hidden rounded-lg border border-mist bg-white">
+                <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 실적 비교 [단위: 천원, %]</div>
+                <table class="w-full grid-table text-sm">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                      <th class="px-3 py-2 font-medium text-left">구분</th>
+                      <th class="px-3 py-2 font-medium">주간 계획</th>
+                      <th class="px-3 py-2 font-medium">주간 실적</th>
+                      <th class="px-3 py-2 font-medium">달성률</th>
+                      <th class="px-3 py-2 font-medium">월간 계획</th>
+                      <th class="px-3 py-2 font-medium">월간 실적</th>
+                      <th class="px-3 py-2 font-medium">달성률</th>
+                      <th class="px-3 py-2 font-medium">전년동월</th>
+                      <th class="px-3 py-2 font-medium">대비율</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist text-center font-mono">
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">태평소금</td><td>124,450</td><td class="text-brine">160,997</td><td class="font-semibold text-brine">129.4%</td><td>547,600</td><td>236,023</td><td>43.1%</td><td>591,842</td><td>39.9%</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">태평염전</td><td>130,065</td><td>45,275</td><td class="font-semibold text-crimsond">34.8%</td><td>576,000</td><td>78,625</td><td>13.7%</td><td>424,592</td><td>18.5%</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">섬들채</td><td>29,030</td><td>22,898</td><td>78.9%</td><td>147,000</td><td>36,087</td><td>24.5%</td><td>109,735</td><td>32.9%</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">박물관</td><td>3,950</td><td>1,049</td><td>26.6%</td><td>20,000</td><td>1,578</td><td>7.9%</td><td>9,526</td><td>16.6%</td></tr>
+                    <tr class="total-row"><td class="px-3 py-2.5 text-left font-sans text-inktext">소 계</td><td>287,494</td><td>230,219</td><td>80.1%</td><td>1,290,600</td><td>352,314</td><td>27.3%</td><td>1,135,696</td><td>31.0%</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="overflow-hidden rounded-lg border border-mist bg-white">
+                <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 월간 누계 매출 [단위: 천원, %]</div>
+                <table class="w-full grid-table text-sm">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                      <th class="px-3 py-2 font-medium text-left">구분</th>
+                      <th class="px-3 py-2 font-medium">2026년 07월 계획</th>
+                      <th class="px-3 py-2 font-medium">누계</th>
+                      <th class="px-3 py-2 font-medium">달성률</th>
+                      <th class="px-3 py-2 font-medium">2025년 07월 누계</th>
+                      <th class="px-3 py-2 font-medium">대비</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist text-center font-mono">
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">태평소금</td><td>3,106,000</td><td>3,014,689</td><td>97.1%</td><td>3,211,619</td><td>93.9%</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">태평염전</td><td>2,400,000</td><td>1,391,365</td><td>58.0%</td><td>2,326,197</td><td>59.8%</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">섬들채</td><td>1,039,000</td><td>743,805</td><td>71.6%</td><td>847,173</td><td>87.8%</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">박물관</td><td>93,000</td><td>46,566</td><td>50.1%</td><td>72,838</td><td>63.9%</td></tr>
+                    <tr class="total-row"><td class="px-3 py-2.5 text-left font-sans text-inktext">총 계</td><td>6,638,000</td><td>5,196,425</td><td>78.3%</td><td>6,457,827</td><td>80.5%</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PAGE 2: 태평염전 매출 -->
+            <div id="page2" class="sub-page hidden space-y-4">
+              <div class="overflow-hidden rounded-lg border border-mist bg-white">
+                <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 판매처별 실적 [단위: 20kg포, 금액:천원]</div>
+                <table class="w-full grid-table text-sm">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                      <th class="px-3 py-2 font-medium text-left">구분</th>
+                      <th class="px-3 py-2 font-medium">천일염 '26</th>
+                      <th class="px-3 py-2 font-medium">토판염 '18</th>
+                      <th class="px-3 py-2 font-medium">주간 합계</th>
+                      <th class="px-3 py-2 font-medium">월간 합계</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist text-center font-mono">
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">도매</td><td>9,380</td><td>-</td><td class="font-semibold">9,380</td><td>17,830</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">관내·기타</td><td>30,870</td><td>-</td><td class="font-semibold">30,870</td><td>55,770</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">서비스사업부</td><td>5,025</td><td>-</td><td class="font-semibold">5,025</td><td>5,025</td></tr>
+                    <tr class="total-row"><td class="px-3 py-2.5 text-left font-sans text-inktext">합계</td><td>45,275</td><td>-</td><td>45,275</td><td>78,625</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PAGE 3: 태평염전 생산 -->
+            <div id="page3" class="sub-page hidden space-y-4">
+              <div class="flex items-center gap-2 text-xs text-muted">
+                <span class="rounded-full bg-sand/30 text-inktext px-2 py-0.5">염전관리팀 생산량 업로드 연동 (/saltfield-production)</span>
+              </div>
+              <div class="overflow-hidden rounded-lg border border-mist bg-white">
+                <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 월 생산목표 [단위: 20kg/포]</div>
+                <table class="w-full grid-table text-sm">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                      <th class="px-3 py-2 font-medium text-left">월</th>
+                      <th class="px-3 py-2 font-medium">계획</th>
+                      <th class="px-3 py-2 font-medium">실적</th>
+                      <th class="px-3 py-2 font-medium">달성률</th>
+                      <th class="px-3 py-2 font-medium">연누계 당해</th>
+                      <th class="px-3 py-2 font-medium">연누계 전년</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist text-center font-mono">
+                    <tr><td class="px-3 py-2.5 text-left font-sans">6월</td><td>81,600</td><td>166,330</td><td class="text-brine font-semibold">203.8%</td><td>310,130</td><td>299,190</td></tr>
+                    <tr class="bg-crimson/5"><td class="px-3 py-2.5 text-left font-sans font-semibold text-crimsond">7월</td><td class="font-semibold text-crimsond">48,000</td><td>-</td><td>-</td><td>-</td><td>475,800</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">8월</td><td>96,000</td><td>-</td><td>-</td><td>-</td><td>552,830</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PAGE 4: 태평소금 생산 -->
+            <div id="page4" class="sub-page hidden space-y-4">
+              <div class="overflow-hidden rounded-lg border border-mist bg-white">
+                <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 주간 생산실적 [단위: kg]</div>
+                <table class="w-full grid-table text-sm">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                      <th class="px-3 py-2 font-medium text-left">구분</th>
+                      <th class="px-3 py-2 font-medium">주간 계획</th>
+                      <th class="px-3 py-2 font-medium">주간 실적</th>
+                      <th class="px-3 py-2 font-medium">달성률</th>
+                      <th class="px-3 py-2 font-medium">월간 실적</th>
+                      <th class="px-3 py-2 font-medium">전년동월</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist text-center font-mono">
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">천일염</td><td>42,345</td><td class="text-brine">69,362</td><td class="text-brine font-semibold">163.8%</td><td>69,362</td><td>184,204</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">가공염</td><td>11,095</td><td>13,571</td><td class="text-brine font-semibold">122.3%</td><td>15,740</td><td>27,559</td></tr>
+                    <tr class="total-row"><td class="px-3 py-2.5 text-left font-sans text-inktext">합계</td><td>53,440</td><td>82,933</td><td>155.2%</td><td>85,102</td><td>211,763</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PAGE 5: 태평소금 영업 -->
+            <div id="page5" class="sub-page hidden space-y-4">
+              <div class="overflow-hidden rounded-lg border border-mist bg-white">
+                <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 판매처별 상세 실적 [단위: 천원, kg]</div>
+                <table class="w-full grid-table text-sm">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                      <th class="px-3 py-2 font-medium text-left">판매처명</th>
+                      <th class="px-3 py-2 font-medium">주간 금액</th>
+                      <th class="px-3 py-2 font-medium">주간 중량</th>
+                      <th class="px-3 py-2 font-medium">월간누적 금액</th>
+                      <th class="px-3 py-2 font-medium">월간누적 중량</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist text-center font-mono">
+                    <tr><td class="px-3 py-2.5 text-left font-sans">사조해표</td><td class="font-semibold">73,718</td><td>33,228</td><td>106,261</td><td>47,262</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">이마트</td><td>22,077</td><td>4,666</td><td>35,706</td><td>7,938</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">지에스리테일</td><td>14,498</td><td>3,632</td><td>24,709</td><td>6,052</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">롯데</td><td>9,586</td><td>3,965</td><td>16,089</td><td>6,145</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">기타</td><td>13,582</td><td>5,419</td><td>23,990</td><td>7,210</td></tr>
+                    <tr class="total-row"><td class="px-3 py-2.5 text-left font-sans">합계</td><td>160,997</td><td>60,347</td><td>236,023</td><td>85,018</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PAGE 6: 섬들채 매출 -->
+            <div id="page6" class="sub-page hidden space-y-4">
+              <div class="overflow-hidden rounded-lg border border-mist bg-white">
+                <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 채널별 매출 실적 [단위: 천원]</div>
+                <table class="w-full grid-table text-sm">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                      <th class="px-3 py-2 font-medium text-left">구분</th>
+                      <th class="px-3 py-2 font-medium">주간 계획</th>
+                      <th class="px-3 py-2 font-medium">주간 실적</th>
+                      <th class="px-3 py-2 font-medium">달성률</th>
+                      <th class="px-3 py-2 font-medium">월간 실적</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist text-center font-mono">
+                    <tr><td class="px-3 py-2.5 text-left font-sans">소금가게</td><td>11,454</td><td>6,895</td><td class="text-crimsond">60.2%</td><td>11,767</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">택배/쇼핑몰</td><td>5,529</td><td class="text-brine">8,207</td><td class="text-brine font-semibold">148.4%</td><td>10,458</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">소금아이스크림</td><td>1,975</td><td>1,112</td><td>56.3%</td><td>1,796</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">해양힐링센터</td><td>3,950</td><td>2,826</td><td>71.5%</td><td>5,456</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">소금항카페</td><td>5,727</td><td>3,859</td><td>67.4%</td><td>6,609</td></tr>
+                    <tr class="total-row"><td class="px-3 py-2.5 text-left font-sans">합계</td><td>29,030</td><td>22,898</td><td>78.9%</td><td>36,087</td></tr>
+                    <tr><td class="px-3 py-2.5 text-left font-sans">박물관</td><td>3,950</td><td>1,049</td><td>26.6%</td><td>1,578</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 댓글 -->
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">임원 코멘트</div>
+              <div class="divide-y divide-mist">
+                <div class="px-4 py-3">
+                  <p class="text-sm"><span class="font-medium text-inktext">이철수 회장</span> <span class="text-xs text-muted ml-1">07.15 09:20</span></p>
+                  <p class="text-sm text-inktext mt-1">태평염전 달성률이 계속 낮습니다. 다음 보고 때 원인 짚어주세요.</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 border-t border-mist p-3">
+                <input type="text" placeholder="코멘트를 남겨보세요" class="flex-1 rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30">
+                <button class="rounded-md bg-ink px-4 py-2 text-sm font-medium text-salt hover:bg-ink2">등록</button>
+              </div>
+            </div>
+
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2. 주간업무보고 · 목표 미입력(빈 상태) ============ -->
+  <div id="view-report-empty" class="app-view hidden">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">임원실</p>
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z" clip-rule="evenodd"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">주간업무보고</span>
+          </a>
+        </nav>
+      </aside>
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4 flex items-center justify-between">
+          <h1 class="text-lg font-semibold text-inktext">주간업무보고</h1>
+          <div class="flex items-center gap-2">
+            <button class="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40">← 지난 주</button>
+            <span class="text-sm font-medium text-inktext px-2">2026.08.24 ~ 2026.08.30</span>
+            <button class="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40">다음 주 →</button>
+          </div>
+        </header>
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+            <div class="flex items-start gap-3 rounded-lg border border-sand/60 bg-sand/10 px-4 py-3 text-sm text-inktext">
+              <svg class="h-5 w-5 shrink-0 text-crimsond" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.518 11.598c.75 1.334-.213 2.98-1.742 2.98H3.48c-1.53 0-2.492-1.646-1.743-2.98L8.257 3.1ZM11 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1-8a1 1 0 0 0-1 1v3a1 1 0 0 0 2 0V6a1 1 0 0 0-1-1Z" clip-rule="evenodd"/></svg>
+              <span>이번 주(08.24~08.30) 목표 수치가 아직 업로드되지 않았습니다. 계획/달성률 항목은 시스템 관리자가 목표를 업로드하면 채워집니다. 실적은 Y-ERP 데이터로 정상 표시됩니다.</span>
+            </div>
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 실적 비교 [단위: 천원, %]</div>
+              <table class="w-full grid-table text-sm">
+                <thead>
+                  <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                    <th class="px-3 py-2 font-medium text-left">구분</th>
+                    <th class="px-3 py-2 font-medium">주간 계획</th>
+                    <th class="px-3 py-2 font-medium">주간 실적</th>
+                    <th class="px-3 py-2 font-medium">달성률</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-mist text-center font-mono">
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">태평소금</td><td class="text-muted">미입력</td><td class="text-brine">158,220</td><td class="text-muted">-</td></tr>
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">태평염전</td><td class="text-muted">미입력</td><td>51,110</td><td class="text-muted">-</td></tr>
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">섬들채</td><td class="text-muted">미입력</td><td>24,410</td><td class="text-muted">-</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. 손익자료 · 기본 ============ -->
+  <div id="view-pl" class="app-view hidden">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">임원실</p>
+          <a class="nav-link flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z" clip-rule="evenodd"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">주간업무보고</span>
+          </a>
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 17V3h2v14H3Zm4 0V8h2v9H7Zm4 0V5h2v12h-2Zm4 0v-6h2v6h-2Z"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">손익자료</span>
+          </a>
+        </nav>
+      </aside>
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4 flex items-center justify-between">
+          <h1 class="text-lg font-semibold text-inktext">손익자료</h1>
+          <div class="flex items-center gap-2">
+            <button class="flex items-center gap-1.5 rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40">
+              <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1V3a1 1 0 0 1 1-1Zm10 6H4v8h12V8Z" clip-rule="evenodd"/></svg>
+              엑셀
+            </button>
+            <button class="flex items-center gap-1.5 rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40">
+              <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H4Zm2 3a1 1 0 0 0 0 2h8a1 1 0 1 0 0-2H6Zm0 4a1 1 0 1 0 0 2h5a1 1 0 1 0 0-2H6Z" clip-rule="evenodd"/></svg>
+              PDF
+            </button>
+          </div>
+        </header>
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div class="flex gap-5 border-b border-mist">
+                <button class="corp-tab active px-1 pb-2 text-sm">태평소금</button>
+                <button class="corp-tab px-1 pb-2 text-sm">태평염전</button>
+                <button class="corp-tab px-1 pb-2 text-sm">섬들채</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-sm text-muted">조회월</label>
+                <select class="rounded-md border border-mist px-3 py-2 text-sm outline-none">
+                  <option>2026년 07월</option>
+                  <option>2026년 06월</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 당월 손익 (전월·전년동월 대비) [단위: 천원]</div>
+              <table class="w-full grid-table text-sm">
+                <thead>
+                  <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                    <th class="px-3 py-2 font-medium text-left" rowspan="2">구분</th>
+                    <th class="px-3 py-2 font-medium" rowspan="2">2026년 07월<br>(당월)</th>
+                    <th class="px-3 py-2 font-medium" colspan="2">전월 대비</th>
+                    <th class="px-3 py-2 font-medium" colspan="2">전년동월 대비</th>
+                  </tr>
+                  <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                    <th class="px-3 py-2 font-medium">2026년 06월</th>
+                    <th class="px-3 py-2 font-medium">증감률</th>
+                    <th class="px-3 py-2 font-medium">2025년 07월</th>
+                    <th class="px-3 py-2 font-medium">증감률</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-mist text-center font-mono">
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">매출</td><td>236,023</td><td>352,410</td><td class="text-crimsond">-33.0%</td><td>268,900</td><td class="text-crimsond">-12.2%</td></tr>
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">매출원가</td><td>151,040</td><td>218,900</td><td class="text-brine">-31.0%</td><td>172,300</td><td class="text-brine">-12.3%</td></tr>
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">판관비</td><td>42,110</td><td>45,320</td><td class="text-brine">-7.1%</td><td>40,050</td><td class="text-crimsond">+5.1%</td></tr>
+                  <tr class="total-row"><td class="px-3 py-2.5 text-left font-sans text-inktext">영업이익</td><td>42,873</td><td>88,190</td><td class="text-crimsond">-51.4%</td><td>56,550</td><td class="text-crimsond">-24.2%</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">■ 월 누적(YTD) 손익 (전년 대비) [단위: 천원]</div>
+              <table class="w-full grid-table text-sm">
+                <thead>
+                  <tr class="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+                    <th class="px-3 py-2 font-medium text-left">구분</th>
+                    <th class="px-3 py-2 font-medium">2026년 1~7월</th>
+                    <th class="px-3 py-2 font-medium">2025년 1~7월</th>
+                    <th class="px-3 py-2 font-medium">증감</th>
+                    <th class="px-3 py-2 font-medium">증감률</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-mist text-center font-mono">
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">매출</td><td>3,014,689</td><td>3,211,619</td><td class="text-crimsond">-196,930</td><td class="text-crimsond">-6.1%</td></tr>
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">매출원가</td><td>1,932,300</td><td>2,050,010</td><td class="text-brine">-117,710</td><td class="text-brine">-5.7%</td></tr>
+                  <tr><td class="px-3 py-2.5 text-left font-sans font-medium text-inktext">판관비</td><td>510,220</td><td>498,300</td><td class="text-crimsond">+11,920</td><td class="text-crimsond">+2.4%</td></tr>
+                  <tr class="total-row"><td class="px-3 py-2.5 text-left font-sans text-inktext">영업이익</td><td>572,169</td><td>663,309</td><td class="text-crimsond">-91,140</td><td class="text-crimsond">-13.7%</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4. 손익자료 · 로딩 ============ -->
+  <div id="view-pl-loading" class="app-view hidden">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">임원실</p>
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 17V3h2v14H3Zm4 0V8h2v9H7Zm4 0V5h2v12h-2Zm4 0v-6h2v6h-2Z"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">손익자료</span>
+          </a>
+        </nav>
+      </aside>
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4">
+          <h1 class="text-lg font-semibold text-inktext">손익자료</h1>
+        </header>
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-6xl space-y-5 px-5 py-8 lg:px-8">
+            <div class="h-8 w-64 rounded-lg skeleton"></div>
+            <div class="space-y-2">
+              <div class="h-10 rounded-lg skeleton"></div>
+              <div class="h-10 rounded-lg skeleton"></div>
+              <div class="h-10 rounded-lg skeleton"></div>
+              <div class="h-10 rounded-lg skeleton"></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5. 관리자 · 목표 엑셀 업로드 ============ -->
+  <div id="view-admin-upload" class="app-view hidden">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">관리자</p>
+          <a class="nav-link flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 111.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z" clip-rule="evenodd"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">가입 승인 관리</span>
+          </a>
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z" clip-rule="evenodd"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">임원실 목표 관리</span>
+          </a>
+        </nav>
+      </aside>
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4">
+          <h1 class="text-lg font-semibold text-inktext">임원실 목표 관리</h1>
+        </header>
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-4xl space-y-5 px-5 py-8 lg:px-8">
+            <p class="text-sm text-muted">주간업무보고의 "계획(목표)" 수치와 태평소금 생산 목표를 엑셀로 업로드합니다. 태평염전 생산 목표는 염전관리팀이 생산량 화면에서 별도로 업로드합니다.</p>
+
+            <div class="rounded-lg border border-dashed border-mist bg-white p-8 text-center">
+              <svg class="mx-auto h-10 w-10 text-muted" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.25 13.25a.75.75 0 001.5 0V4.636l2.955 3.129a.75.75 0 001.09-1.03l-4.25-4.5a.75.75 0 00-1.09 0l-4.25 4.5a.75.75 0 101.09 1.03L9.25 4.636v8.614z" clip-rule="evenodd"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+              <p class="mt-2 text-sm font-medium text-inktext">엑셀 파일을 끌어다 놓거나 클릭해서 업로드</p>
+              <p class="mt-1 text-xs text-muted">.xlsx, 최대 15MB</p>
+              <div class="mt-4 flex items-center justify-center gap-2">
+                <button class="rounded-md bg-ink px-4 py-2 text-sm font-medium text-salt hover:bg-ink2">파일 선택</button>
+                <button class="rounded-md border border-mist px-4 py-2 text-sm text-muted hover:bg-mist/40">템플릿 다운로드</button>
+              </div>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <div class="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">최근 업로드 이력</div>
+              <table class="w-full grid-table text-sm">
+                <thead>
+                  <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+                    <th class="px-4 py-2 font-medium">업로드 일시</th>
+                    <th class="px-4 py-2 font-medium">파일명</th>
+                    <th class="px-4 py-2 font-medium">업로드자</th>
+                    <th class="px-4 py-2 font-medium">적용 주차</th>
+                    <th class="px-4 py-2 font-medium">상태</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-mist">
+                  <tr>
+                    <td class="px-4 py-3 font-mono text-xs text-muted">2026.07.14 08:52</td>
+                    <td class="px-4 py-3">목표_2026.07.14주간.xlsx</td>
+                    <td class="px-4 py-3">시스템 관리자</td>
+                    <td class="px-4 py-3">2026.07.06~07.12</td>
+                    <td class="px-4 py-3"><span class="rounded-full bg-brine/10 text-brine px-2 py-0.5 text-xs font-medium">반영 완료</span></td>
+                  </tr>
+                  <tr>
+                    <td class="px-4 py-3 font-mono text-xs text-muted">2026.07.07 09:10</td>
+                    <td class="px-4 py-3">목표_2026.07.07주간.xlsx</td>
+                    <td class="px-4 py-3">시스템 관리자</td>
+                    <td class="px-4 py-3">2026.06.29~07.05</td>
+                    <td class="px-4 py-3"><span class="rounded-full bg-brine/10 text-brine px-2 py-0.5 text-xs font-medium">반영 완료</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6. 관리자 · 업로드 오류 ============ -->
+  <div id="view-admin-error" class="app-view hidden">
+    <div class="min-h-screen flex">
+      <aside class="hidden lg:flex lg:w-64 shrink-0 flex-col bg-ink text-salt">
+        <div class="px-6 py-6 border-b border-white/10">
+          <span class="inline-flex items-center rounded-md bg-white px-3 py-2 shadow-sm shadow-black/20 w-fit">
+            <span class="text-ink font-display text-sm px-1">태평염전</span>
+          </span>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-1">
+          <p class="nav-section-label px-1 pb-2">관리자</p>
+          <a class="nav-link active flex items-center gap-3 rounded-lg pl-3 pr-2 py-2 text-sm font-medium">
+            <span class="nav-accent"></span>
+            <span class="nav-icon-wrap"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z" clip-rule="evenodd"/></svg></span>
+            <span class="min-w-0 flex-1 truncate">임원실 목표 관리</span>
+          </a>
+        </nav>
+      </aside>
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="border-b border-mist bg-white px-5 lg:px-8 py-4">
+          <h1 class="text-lg font-semibold text-inktext">임원실 목표 관리</h1>
+        </header>
+        <main class="flex-1 overflow-y-auto">
+          <div class="max-w-4xl space-y-5 px-5 py-8 lg:px-8">
+            <div class="rounded-lg border border-dashed border-crimsond/50 bg-white p-8 text-center">
+              <svg class="mx-auto h-10 w-10 text-crimsond" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.518 11.598c.75 1.334-.213 2.98-1.742 2.98H3.48c-1.53 0-2.492-1.646-1.743-2.98L8.257 3.1ZM11 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1-8a1 1 0 0 0-1 1v3a1 1 0 0 0 2 0V6a1 1 0 0 0-1-1Z" clip-rule="evenodd"/></svg>
+              <p class="mt-2 text-sm font-medium text-inktext">목표_2026.07.14주간(오타).xlsx 업로드 실패</p>
+              <p class="mt-1 text-xs text-muted">아래 항목을 수정한 뒤 다시 업로드해주세요</p>
+              <div class="mt-4 flex items-center justify-center gap-2">
+                <button class="rounded-md bg-ink px-4 py-2 text-sm font-medium text-salt hover:bg-ink2">다시 업로드</button>
+                <button class="rounded-md border border-mist px-4 py-2 text-sm text-muted hover:bg-mist/40">템플릿 다운로드</button>
+              </div>
+            </div>
+            <div class="rounded-lg border border-crimsond/30 bg-crimson/5 p-4 text-sm text-crimsond">
+              <p class="font-medium">오류 3건</p>
+              <ul class="mt-2 list-disc pl-5 space-y-1">
+                <li>3행: 법인코드 "0470"은 등록되지 않은 법인입니다 (0460/0400/0360 중 하나여야 함)</li>
+                <li>7행: 주간 계획 값이 숫자가 아닙니다 ("육만원")</li>
+                <li>12행: 대상 주차(적용일)가 비어 있습니다</li>
+              </ul>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showView(id) {
+      document.querySelectorAll('.app-view').forEach((el) => el.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+      document.querySelectorAll('.switcher-btn').forEach((btn) => {
+        if (btn.dataset.target === id) {
+          btn.classList.remove('bg-mist', 'text-inktext');
+          btn.classList.add('bg-ink', 'text-salt');
+        } else {
+          btn.classList.remove('bg-ink', 'text-salt');
+          btn.classList.add('bg-mist', 'text-inktext');
+        }
+      });
+    }
+    function showPage(id) {
+      document.querySelectorAll('.sub-page').forEach((el) => el.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+      document.querySelectorAll('.page-tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.page === id);
+      });
+    }
+    document.querySelectorAll('.corp-tab').forEach((btn, i) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.corp-tab').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  </script>
+</body>

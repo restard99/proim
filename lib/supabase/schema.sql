@@ -687,3 +687,90 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.lookup_teams_by_name(UUID, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.lookup_teams_by_name(UUID, TEXT) TO anon, authenticated;
+
+-- ============================================================
+-- FEAT-010: 임원실 대시보드 (주간업무보고 / 손익자료)
+-- ============================================================
+
+-- 매출 목표(법인별) + 태평소금 생산 목표(천일염/가공염). 관리자가 엑셀로 업로드.
+-- 태평염전 생산 목표는 saltfield_production_records에 이미 있어 여기 포함하지 않는다.
+CREATE TABLE IF NOT EXISTS executive_targets (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id),
+  metric        TEXT NOT NULL CHECK (metric IN ('sales', 'production')),
+  corp_code     TEXT,      -- metric='sales'일 때 '0460'/'0400'/'0360'/'0440', production이면 NULL(태평소금 고정)
+  category      TEXT,      -- metric='production'일 때 '천일염'/'가공염', sales면 NULL
+  period_type   TEXT NOT NULL CHECK (period_type IN ('week', 'month')),
+  period_key    TEXT NOT NULL,  -- week: 주 시작일(월요일, YYYY-MM-DD) / month: 'YYYY-MM'
+  target_value  NUMERIC NOT NULL,
+  uploaded_by   UUID REFERENCES profiles(id),
+  file_name     TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, metric, corp_code, category, period_type, period_key)
+);
+ALTER TABLE executive_targets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "executive_targets_select" ON executive_targets;
+CREATE POLICY "executive_targets_select" ON executive_targets
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+    )
+  );
+
+-- 입력/수정은 관리자만 (전략기획실 직원은 admin role이 아니므로 관리자가 대리 업로드)
+DROP POLICY IF EXISTS "executive_targets_admin_insert" ON executive_targets;
+CREATE POLICY "executive_targets_admin_insert" ON executive_targets
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_targets_admin_update" ON executive_targets;
+CREATE POLICY "executive_targets_admin_update" ON executive_targets
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+CREATE INDEX IF NOT EXISTS executive_targets_lookup_idx
+  ON executive_targets(tenant_id, metric, period_type, period_key);
+
+-- 주간업무보고에 대한 임원 코멘트
+CREATE TABLE IF NOT EXISTS executive_weekly_comments (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        UUID NOT NULL REFERENCES tenants(id),
+  week_start_date  DATE NOT NULL,
+  author_id        UUID NOT NULL REFERENCES profiles(id),
+  body             TEXT NOT NULL,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE executive_weekly_comments ENABLE ROW LEVEL SECURITY;
+
+-- 조회는 임원실/전략기획실/관리자 (전략기획실이 피드백을 확인할 수 있어야 함)
+DROP POLICY IF EXISTS "executive_weekly_comments_select" ON executive_weekly_comments;
+CREATE POLICY "executive_weekly_comments_select" ON executive_weekly_comments
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team IN ('임원실', '전략기획실'))
+    )
+  );
+
+-- 작성은 임원실 계정만 (관리자는 view-as로 임원실 대리 작성 가능)
+DROP POLICY IF EXISTS "executive_weekly_comments_insert" ON executive_weekly_comments;
+CREATE POLICY "executive_weekly_comments_insert" ON executive_weekly_comments
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND author_id = auth.uid()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS executive_weekly_comments_week_idx
+  ON executive_weekly_comments(tenant_id, week_start_date);
