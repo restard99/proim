@@ -47,6 +47,10 @@ const CELL_CLASS = "whitespace-nowrap px-3 py-2 leading-tight";
 // 병합된 칸(특이사항 등)은 원본 엑셀에 긴 문구가 들어가는 경우가 많아, 한 줄로 밀어내지 않고
 // 적당한 너비에서 줄바꿈되도록 별도 클래스를 쓴다.
 const MERGE_CELL_CLASS = "max-w-[300px] whitespace-pre-wrap break-words px-3 py-2 leading-snug";
+// 수정 모드 입력창 너비: 제품명은 조회 화면만큼 넉넉하게, 나머지는 기존처럼 좁게.
+const EDIT_INPUT_MIN_WIDTH: Partial<Record<ProductionRequestFieldKey, string>> = {
+  name: "min-w-[260px]",
+};
 
 type EditableFieldKey = ProductionRequestFieldKey | "remark";
 
@@ -276,6 +280,9 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
       }
       setDetail({ ...detail, items: draftItems });
       setIsEditing(false);
+      // 제품명을 고쳤을 수 있으니, Y-ERP에서 다시 매칭을 조회해 부자재 현황을 최신 상태로 갱신한다.
+      const materials = await getProductionMaterialStatus(draftItems);
+      setMaterialMap(materials);
     });
   }
 
@@ -471,7 +478,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                                 type="text"
                                 value={item[c.key]}
                                 onChange={(e) => updateDraftField(i, c.key, e.target.value)}
-                                className={`w-full min-w-[64px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30 ${
+                                className={`w-full ${EDIT_INPUT_MIN_WIDTH[c.key] ?? "min-w-[64px]"} rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30 ${
                                   c.align === "right" ? "text-right font-mono" : ""
                                 }`}
                               />
