@@ -1,19 +1,18 @@
 import "server-only";
 import ExcelJS from "exceljs";
 
-const FIELD_KEYS = [
-  "name",
-  "count",
-  "pack",
-  "boxes",
-  "weightKg",
-  "pl",
-  "eaPerPl",
-  "note",
-  "loadType",
-  "dueDate",
-] as const;
-export type ProductionRequestFieldKey = (typeof FIELD_KEYS)[number];
+export type ProductionRequestFieldKey =
+  | "name"
+  | "category"
+  | "count"
+  | "pack"
+  | "boxes"
+  | "weightKg"
+  | "pl"
+  | "eaPerPl"
+  | "note"
+  | "loadType"
+  | "dueDate";
 
 export type ProductionRequestMerge = {
   field: ProductionRequestFieldKey;
@@ -23,6 +22,7 @@ export type ProductionRequestMerge = {
 
 export type ProductionRequestItem = {
   name: string;
+  category: string;
   count: string;
   pack: string;
   boxes: string;
@@ -59,6 +59,24 @@ const HEADER_LABEL = "제품명";
 const SUB_HEADER_LABEL = "반제품명";
 const MAX_COL = 15;
 const RED_ARGB = "FFFF0000";
+
+// "구분" 같은 열이 나중에 템플릿에 추가되어도 열 위치가 아니라 헤더 문구로 필드를 찾도록
+// 라벨 매칭 규칙을 둔다 (FIX-010: 열이 하나 밀려서 데이터가 통째로 잘못 들어가던 문제).
+type NamedFieldKey = Exclude<ProductionRequestFieldKey, "name">;
+const FIELD_LABEL_MATCHERS: { field: NamedFieldKey; test: (label: string) => boolean }[] = [
+  { field: "category", test: (l) => l.startsWith("구분") },
+  { field: "count", test: (l) => l.startsWith("낱개수") },
+  { field: "pack", test: (l) => l.startsWith("입수") },
+  { field: "boxes", test: (l) => l.startsWith("박스수") },
+  { field: "weightKg", test: (l) => l.startsWith("중량") },
+  { field: "eaPerPl", test: (l) => l.startsWith("EA/PL") || l.startsWith("EA") },
+  { field: "pl", test: (l) => l === "PL" },
+  { field: "note", test: (l) => l.startsWith("특이사항") },
+  { field: "loadType", test: (l) => l.startsWith("적재방식") },
+  { field: "dueDate", test: (l) => l.startsWith("완료요청일") },
+];
+
+type ColumnMap = Partial<Record<NamedFieldKey, number>>;
 
 function numText(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
@@ -110,6 +128,39 @@ function parseA1Range(range: string): { r1: number; c1: number; r2: number; c2: 
   };
 }
 
+// 헤더 행 문구를 읽어 필드→열번호 맵을 만든다. 열이 추가/재배치돼도 라벨만 같으면 정확히 찾는다.
+function buildColumnMap(headerTexts: string[]): ColumnMap {
+  const map: ColumnMap = {};
+  for (let i = 1; i < headerTexts.length; i++) {
+    const label = headerTexts[i].trim();
+    if (!label) continue;
+    const col = i + 1; // headerTexts는 0-based, 실제 엑셀 열 번호는 1-based
+    for (const { field, test } of FIELD_LABEL_MATCHERS) {
+      if (map[field] === undefined && test(label)) {
+        map[field] = col;
+        break;
+      }
+    }
+  }
+  return map;
+}
+
+function get(t: string[], col: number | undefined): string {
+  return col ? (t[col - 1] ?? "") : "";
+}
+
+// 매핑된 필드 열을 제외한 나머지 열(예: 새로 추가된 "구분" 열, 템플릿 밖 자유 기재 열)의
+// 값을 전부 비고에 모아준다 — 값을 잃어버리지 않고 눈에 보이는 곳에 남긴다.
+function buildRemark(t: string[], mappedCols: Set<number>): string {
+  const parts: string[] = [];
+  for (let c = 2; c <= MAX_COL; c++) {
+    if (mappedCols.has(c)) continue;
+    const v = t[c - 1];
+    if (v) parts.push(v);
+  }
+  return parts.join(" / ");
+}
+
 export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<ParsedProductionRequest> {
   const wb = new ExcelJS.Workbook();
   // exceljs 타입 선언 내부의 Buffer는 (전역이 아니라) 자체 정의한 `extends ArrayBuffer`
@@ -135,6 +186,13 @@ export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<Pa
   }
   if (headerRow === -1) return { items: [], subItems: [], totals: null };
 
+  const colMap = buildColumnMap(rowTexts(headerRow));
+  const mappedCols = new Set(Object.values(colMap).filter((c): c is number => c !== undefined));
+  const colToField = new Map<number, ProductionRequestFieldKey>([[1, "name"]]);
+  for (const [field, col] of Object.entries(colMap) as [NamedFieldKey, number | undefined][]) {
+    if (col !== undefined) colToField.set(col, field);
+  }
+
   const itemsByRow = new Map<number, ProductionRequestItem>();
   let totals: ProductionRequestTotals | null = null;
   let subHeaderRow = -1;
@@ -145,7 +203,7 @@ export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<Pa
     const t = rowTexts(cursor);
     if (isBlankRow(t)) continue;
     if (t[0].replace(/\s/g, "") === "소계") {
-      totals = { count: t[1], weightKg: t[4], pl: t[5] };
+      totals = { count: get(t, colMap.count), weightKg: get(t, colMap.weightKg), pl: get(t, colMap.pl) };
       cursor++;
       break;
     }
@@ -155,16 +213,17 @@ export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<Pa
     }
     itemsByRow.set(cursor, {
       name: t[0],
-      count: t[1],
-      pack: t[2],
-      boxes: t[3],
-      weightKg: t[4],
-      pl: t[5],
-      eaPerPl: t[6],
-      note: t[7],
-      loadType: t[8],
-      dueDate: t[9],
-      remark: t.slice(10).filter(Boolean).join(" / "),
+      category: get(t, colMap.category),
+      count: get(t, colMap.count),
+      pack: get(t, colMap.pack),
+      boxes: get(t, colMap.boxes),
+      weightKg: get(t, colMap.weightKg),
+      pl: get(t, colMap.pl),
+      eaPerPl: get(t, colMap.eaPerPl),
+      note: get(t, colMap.note),
+      loadType: get(t, colMap.loadType),
+      dueDate: get(t, colMap.dueDate),
+      remark: buildRemark(t, mappedCols),
       isRed: isRedFont(ws.getRow(cursor).getCell(1)),
       merge: null,
       mergeSkip: [],
@@ -181,14 +240,16 @@ export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<Pa
     if (!range) continue;
     const { r1, c1, r2, c2 } = range;
     if (r1 < headerRow + 1 || r2 > lastItemRow) continue;
-    if (c1 < 1 || c2 > FIELD_KEYS.length) continue;
     if (r1 === r2 && c1 === c2) continue;
+
+    const startField = colToField.get(c1);
+    if (!startField || startField === "name") continue;
 
     const topItem = itemsByRow.get(r1);
     if (!topItem) continue;
 
     topItem.merge = {
-      field: FIELD_KEYS[c1 - 1],
+      field: startField,
       colSpan: c2 - c1 + 1,
       rowSpan: r2 - r1 + 1,
     };
@@ -198,7 +259,8 @@ export async function parseProductionRequestWorkbook(buffer: Buffer): Promise<Pa
       if (!item) continue;
       for (let c = c1; c <= c2; c++) {
         if (r === r1 && c === c1) continue;
-        item.mergeSkip.push(FIELD_KEYS[c - 1]);
+        const field = colToField.get(c);
+        if (field && field !== "name") item.mergeSkip.push(field);
       }
     }
   }

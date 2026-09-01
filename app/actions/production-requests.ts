@@ -180,6 +180,7 @@ export async function getProductionRequestDetail(id: string): Promise<Production
     file_path: data.file_path,
     items: ((data.items ?? []) as Partial<ProductionRequestItem>[]).map((it) => ({
       name: it.name ?? "",
+      category: it.category ?? "",
       count: it.count ?? "",
       pack: it.pack ?? "",
       boxes: it.boxes ?? "",

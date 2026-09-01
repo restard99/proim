@@ -31,6 +31,7 @@ function formatNumberText(v: string): string {
 
 const COLUMNS: { key: ProductionRequestFieldKey; label: string; align: "left" | "right" }[] = [
   { key: "name", label: "제품명", align: "left" },
+  { key: "category", label: "구분", align: "left" },
   { key: "count", label: "낱개수", align: "right" },
   { key: "pack", label: "입수", align: "right" },
   { key: "boxes", label: "박스수", align: "right" },
@@ -355,7 +356,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                 제품별 생산의뢰 내역
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] text-sm">
+                <table className="w-full min-w-[1300px] text-sm">
                   <thead>
                     <tr className="border-b border-mist bg-mist/40 text-center text-xs text-muted">
                       {COLUMNS.map((c) => (
@@ -364,7 +365,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                         </th>
                       ))}
                       <th className="whitespace-nowrap border-l border-mist px-3 py-2 font-medium">부자재</th>
-                      <th className="w-[90px] border-l border-mist px-3 py-2 font-medium">비고</th>
+                      <th className="w-[260px] border-l border-mist px-3 py-2 font-medium">비고</th>
                     </tr>
                   </thead>
                   {!isEditing && (
@@ -406,8 +407,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                               <MaterialStatusDot status={materialMap[item.name]} />
                             </td>
                             <td
-                              className={`${CELL_CLASS} w-[90px] max-w-[90px] truncate border-l border-mist text-center align-middle`}
-                              title={item.remark}
+                              className="w-[260px] max-w-[260px] whitespace-pre-wrap break-words border-l border-mist px-3 py-2 text-center align-middle leading-tight"
                             >
                               {item.remark}
                             </td>
@@ -443,12 +443,12 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                           <td className="px-1.5 py-1.5 text-center">
                             <MaterialStatusDot status={materialMap[item.name]} />
                           </td>
-                          <td className="w-[90px] px-1.5 py-1.5">
+                          <td className="w-[260px] px-1.5 py-1.5">
                             <input
                               type="text"
                               value={item.remark}
                               onChange={(e) => updateDraftField(i, "remark", e.target.value)}
-                              className="w-full min-w-[70px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30"
+                              className="w-full min-w-[240px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30"
                             />
                           </td>
                         </tr>
@@ -459,6 +459,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                     <tfoot>
                       <tr className="border-t border-mist bg-mist/40 text-center font-semibold text-inktext">
                         <td className={`${CELL_CLASS} border-l border-mist first:border-l-0`}>소계</td>
+                        <td className={`${CELL_CLASS} border-l border-mist`} />
                         <td className={`${CELL_CLASS} border-l border-mist font-mono`}>{formatNumberText(detail.totals.count)}</td>
                         <td className={`${CELL_CLASS} border-l border-mist`} />
                         <td className={`${CELL_CLASS} border-l border-mist`} />
