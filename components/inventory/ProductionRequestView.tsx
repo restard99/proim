@@ -46,7 +46,7 @@ const COLUMNS: { key: ProductionRequestFieldKey; label: string; align: "left" | 
 const CELL_CLASS = "whitespace-nowrap px-3 py-2 leading-tight";
 // 병합된 칸(특이사항 등)은 원본 엑셀에 긴 문구가 들어가는 경우가 많아, 한 줄로 밀어내지 않고
 // 적당한 너비에서 줄바꿈되도록 별도 클래스를 쓴다.
-const MERGE_CELL_CLASS = "max-w-[280px] whitespace-pre-wrap break-words px-3 py-2 leading-snug";
+const MERGE_CELL_CLASS = "max-w-[300px] whitespace-pre-wrap break-words px-3 py-2 leading-snug";
 
 type EditableFieldKey = ProductionRequestFieldKey | "remark";
 
