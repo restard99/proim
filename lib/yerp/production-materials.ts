@@ -41,20 +41,6 @@ function matchesTokens(itmNm: string, tokens: string[]): boolean {
   return true;
 }
 
-// 생산의뢰서 엑셀 제품명이 축약형이라(예: "샘표천일염500g") Y-ERP 정식 품목명
-// ("샘표한여름눈꽃천일염굵은소금500g")과 토큰이 연속으로 이어지지 않아 매칭에 실패하는
-// 알려진 경우들. 매칭 전에 원문을 정식 명칭 조각으로 치환해 토큰이 순서대로
-// 걸리도록 만든다. 새로운 사례를 발견하면 여기에 규칙을 추가한다.
-const NAME_ALIAS_RULES: { pattern: RegExp; replacement: string }[] = [
-  { pattern: /천일염/g, replacement: " 한여름눈꽃천일염굵은소금 " },
-];
-
-function applyNameAliases(name: string): string {
-  let result = name;
-  for (const rule of NAME_ALIAS_RULES) result = result.replace(rule.pattern, rule.replacement);
-  return result;
-}
-
 // 같은 이름의 내수용/수출용 품목이 둘 다 등록돼 있으면 토큰 매칭 후보가 2개가 되어
 // "애매함"으로 빠진다. 엑셀 제품명에 "수출용" 표기가 없으면 수출용 품목은 후보에서
 // 제외하고, 있으면 수출용 품목만 남긴다(둘 다 없어지면 원래 후보로 되돌린다).
@@ -81,7 +67,7 @@ export async function getMaterialStatusForItems(
 
   const matchByName = new Map<string, { itmCd: string; candidates: string[] }>();
   for (const name of uniqueNames) {
-    const tokens = applyNameAliases(name).split(/\s+/).filter(Boolean);
+    const tokens = name.split(/\s+/).filter(Boolean);
     const rawCandidates = finishedGoods.filter((r) => matchesTokens(r.ITM_NM, tokens));
     const candidates = filterByExportMarker(rawCandidates, name.includes(EXPORT_MARKER));
     matchByName.set(name, {
