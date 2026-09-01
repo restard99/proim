@@ -84,7 +84,8 @@ export async function uploadProductionRequest(requestDate: string, formData: For
   let parsed;
   try {
     parsed = await parseProductionRequestWorkbook(buffer);
-  } catch {
+  } catch (err) {
+    console.error("[uploadProductionRequest] parse error", err);
     return { ok: false, message: "엑셀 파일을 읽는 중 오류가 발생했습니다." };
   }
   if (parsed.items.length === 0) {
@@ -95,14 +96,19 @@ export async function uploadProductionRequest(requestDate: string, formData: For
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, buffer, {
     contentType: file.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  if (uploadError) return { ok: false, message: "파일 업로드 중 오류가 발생했습니다." };
+  if (uploadError) {
+    console.error("[uploadProductionRequest] storage upload error", uploadError);
+    return { ok: false, message: "파일 업로드 중 오류가 발생했습니다." };
+  }
 
   const { data, error } = await supabase
     .from("production_requests")
     .insert({
       tenant_id: self.tenantId,
       uploaded_by: self.userId,
-      team: self.team,
+      // admin 계정은 profiles.team이 null이라(의도된 설계), 그대로 넣으면 NOT NULL 제약 위반으로
+      // 저장이 실패한다. 이 화면은 영업채산팀 업무이므로 관리자가 대신 올릴 때도 "영업채산팀"으로 기록한다.
+      team: self.team ?? "영업채산팀",
       request_date: requestDate,
       file_path: path,
       file_name: file.name,
@@ -114,6 +120,7 @@ export async function uploadProductionRequest(requestDate: string, formData: For
     .single();
 
   if (error || !data) {
+    console.error("[uploadProductionRequest] insert error", error);
     await supabase.storage.from(BUCKET).remove([path]);
     return { ok: false, message: "저장 중 오류가 발생했습니다." };
   }
