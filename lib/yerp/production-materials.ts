@@ -13,12 +13,21 @@ export type MaterialUsage = {
   sufficient: boolean;
 };
 
+// 후보가 여러 개(애매함)일 때, 화면에서 후보를 골라 바로 부자재 현황을 볼 수 있도록
+// 후보별 BOM/재고를 미리 계산해 함께 내려준다 (선택 시 추가 조회 없이 즉시 표시).
+export type CandidateMaterialStatus = {
+  itemCode: string;
+  itemName: string;
+  materials: MaterialUsage[];
+  allSufficient: boolean;
+};
+
 export type ProductMaterialStatus = {
   matchType: "matched" | "ambiguous" | "unmatched";
   matchedItemName: string | null;
-  candidateNames: string[];
   materials: MaterialUsage[];
   allSufficient: boolean;
+  candidates: CandidateMaterialStatus[]; // matchType이 "ambiguous"일 때만 채워짐
 };
 
 function todayYmd(): string {
@@ -65,18 +74,20 @@ export async function getMaterialStatusForItems(
     { corpCode: CORP_CODE, finishedSec: FINISHED_GOODS_ASET_SEC },
   );
 
-  const matchByName = new Map<string, { itmCd: string; candidates: string[] }>();
+  const matchByName = new Map<string, { itmCd: string; itmNm: string }[]>();
   for (const name of uniqueNames) {
     const tokens = name.split(/\s+/).filter(Boolean);
     const rawCandidates = finishedGoods.filter((r) => matchesTokens(r.ITM_NM, tokens));
     const candidates = filterByExportMarker(rawCandidates, name.includes(EXPORT_MARKER));
-    matchByName.set(name, {
-      itmCd: candidates.length === 1 ? candidates[0].ITM_CD : "",
-      candidates: candidates.map((c) => c.ITM_NM),
-    });
+    matchByName.set(
+      name,
+      candidates.map((c) => ({ itmCd: c.ITM_CD, itmNm: c.ITM_NM })),
+    );
   }
 
-  const motherCodes = [...new Set([...matchByName.values()].map((m) => m.itmCd).filter(Boolean))];
+  // 애매한(후보 여러 개) 항목도 화면에서 바로 후보를 선택해 볼 수 있도록,
+  // 유일 매칭뿐 아니라 모든 후보의 BOM/재고를 한 번에 미리 불러온다.
+  const motherCodes = [...new Set([...matchByName.values()].flatMap((cs) => cs.map((c) => c.itmCd)))];
 
   const bomByMother = new Map<string, { CHIDL_ITM_CD: string; REAL_DEMAND_QTY: number | null; ITM_NM: string | null }[]>();
   const stockMap = new Map<string, number>();
@@ -124,34 +135,10 @@ export async function getMaterialStatusForItems(
     }
   }
 
-  const result: Record<string, ProductMaterialStatus> = {};
-  for (const item of items) {
-    if (result[item.name]) continue;
-    const match = matchByName.get(item.name);
-    if (!match || match.candidates.length === 0) {
-      result[item.name] = {
-        matchType: "unmatched",
-        matchedItemName: null,
-        candidateNames: [],
-        materials: [],
-        allSufficient: true,
-      };
-      continue;
-    }
-    if (match.candidates.length > 1) {
-      result[item.name] = {
-        matchType: "ambiguous",
-        matchedItemName: null,
-        candidateNames: match.candidates,
-        materials: [],
-        allSufficient: true,
-      };
-      continue;
-    }
-
-    const bom = bomByMother.get(match.itmCd) ?? [];
-    const materials: MaterialUsage[] = bom.map((b) => {
-      const requiredQty = Number(b.REAL_DEMAND_QTY ?? 0) * item.qty;
+  function computeMaterials(itmCd: string, qty: number): MaterialUsage[] {
+    const bom = bomByMother.get(itmCd) ?? [];
+    return bom.map((b) => {
+      const requiredQty = Number(b.REAL_DEMAND_QTY ?? 0) * qty;
       const availableQty = stockMap.get(b.CHIDL_ITM_CD) ?? 0;
       return {
         itemCode: b.CHIDL_ITM_CD,
@@ -161,12 +148,49 @@ export async function getMaterialStatusForItems(
         sufficient: availableQty >= requiredQty,
       };
     });
+  }
+
+  const result: Record<string, ProductMaterialStatus> = {};
+  for (const item of items) {
+    if (result[item.name]) continue;
+    const candidates = matchByName.get(item.name) ?? [];
+    if (candidates.length === 0) {
+      result[item.name] = {
+        matchType: "unmatched",
+        matchedItemName: null,
+        materials: [],
+        allSufficient: true,
+        candidates: [],
+      };
+      continue;
+    }
+    if (candidates.length > 1) {
+      result[item.name] = {
+        matchType: "ambiguous",
+        matchedItemName: null,
+        materials: [],
+        allSufficient: true,
+        candidates: candidates.map((c) => {
+          const materials = computeMaterials(c.itmCd, item.qty);
+          return {
+            itemCode: c.itmCd,
+            itemName: c.itmNm,
+            materials,
+            allSufficient: materials.every((m) => m.sufficient),
+          };
+        }),
+      };
+      continue;
+    }
+
+    const only = candidates[0];
+    const materials = computeMaterials(only.itmCd, item.qty);
     result[item.name] = {
       matchType: "matched",
-      matchedItemName: match.candidates[0],
-      candidateNames: [],
+      matchedItemName: only.itmNm,
       materials,
       allSufficient: materials.every((m) => m.sufficient),
+      candidates: [],
     };
   }
 

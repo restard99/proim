@@ -13,7 +13,7 @@ import {
   type ProductionRequestListRow,
 } from "@/app/actions/production-requests";
 import type { ProductionRequestFieldKey, ProductionRequestItem } from "@/lib/production-requests/parse";
-import type { ProductMaterialStatus } from "@/lib/yerp/production-materials";
+import type { CandidateMaterialStatus, MaterialUsage, ProductMaterialStatus } from "@/lib/yerp/production-materials";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -69,57 +69,91 @@ function MaterialStatusDot({ status }: { status: ProductMaterialStatus | undefin
   );
 }
 
+function MaterialsTable({ materials }: { materials: MaterialUsage[] }) {
+  if (materials.length === 0) {
+    return <p className="text-sm text-muted">등록된 부자재 BOM이 없습니다.</p>;
+  }
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-mist text-left text-xs text-muted">
+          <th className="py-2 font-medium">부자재명</th>
+          <th className="py-2 text-right font-medium">소요량</th>
+          <th className="py-2 text-right font-medium">재고</th>
+          <th className="py-2 text-center font-medium">상태</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-mist">
+        {materials.map((m) => (
+          <tr key={m.itemCode}>
+            <td className="py-2">{m.itemName}</td>
+            <td className="py-2 text-right font-mono">{formatQty(m.requiredQty)}</td>
+            <td className="py-2 text-right font-mono">{formatQty(m.availableQty)}</td>
+            <td className="py-2 text-center">
+              <span className={`inline-block h-2.5 w-2.5 rounded-full ${m.sufficient ? "bg-brine" : "bg-crimson"}`} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// 후보가 여러 개(애매함)인 경우, 후보 이름을 눌러 그 품목의 부자재 현황을 바로 확인할 수 있게 한다.
+function AmbiguousMaterialStatus({ candidates }: { candidates: CandidateMaterialStatus[] }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const selectedCandidate = candidates.find((c) => c.itemCode === selected) ?? null;
+
+  if (selectedCandidate) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setSelected(null)}
+          className="mb-2 text-xs text-crimson hover:underline"
+        >
+          ← 다른 후보 선택
+        </button>
+        <p className="mb-2 text-xs text-muted">선택한 품목: {selectedCandidate.itemName}</p>
+        <MaterialsTable materials={selectedCandidate.materials} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-muted">
+        품목명 후보가 {candidates.length}개라 자동으로 판단할 수 없습니다. 아래에서 Y-ERP 품목명을 선택해 부자재 현황을 확인하세요.
+      </p>
+      <ul className="space-y-1">
+        {candidates.map((c) => (
+          <li key={c.itemCode}>
+            <button
+              type="button"
+              onClick={() => setSelected(c.itemCode)}
+              className="flex w-full items-center justify-between rounded-md border border-mist px-3 py-2 text-left text-sm hover:bg-mist/40"
+            >
+              <span className="text-inktext">{c.itemName}</span>
+              <span className={`ml-2 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${c.allSufficient ? "bg-brine" : "bg-crimson"}`} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function MaterialStatusDetail({ status }: { status: ProductMaterialStatus | undefined }) {
   if (!status || status.matchType === "unmatched") {
     return <p className="text-sm text-muted">Y-ERP 품목과 매칭되지 않아 부자재 현황을 확인할 수 없습니다.</p>;
   }
   if (status.matchType === "ambiguous") {
-    return (
-      <div className="space-y-2">
-        <p className="text-sm text-muted">
-          품목명 후보가 여러 개라 자동으로 판단할 수 없습니다. Y-ERP 품목명 중 하나로 확인해주세요.
-        </p>
-        <ul className="list-inside list-disc text-sm text-inktext">
-          {status.candidateNames.map((n) => (
-            <li key={n}>{n}</li>
-          ))}
-        </ul>
-      </div>
-    );
-  }
-  if (status.materials.length === 0) {
-    return (
-      <div className="space-y-1">
-        <p className="text-xs text-muted">매칭된 품목: {status.matchedItemName}</p>
-        <p className="text-sm text-muted">등록된 부자재 BOM이 없습니다.</p>
-      </div>
-    );
+    return <AmbiguousMaterialStatus candidates={status.candidates} />;
   }
   return (
     <div>
       <p className="mb-2 text-xs text-muted">매칭된 품목: {status.matchedItemName}</p>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-mist text-left text-xs text-muted">
-            <th className="py-2 font-medium">부자재명</th>
-            <th className="py-2 text-right font-medium">소요량</th>
-            <th className="py-2 text-right font-medium">재고</th>
-            <th className="py-2 text-center font-medium">상태</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-mist">
-          {status.materials.map((m) => (
-            <tr key={m.itemCode}>
-              <td className="py-2">{m.itemName}</td>
-              <td className="py-2 text-right font-mono">{formatQty(m.requiredQty)}</td>
-              <td className="py-2 text-right font-mono">{formatQty(m.availableQty)}</td>
-              <td className="py-2 text-center">
-                <span className={`inline-block h-2.5 w-2.5 rounded-full ${m.sufficient ? "bg-brine" : "bg-crimson"}`} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <MaterialsTable materials={status.materials} />
     </div>
   );
 }
