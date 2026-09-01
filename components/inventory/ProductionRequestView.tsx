@@ -359,7 +359,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                 제품별 생산의뢰 내역
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1560px] text-sm">
+                <table className="w-full min-w-[1300px] text-sm">
                   <thead>
                     <tr className="border-b border-mist bg-mist/40 text-center text-xs text-muted">
                       {COLUMNS.map((c) => (
@@ -368,7 +368,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                         </th>
                       ))}
                       <th className="whitespace-nowrap border-l border-mist px-3 py-2 font-medium">부자재</th>
-                      <th className="w-[520px] border-l border-mist px-3 py-2 font-medium">비고</th>
+                      <th className="w-[260px] border-l border-mist px-3 py-2 font-medium">비고</th>
                     </tr>
                   </thead>
                   {!isEditing && (
@@ -410,7 +410,7 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                               <MaterialStatusDot status={materialMap[item.name]} />
                             </td>
                             <td
-                              className="w-[520px] max-w-[520px] whitespace-pre-wrap break-words border-l border-mist px-3 py-2 text-center align-middle leading-tight"
+                              className="w-[260px] max-w-[260px] whitespace-pre-wrap break-words border-l border-mist px-3 py-2 text-center align-middle leading-tight"
                             >
                               {item.remark}
                             </td>
@@ -446,12 +446,12 @@ export function ProductionRequestView({ canManage }: { canManage: boolean }) {
                           <td className="px-1.5 py-1.5 text-center">
                             <MaterialStatusDot status={materialMap[item.name]} />
                           </td>
-                          <td className="w-[520px] px-1.5 py-1.5">
+                          <td className="w-[260px] px-1.5 py-1.5">
                             <input
                               type="text"
                               value={item.remark}
                               onChange={(e) => updateDraftField(i, "remark", e.target.value)}
-                              className="w-full min-w-[500px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30"
+                              className="w-full min-w-[240px] rounded border border-mist px-2 py-1.5 text-sm outline-none focus:border-brine focus:ring-1 focus:ring-brine/30"
                             />
                           </td>
                         </tr>
