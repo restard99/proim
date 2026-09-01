@@ -5,9 +5,11 @@ import { getProfitLoss } from "@/app/actions/executive-pl";
 import { EXECUTIVE_PL_CORPS } from "@/lib/yerp/executive-corps";
 import { ProfitLossView } from "@/components/executive/ProfitLossView";
 
-function currentYearMonth(): string {
+// 손익자료는 당월 자료가 아직 다 안 잡혀있는 경우가 많아, 기본 조회월을 항상 전달로 연다.
+function defaultYearMonth(): string {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() - 1, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 export default async function ExecutivePlPage() {
@@ -22,7 +24,7 @@ export default async function ExecutivePlPage() {
   if (!profile || !canViewExecutive(profile.team, profile.role)) redirect("/");
 
   const corpCode = EXECUTIVE_PL_CORPS[0].corpCode;
-  const yearMonth = currentYearMonth();
+  const yearMonth = defaultYearMonth();
   const data = await getProfitLoss(corpCode, yearMonth);
 
   return <ProfitLossView initialCorpCode={corpCode} initialYearMonth={yearMonth} initialData={data} />;
