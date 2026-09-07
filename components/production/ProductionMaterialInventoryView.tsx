@@ -40,46 +40,53 @@ const TABS: { key: "raw" | "semi"; label: string }[] = [
   { key: "semi", label: "반제품" },
 ];
 
+// 생산의뢰서 화면과 같은 격자형 톤(헤더 강조 + 열 구분선 + 가운데 정렬 + 숫자 font-mono)을
+// 맞춰 가독성을 높였다. 현재고는 실무에서 가장 자주 확인하는 값이라 데이터 행에서도 굵게 강조한다.
+const HEADER_CELL_CLASS = "whitespace-nowrap border-l border-mist px-3 py-2 font-medium first:border-l-0";
+const BODY_CELL_CLASS = "whitespace-nowrap border-l border-mist px-3 py-2 text-center align-middle first:border-l-0";
+const REMARK_CELL_CLASS =
+  "w-[220px] max-w-[220px] whitespace-pre-wrap break-words border-l border-mist px-3 py-2 text-center align-middle leading-snug";
+
 function InventoryTable({ section }: { section: MaterialInventorySection }) {
   return (
     <div className="overflow-hidden rounded-lg border border-mist bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full whitespace-nowrap text-xs">
+        <table className="w-full min-w-[1300px] text-sm">
           <thead>
-            <tr className="border-b border-mist bg-mist/40 text-left text-muted">
-              <th className="px-3 py-2 font-medium">SEQ</th>
-              <th className="px-3 py-2 font-medium">제품명</th>
-              <th className="px-3 py-2 font-medium">재고단위</th>
-              <th className="px-3 py-2 text-right font-medium">기초재고</th>
-              <th className="px-3 py-2 font-medium">단위</th>
-              <th className="px-3 py-2 text-right font-medium">입고(전표)</th>
-              <th className="px-3 py-2 text-right font-medium">입고(실입고)</th>
-              <th className="px-3 py-2 text-right font-medium">출고(전표)</th>
-              <th className="px-3 py-2 text-right font-medium">출고(실투입)</th>
-              <th className="px-3 py-2 text-right font-medium">자연수율</th>
-              <th className="px-3 py-2 text-right font-medium">현재고</th>
-              <th className="px-3 py-2 text-right font-medium">입고누계</th>
-              <th className="px-3 py-2 text-right font-medium">출고누계</th>
-              <th className="px-3 py-2 font-medium">비고</th>
+            <tr className="border-b border-mist bg-mist/40 text-center text-xs text-muted">
+              <th className={HEADER_CELL_CLASS}>SEQ</th>
+              <th className={HEADER_CELL_CLASS}>제품명</th>
+              <th className={HEADER_CELL_CLASS}>재고단위</th>
+              <th className={HEADER_CELL_CLASS}>기초재고</th>
+              <th className={HEADER_CELL_CLASS}>단위</th>
+              <th className={HEADER_CELL_CLASS}>입고(전표)</th>
+              <th className={HEADER_CELL_CLASS}>입고(실입고)</th>
+              <th className={HEADER_CELL_CLASS}>출고(전표)</th>
+              <th className={HEADER_CELL_CLASS}>출고(실투입)</th>
+              <th className={HEADER_CELL_CLASS}>자연수율</th>
+              <th className={HEADER_CELL_CLASS}>현재고</th>
+              <th className={HEADER_CELL_CLASS}>입고누계</th>
+              <th className={HEADER_CELL_CLASS}>출고누계</th>
+              <th className={`${HEADER_CELL_CLASS} w-[220px]`}>비고</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-mist">
             {section.rows.map((r: MaterialInventoryRow, i: number) => (
-              <tr key={`${r.seq}-${i}`}>
-                <td className="px-3 py-2 text-muted">{r.seq}</td>
-                <td className="px-3 py-2 font-medium text-inktext">{r.name}</td>
-                <td className="px-3 py-2">{r.stockUnit || "-"}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(r.beginQty)}</td>
-                <td className="px-3 py-2">{r.weightUnit || "-"}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(r.inSlipQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(r.inActualQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(r.outSlipQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(r.outActualQty)}</td>
-                <td className="px-3 py-2 text-right font-mono text-muted">{formatPct(r.yieldRate)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(r.currentQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(r.inCumQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(r.outCumQty)}</td>
-                <td className="px-3 py-2 text-muted">{r.remark || "-"}</td>
+              <tr key={`${r.seq}-${i}`} className="text-inktext">
+                <td className={`${BODY_CELL_CLASS} text-muted`}>{r.seq}</td>
+                <td className={`${BODY_CELL_CLASS} font-medium`}>{r.name}</td>
+                <td className={BODY_CELL_CLASS}>{r.stockUnit || "-"}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(r.beginQty)}</td>
+                <td className={BODY_CELL_CLASS}>{r.weightUnit || "-"}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(r.inSlipQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(r.inActualQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(r.outSlipQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(r.outActualQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono text-muted`}>{formatPct(r.yieldRate)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono font-semibold`}>{formatNum(r.currentQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(r.inCumQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(r.outCumQty)}</td>
+                <td className={`${REMARK_CELL_CLASS} text-muted`}>{r.remark || "-"}</td>
               </tr>
             ))}
             {section.rows.length === 0 && (
@@ -90,21 +97,21 @@ function InventoryTable({ section }: { section: MaterialInventorySection }) {
               </tr>
             )}
             {section.totals && (
-              <tr className="bg-ink/5 font-semibold">
-                <td className="px-3 py-2" colSpan={3}>
+              <tr className="border-t border-mist bg-mist/40 text-center font-semibold text-inktext">
+                <td className={BODY_CELL_CLASS} colSpan={3}>
                   합계
                 </td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(section.totals.beginQty)}</td>
-                <td className="px-3 py-2" />
-                <td className="px-3 py-2 text-right font-mono">{formatNum(section.totals.inSlipQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(section.totals.inActualQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(section.totals.outSlipQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(section.totals.outActualQty)}</td>
-                <td className="px-3 py-2" />
-                <td className="px-3 py-2 text-right font-mono">{formatNum(section.totals.currentQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(section.totals.inCumQty)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatNum(section.totals.outCumQty)}</td>
-                <td className="px-3 py-2" />
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(section.totals.beginQty)}</td>
+                <td className={BODY_CELL_CLASS} />
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(section.totals.inSlipQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(section.totals.inActualQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(section.totals.outSlipQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(section.totals.outActualQty)}</td>
+                <td className={BODY_CELL_CLASS} />
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(section.totals.currentQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(section.totals.inCumQty)}</td>
+                <td className={`${BODY_CELL_CLASS} font-mono`}>{formatNum(section.totals.outCumQty)}</td>
+                <td className={BODY_CELL_CLASS} />
               </tr>
             )}
           </tbody>

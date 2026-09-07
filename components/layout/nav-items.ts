@@ -93,7 +93,7 @@ export const PRODUCTION_MATERIAL_INVENTORY_NAV_ITEMS: NavItem[] = [
     iconPath:
       "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
     evenOdd: false,
-    team: "생산팀",
+    team: "생산",
   },
 ];
 
