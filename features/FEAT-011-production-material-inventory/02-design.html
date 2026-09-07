@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>원재료,반제품 현황 — 디자인 목업 (FEAT-011)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: "#14283A",
+          ink2: "#0F1F2E",
+          brine: "#1E6B72",
+          crimson: "#8B2942",
+          crimsond: "#6E1F33",
+          sand: "#C9B896",
+          salt: "#FAF8F3",
+          mist: "#EFEAE1",
+          inktext: "#1F2A33",
+          muted: "#5B6B74",
+        },
+      },
+    },
+  };
+</script>
+</head>
+<body class="bg-salt text-inktext">
+
+<div class="flex min-h-screen">
+  <!-- 사이드바 -->
+  <aside class="hidden w-64 shrink-0 flex-col bg-ink text-salt lg:flex">
+    <div class="border-b border-white/10 px-6 py-6">
+      <span class="inline-flex items-center rounded-md bg-white px-4 py-2 shadow-sm shadow-black/20 w-fit">
+        <span class="text-sm font-bold text-ink tracking-wide">태평염전</span>
+      </span>
+    </div>
+    <nav class="flex-1 px-6 py-6 space-y-1">
+      <p class="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-salt/30">메뉴</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 8.5V18h5v-6h6v6h5V8.5L10 2Z"/></svg>
+        홈
+      </a>
+
+      <p class="px-1 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-salt/30">생산팀</p>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M5 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.828a2 2 0 0 0-.586-1.414l-3.828-3.828A2 2 0 0 0 11.172 2H5Zm1 8a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H6Zm0 4a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H6Z"/></svg>
+        생산계획서
+      </a>
+      <a class="flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-salt/70 hover:bg-white/5" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.414a1 1 0 0 0-.293-.707l-4.414-4.414A1 1 0 0 0 11.586 3H4Zm6 6a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H8a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1Z"/></svg>
+        생산일지
+      </a>
+      <a class="nav-active flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm font-medium bg-white/10 text-salt" href="#">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7"/></svg>
+        원재료,반제품 현황
+      </a>
+    </nav>
+    <div class="mx-3 mb-3 flex items-start gap-3 px-3 py-3">
+      <div class="h-8 w-8 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-xs font-medium shrink-0">김</div>
+      <div class="min-w-0 text-left">
+        <p class="text-sm font-medium text-salt">김생산</p>
+        <p class="text-xs text-salt/50">생산팀 · 팀원</p>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="flex items-center justify-between border-b border-mist bg-white px-5 py-4 lg:px-8">
+      <h1 class="text-lg font-semibold text-inktext">원재료,반제품 현황</h1>
+      <div class="flex items-center gap-2 text-sm">
+        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-mist text-xs font-medium text-inktext">김</div>
+        <span class="hidden font-medium text-inktext sm:inline">김생산</span>
+      </div>
+    </header>
+
+    <main class="max-w-7xl px-5 py-8 lg:px-8 space-y-8 w-full">
+
+      <!-- ===================== 기본 상태 (데이터 있음) ===================== -->
+      <section class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted">상태 1 · 기본 (업로드 이력 있음)</p>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+          <!-- 왼쪽: 업로드 + 이력 목록 -->
+          <div class="h-fit overflow-hidden rounded-lg border border-mist bg-white">
+            <div class="space-y-2 border-b border-mist px-4 py-3.5">
+              <label class="block text-xs font-medium text-muted">업로드</label>
+              <input type="file" accept=".xlsx"
+                class="w-full rounded-md border border-mist px-3 py-2 text-sm text-muted outline-none file:mr-3 file:rounded-md file:border-0 file:bg-mist file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-inktext" />
+              <p class="text-xs text-muted/70">엑셀(.xlsx)을 올리면 안의 원재료·부재료/반제품 표를 그대로 조회할 수 있습니다.</p>
+            </div>
+            <div class="px-4 py-3 text-sm font-semibold text-inktext">업로드 이력</div>
+            <ul class="divide-y divide-mist text-sm">
+              <li class="cursor-pointer border-l-2 border-crimson bg-crimson/5 px-4 py-3">
+                <p class="font-medium text-inktext">2026.09.01 (화)</p>
+                <p class="mt-0.5 truncate text-xs text-muted">2026년 원재료 및 반제품 입출고현황(9월).xlsx</p>
+                <p class="mt-0.5 text-xs text-muted/70">김생산 · 09.01 15:03 업로드</p>
+              </li>
+              <li class="cursor-pointer px-4 py-3 transition-colors hover:bg-mist/40">
+                <p class="font-medium text-inktext">2026.08.29 (토)</p>
+                <p class="mt-0.5 truncate text-xs text-muted">2026년 원재료 및 반제품 입출고현황(8월).xlsx</p>
+                <p class="mt-0.5 text-xs text-muted/70">이생산 · 08.29 09:12 업로드</p>
+              </li>
+              <li class="cursor-pointer px-4 py-3 transition-colors hover:bg-mist/40">
+                <p class="font-medium text-inktext">2026.08.15 (토)</p>
+                <p class="mt-0.5 truncate text-xs text-muted">2026년 원재료 및 반제품 입출고현황(8월).xlsx</p>
+                <p class="mt-0.5 text-xs text-muted/70">김생산 · 08.15 17:40 업로드</p>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 오른쪽: 상세 -->
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap gap-1 rounded-lg border border-mist bg-white p-1 text-xs">
+                <button type="button" class="rounded-md bg-ink px-3 py-1.5 font-medium text-salt">원재료·부재료 (35)</button>
+                <button type="button" class="rounded-md px-3 py-1.5 font-medium text-muted hover:bg-mist">반제품 (131)</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" class="rounded-md border border-mist px-3 py-1.5 text-xs font-medium text-inktext transition-colors hover:bg-mist">원본 파일 열기</button>
+                <button type="button" class="rounded-md border border-mist px-3 py-1.5 text-xs font-medium text-crimsond transition-colors hover:bg-crimson/5">삭제</button>
+              </div>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-mist bg-white">
+              <div class="overflow-x-auto">
+                <table class="w-full whitespace-nowrap text-xs">
+                  <thead>
+                    <tr class="border-b border-mist bg-mist/40 text-left text-muted">
+                      <th class="px-3 py-2 font-medium">SEQ</th>
+                      <th class="px-3 py-2 font-medium">제품명</th>
+                      <th class="px-3 py-2 font-medium">재고단위</th>
+                      <th class="px-3 py-2 text-right font-medium">기초재고</th>
+                      <th class="px-3 py-2 font-medium">단위</th>
+                      <th class="px-3 py-2 text-right font-medium">입고(전표)</th>
+                      <th class="px-3 py-2 text-right font-medium">입고(실입고)</th>
+                      <th class="px-3 py-2 text-right font-medium">출고(전표)</th>
+                      <th class="px-3 py-2 text-right font-medium">출고(실투입)</th>
+                      <th class="px-3 py-2 text-right font-medium">자연수율</th>
+                      <th class="px-3 py-2 text-right font-medium">현재고</th>
+                      <th class="px-3 py-2 text-right font-medium">입고누계</th>
+                      <th class="px-3 py-2 text-right font-medium">출고누계</th>
+                      <th class="px-3 py-2 font-medium">비고</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-mist">
+                    <tr>
+                      <td class="px-3 py-2 text-muted">001</td>
+                      <td class="px-3 py-2 font-medium text-inktext">천일염_2005</td>
+                      <td class="px-3 py-2">톤백</td>
+                      <td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2">Kg</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono text-muted">-</td>
+                      <td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-right font-mono">0</td>
+                      <td class="px-3 py-2 text-muted">-</td>
+                    </tr>
+                    <tr class="bg-mist/20">
+                      <td class="px-3 py-2 text-muted">002</td>
+                      <td class="px-3 py-2 font-medium text-inktext">천일염_2022</td>
+                      <td class="px-3 py-2">톤백</td>
+                      <td class="px-3 py-2 text-right font-mono">10,890</td>
+                      <td class="px-3 py-2">Kg</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono text-muted">0.0%</td>
+                      <td class="px-3 py-2 text-right font-mono">10,890</td>
+                      <td class="px-3 py-2 text-right font-mono">15,450</td>
+                      <td class="px-3 py-2 text-right font-mono">4,560</td>
+                      <td class="px-3 py-2 text-muted">-</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2 text-muted">018</td>
+                      <td class="px-3 py-2 font-medium text-inktext">허브믹스B</td>
+                      <td class="px-3 py-2">봉지</td>
+                      <td class="px-3 py-2 text-right font-mono">26.7</td>
+                      <td class="px-3 py-2">Kg</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono">-</td>
+                      <td class="px-3 py-2 text-right font-mono text-muted">-</td>
+                      <td class="px-3 py-2 text-right font-mono">26.7</td>
+                      <td class="px-3 py-2 text-right font-mono">460</td>
+                      <td class="px-3 py-2 text-right font-mono">468.7</td>
+                      <td class="px-3 py-2 text-muted">해표,이마트순한맛</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p class="text-xs text-muted/70">
+              ※ 기준일 2026.09.01(화) · 원본 엑셀의 값을 그대로 표시합니다. 자연수율이 0으로 나눠 계산 불가한 경우 &quot;-&quot;로 표시됩니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== 반제품 탭 (합계행 포함) ===================== -->
+      <section class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted">상태 2 · 반제품 탭 (합계 행 포함)</p>
+        <div class="overflow-hidden rounded-lg border border-mist bg-white max-w-4xl">
+          <div class="overflow-x-auto">
+            <table class="w-full whitespace-nowrap text-xs">
+              <thead>
+                <tr class="border-b border-mist bg-mist/40 text-left text-muted">
+                  <th class="px-3 py-2 font-medium">SEQ</th>
+                  <th class="px-3 py-2 font-medium">제품명</th>
+                  <th class="px-3 py-2 text-right font-medium">기초재고</th>
+                  <th class="px-3 py-2 text-right font-medium">현재고</th>
+                  <th class="px-3 py-2 text-right font-medium">입고누계</th>
+                  <th class="px-3 py-2 text-right font-medium">출고누계</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-mist">
+                <tr>
+                  <td class="px-3 py-2 text-muted">05</td>
+                  <td class="px-3 py-2 font-medium text-inktext">탈수천일염</td>
+                  <td class="px-3 py-2 text-right font-mono">51,982</td>
+                  <td class="px-3 py-2 text-right font-mono">51,982</td>
+                  <td class="px-3 py-2 text-right font-mono">1,479,843</td>
+                  <td class="px-3 py-2 text-right font-mono">1,520,554</td>
+                </tr>
+                <tr class="bg-ink/5 font-semibold">
+                  <td class="px-3 py-2" colspan="2">합계</td>
+                  <td class="px-3 py-2 text-right font-mono">215,540.3</td>
+                  <td class="px-3 py-2 text-right font-mono">215,540.3</td>
+                  <td class="px-3 py-2 text-right font-mono">5,370,846.6</td>
+                  <td class="px-3 py-2 text-right font-mono">5,384,459.9</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== 빈 상태 ===================== -->
+      <section class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted">상태 3 · 빈 상태 (업로드 이력 없음)</p>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr] max-w-4xl">
+          <div class="h-fit overflow-hidden rounded-lg border border-mist bg-white">
+            <div class="space-y-2 border-b border-mist px-4 py-3.5">
+              <label class="block text-xs font-medium text-muted">업로드</label>
+              <input type="file" accept=".xlsx" disabled
+                class="w-full rounded-md border border-mist px-3 py-2 text-sm text-muted outline-none opacity-50" />
+            </div>
+            <div class="px-4 py-3 text-sm font-semibold text-inktext">업로드 이력</div>
+            <p class="px-4 py-6 text-center text-xs text-muted">등록된 이력이 없습니다.</p>
+          </div>
+          <div class="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+            <p class="text-sm text-muted">왼쪽에서 원재료·반제품 현황 엑셀을 업로드해주세요.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== 로딩 / 오류 ===================== -->
+      <section class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted">상태 4 · 로딩 / 업로드 오류</p>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-4xl">
+          <div class="rounded-lg border border-dashed border-mist bg-white px-6 py-16 text-center">
+            <p class="text-sm text-muted">불러오는 중…</p>
+          </div>
+          <div class="space-y-2 rounded-lg border border-mist bg-white p-4">
+            <label class="block text-xs font-medium text-muted">업로드</label>
+            <input type="file" accept=".xlsx"
+              class="w-full rounded-md border border-crimson/40 px-3 py-2 text-sm text-muted outline-none file:mr-3 file:rounded-md file:border-0 file:bg-mist file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-inktext" />
+            <p class="text-xs text-crimsond">파일에서 &quot;원재료 및 부재료 재고 목록&quot; 표를 찾지 못했습니다. 양식을 확인해주세요.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+</body>
+</html>

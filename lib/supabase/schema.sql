@@ -869,3 +869,76 @@ CREATE POLICY "executive_pl_business_unit_admin_update" ON executive_pl_business
 
 CREATE INDEX IF NOT EXISTS executive_pl_business_unit_lookup_idx
   ON executive_pl_business_unit(tenant_id, corp_code, year_month);
+
+-- ============================================================
+-- FEAT-011-production-material-inventory: 원재료,반제품 현황(생산)
+-- ============================================================
+
+-- 생산팀이 수기 관리하는 "원재료 및 반제품 입출고현황" 엑셀을 업로드하면 그대로 조회할 수
+-- 있게 저장한다. snapshot_date는 파일명이 아니라 엑셀 제목행에 적힌 실제 기준일을 파싱해서
+-- 쓴다(파일명은 "9월"처럼 월 단위라 하루 단위 이력 관리에 부정확함). 수정 기능은 없어
+-- UPDATE 정책도 없다 — 값이 틀리면 원본 엑셀을 고쳐 재업로드한다(생산일지와 동일한 방식).
+CREATE TABLE IF NOT EXISTS production_material_inventories (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      UUID NOT NULL REFERENCES tenants(id),
+  uploaded_by    UUID NOT NULL REFERENCES profiles(id),
+  team           TEXT NOT NULL,
+  snapshot_date  DATE NOT NULL,
+  file_path      TEXT NOT NULL,
+  file_name      TEXT NOT NULL,
+  raw_materials  JSONB NOT NULL,
+  semi_finished  JSONB NOT NULL,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE production_material_inventories ENABLE ROW LEVEL SECURITY;
+
+-- 같은 테넌트의 생산팀(팀원+팀장) + 관리자는 조회 가능
+DROP POLICY IF EXISTS "production_material_inventories_team_select" ON production_material_inventories;
+CREATE POLICY "production_material_inventories_team_select" ON production_material_inventories
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '생산팀')
+    )
+  );
+
+-- 업로드는 생산팀 소속이면 팀원/팀장 구분 없이 누구나 + 관리자
+DROP POLICY IF EXISTS "production_material_inventories_team_insert" ON production_material_inventories;
+CREATE POLICY "production_material_inventories_team_insert" ON production_material_inventories
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND uploaded_by = auth.uid()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '생산팀')
+    )
+  );
+
+-- 삭제는 본인이 올린 것 또는 관리자만 (수정 기능은 없음 — UPDATE 정책 없음)
+DROP POLICY IF EXISTS "production_material_inventories_self_delete" ON production_material_inventories;
+CREATE POLICY "production_material_inventories_self_delete" ON production_material_inventories
+  FOR DELETE USING (
+    uploaded_by = auth.uid() OR public.is_tenant_admin(tenant_id)
+  );
+
+CREATE INDEX IF NOT EXISTS production_material_inventories_tenant_date_idx
+  ON production_material_inventories(tenant_id, snapshot_date DESC);
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('production-material-inventory', 'production-material-inventory', false)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "production_material_inventory_insert_own" ON storage.objects;
+CREATE POLICY "production_material_inventory_insert_own" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'production-material-inventory' AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+DROP POLICY IF EXISTS "production_material_inventory_select_authenticated" ON storage.objects;
+CREATE POLICY "production_material_inventory_select_authenticated" ON storage.objects
+  FOR SELECT USING ( bucket_id = 'production-material-inventory' AND auth.role() = 'authenticated' );
+DROP POLICY IF EXISTS "production_material_inventory_delete_own" ON storage.objects;
+CREATE POLICY "production_material_inventory_delete_own" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'production-material-inventory' AND (storage.foldername(name))[1] = auth.uid()::text
+  );
