@@ -1,6 +1,6 @@
 # TASK-001: Supabase 스키마 — 아티팩트
 
-## 상태: 코드 작성 완료 (Supabase 적용 대기)
+## 상태: 배포 완료
 
 ## 구현 내용
 `production_material_inventories` 테이블과 RLS 정책, `production-material-inventory` Storage 버킷을 `production_logs`와 동일한 패턴으로 추가했다. 생산팀은 팀원/팀장 구분 없이 업로드 가능하고, 삭제는 본인 것 또는 관리자만 가능하다(수정 기능 없음 — UPDATE 정책 없음).
@@ -15,7 +15,7 @@
 - [x] DELETE: 본인 것 또는 관리자 (UPDATE 정책 없음)
 - [x] storage 버킷 + 정책 3종
 - [x] `(tenant_id, snapshot_date DESC)` 인덱스
-- [ ] Supabase에 실제 적용 — **사용자가 SQL Editor에서 `production-material-inventory-migration.sql` 실행 필요**
+- [x] Supabase에 실제 적용 (사용자가 SQL Editor에서 실행, 이후 전체 테스트 케이스 통과 확인)
 
 ## 이슈 및 결정사항
 이 프로젝트에는 스키마를 자동으로 원격 적용하는 수단이 없어(과거 FEAT-004도 동일), Downloads 폴더에 단독 마이그레이션 파일을 생성해 사용자가 Supabase 콘솔에서 직접 실행하도록 안내한다.
