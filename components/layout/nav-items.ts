@@ -86,6 +86,17 @@ export const PRODUCTION_LOGS_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+export const PRODUCTION_MATERIAL_INVENTORY_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/production-material-inventory",
+    label: "원재료,반제품 현황",
+    iconPath:
+      "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Zm7 3.5L3 6.5m7 3.5 7-3.5M10 10v7",
+    evenOdd: false,
+    team: "생산팀",
+  },
+];
+
 export const SALTFIELD_NAV_ITEMS: NavItem[] = [
   {
     href: "/saltfield-production",
@@ -174,6 +185,15 @@ export function canViewProductionLogs(team: string | null | undefined, role: str
   return team === "생산팀";
 }
 
+// 원재료,반제품 현황: 생산팀 전체(팀원+팀장) — 생산일지와 동일한 권한
+export function canViewProductionMaterialInventory(
+  team: string | null | undefined,
+  role: string | null | undefined,
+): boolean {
+  if (role === "admin") return true;
+  return team === "생산팀";
+}
+
 // 생산량/부자재재고현황: 염전관리팀 전체(팀원+팀장)
 export function canViewSaltfield(team: string | null | undefined, role: string | null | undefined): boolean {
   if (role === "admin") return true;
@@ -196,6 +216,7 @@ export function getVisibleBusinessNavItems(
   if (canViewDisbursements(team, role)) items.push(...DISBURSEMENT_NAV_ITEMS);
   if (canViewProductionRequests(team, role)) items.push(...PRODUCTION_REQUESTS_NAV_ITEMS);
   if (canViewProductionLogs(team, role)) items.push(...PRODUCTION_LOGS_NAV_ITEMS);
+  if (canViewProductionMaterialInventory(team, role)) items.push(...PRODUCTION_MATERIAL_INVENTORY_NAV_ITEMS);
   if (canViewSaltfield(team, role)) items.push(...SALTFIELD_NAV_ITEMS);
   if (canViewExecutive(team, role)) items.push(...EXECUTIVE_NAV_ITEMS);
   return items;
