@@ -206,18 +206,40 @@ export function canViewExecutive(team: string | null | undefined, role: string |
   return team === "임원실";
 }
 
+type MenuCheck = (team: string | null | undefined, role: string | null | undefined) => boolean;
+
+// 업무 메뉴 전체를 한 곳에 모아둔다 — "왼쪽 메뉴에 무엇을 보여줄지"(getVisibleBusinessNavItems)와
+// "관리자가 개인별로 추가 허용할 수 있는 메뉴 목록"(GRANTABLE_MENU_ITEMS, 게시판 권한 관리
+// 화면)이 서로 다른 곳에 각자 하드코딩되면 새 메뉴 추가 시 한쪽만 고치는 실수가 나기 쉬워서다.
+export type BusinessMenuEntry = { item: NavItem; group: string; check: MenuCheck; grantable: boolean };
+
+export const BUSINESS_MENU_ITEMS: BusinessMenuEntry[] = [
+  { item: SALES_NAV_ITEMS[0], group: "영업", check: canViewSales, grantable: true },
+  { item: SALES_NAV_ITEMS[1], group: "영업", check: canViewSales, grantable: true },
+  { item: INVENTORY_NAV_ITEMS[0], group: "영업채산", check: canViewInventory, grantable: true },
+  // 출금조회는 관리자 전용 화면이라 개인별로 추가 허용하는 대상에서 제외한다.
+  { item: DISBURSEMENT_NAV_ITEMS[0], group: "관리자", check: canViewDisbursements, grantable: false },
+  { item: PRODUCTION_REQUESTS_NAV_ITEMS[0], group: "생산", check: canViewProductionRequests, grantable: true },
+  { item: PRODUCTION_LOGS_NAV_ITEMS[0], group: "생산", check: canViewProductionLogs, grantable: true },
+  {
+    item: PRODUCTION_MATERIAL_INVENTORY_NAV_ITEMS[0],
+    group: "생산",
+    check: canViewProductionMaterialInventory,
+    grantable: true,
+  },
+  { item: SALTFIELD_NAV_ITEMS[0], group: "염전관리", check: canViewSaltfield, grantable: true },
+  { item: SALTFIELD_NAV_ITEMS[1], group: "염전관리", check: canViewSaltfield, grantable: true },
+  { item: EXECUTIVE_NAV_ITEMS[0], group: "임원실", check: canViewExecutive, grantable: true },
+  { item: EXECUTIVE_NAV_ITEMS[1], group: "임원실", check: canViewExecutive, grantable: true },
+];
+
+// 관리자가 "게시판 권한" 화면에서 개인별로 추가 허용을 켜고 끌 수 있는 메뉴 목록.
+export const GRANTABLE_MENU_ITEMS: BusinessMenuEntry[] = BUSINESS_MENU_ITEMS.filter((e) => e.grantable);
+
 export function getVisibleBusinessNavItems(
   team: string | null | undefined,
   role: string | null | undefined,
+  grantedHrefs: Set<string> = new Set(),
 ): NavItem[] {
-  const items: NavItem[] = [];
-  if (canViewSales(team, role)) items.push(...SALES_NAV_ITEMS);
-  if (canViewInventory(team, role)) items.push(...INVENTORY_NAV_ITEMS);
-  if (canViewDisbursements(team, role)) items.push(...DISBURSEMENT_NAV_ITEMS);
-  if (canViewProductionRequests(team, role)) items.push(...PRODUCTION_REQUESTS_NAV_ITEMS);
-  if (canViewProductionLogs(team, role)) items.push(...PRODUCTION_LOGS_NAV_ITEMS);
-  if (canViewProductionMaterialInventory(team, role)) items.push(...PRODUCTION_MATERIAL_INVENTORY_NAV_ITEMS);
-  if (canViewSaltfield(team, role)) items.push(...SALTFIELD_NAV_ITEMS);
-  if (canViewExecutive(team, role)) items.push(...EXECUTIVE_NAV_ITEMS);
-  return items;
+  return BUSINESS_MENU_ITEMS.filter((e) => e.check(team, role) || grantedHrefs.has(e.item.href)).map((e) => e.item);
 }
