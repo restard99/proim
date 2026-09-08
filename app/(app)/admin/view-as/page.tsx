@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { listAllUsers } from "@/app/actions/admin-users";
-import { AdminViewAsPicker } from "@/components/admin/AdminViewAsPicker";
+import { getGrantableUsers } from "@/app/actions/menu-permissions";
+import { AdminViewAsTabs } from "@/components/admin/AdminViewAsTabs";
 
 export default async function AdminViewAsPage() {
   const supabase = await createClient();
@@ -15,17 +16,16 @@ export default async function AdminViewAsPage() {
   if (viewer?.role !== "admin") redirect("/");
 
   const usersResult = await listAllUsers();
-  const candidates = usersResult.ok
+  const viewAsCandidates = usersResult.ok
     ? usersResult.users.filter((u) => u.role !== "admin" && u.status === "approved")
     : [];
 
+  const grantableResult = await getGrantableUsers();
+  const grantableUsers = grantableResult.ok ? grantableResult.users : [];
+
   return (
-    <div className="max-w-4xl px-6 lg:px-10 py-8">
-      <h1 className="text-xl font-semibold text-inktext">시스템검토 게시판</h1>
-      <p className="mt-1.5 text-sm text-muted">
-        부서를 선택하고 담당자를 클릭하면, 그 계정으로 로그인한 것처럼 화면을 확인할 수 있습니다.
-      </p>
-      <AdminViewAsPicker users={candidates} />
+    <div className="max-w-6xl px-6 lg:px-10 py-8">
+      <AdminViewAsTabs viewAsCandidates={viewAsCandidates} grantableUsers={grantableUsers} />
     </div>
   );
 }
