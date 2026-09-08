@@ -981,3 +981,54 @@ CREATE POLICY "user_menu_grants_admin_delete" ON user_menu_grants
   FOR DELETE USING ( public.is_tenant_admin(tenant_id) );
 
 CREATE INDEX IF NOT EXISTS user_menu_grants_user_idx ON user_menu_grants(user_id);
+
+-- ============================================================
+-- FEAT-013-executive-targets-workbook: 매출/생산 목표 워크북 반영
+-- ============================================================
+
+-- 섬들채 업장별(+전체+박물관) 매출목표·실적 스냅샷. Y-ERP 실시간 집계로는 업장 구분이
+-- 안 되고(거래처명 체계가 업장과 안 맞음) 주간업무보고 워크북에만 정확한 수치가 있어,
+-- 업로드 시점(마감일자) 그대로 저장했다가 주간업무보고에서 그대로 읽는다. 매주 통째로
+-- 갱신되는 스냅샷이라 UPDATE 정책은 두지 않는다(같은 as_of_date는 지우고 다시 넣는 방식).
+CREATE TABLE IF NOT EXISTS executive_seomdeulchae_unit_report (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      UUID NOT NULL REFERENCES tenants(id),
+  as_of_date     DATE NOT NULL,
+  business_unit  TEXT NOT NULL,
+  week_plan      NUMERIC,
+  week_actual    NUMERIC,
+  month_plan     NUMERIC,
+  month_actual   NUMERIC,
+  uploaded_by    UUID REFERENCES profiles(id),
+  file_name      TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, as_of_date, business_unit)
+);
+ALTER TABLE executive_seomdeulchae_unit_report ENABLE ROW LEVEL SECURITY;
+
+-- 조회는 임원실 + 관리자 (executive_targets와 동일한 팀 조건)
+DROP POLICY IF EXISTS "executive_seomdeulchae_unit_report_select" ON executive_seomdeulchae_unit_report;
+CREATE POLICY "executive_seomdeulchae_unit_report_select" ON executive_seomdeulchae_unit_report
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+    )
+  );
+
+-- 입력/삭제는 관리자만
+DROP POLICY IF EXISTS "executive_seomdeulchae_unit_report_admin_insert" ON executive_seomdeulchae_unit_report;
+CREATE POLICY "executive_seomdeulchae_unit_report_admin_insert" ON executive_seomdeulchae_unit_report
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_seomdeulchae_unit_report_admin_delete" ON executive_seomdeulchae_unit_report;
+CREATE POLICY "executive_seomdeulchae_unit_report_admin_delete" ON executive_seomdeulchae_unit_report
+  FOR DELETE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+CREATE INDEX IF NOT EXISTS executive_seomdeulchae_unit_report_lookup_idx
+  ON executive_seomdeulchae_unit_report(tenant_id, as_of_date DESC);

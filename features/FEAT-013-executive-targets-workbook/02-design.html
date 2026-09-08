@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>섬들채 업장별 매출 — 디자인 목업 (FEAT-013)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: "#14283A", ink2: "#0F1F2E", brine: "#1E6B72",
+          crimson: "#8B2942", crimsond: "#6E1F33", sand: "#C9B896",
+          salt: "#FAF8F3", mist: "#EFEAE1", inktext: "#1F2A33", muted: "#5B6B74",
+        },
+      },
+    },
+  };
+</script>
+<style>
+  .grid-table th, .grid-table td { white-space: nowrap; }
+  .grid-table td.font-mono { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body class="bg-salt text-inktext">
+
+<div class="max-w-5xl px-6 lg:px-10 py-8 mx-auto space-y-10">
+
+  <!-- ===================== 상태 1: 주간업무보고 6페이지(섬들채) — 업장별 표로 교체 ===================== -->
+  <section class="space-y-3">
+    <p class="text-xs font-semibold uppercase tracking-wider text-muted">상태 1 · 주간업무보고 6페이지(섬들채) — 업장별 매출목표/실적</p>
+    <div class="rounded-lg border border-mist bg-white p-5">
+      <h2 class="text-base font-semibold text-inktext">6. 섬들채</h2>
+      <p class="mt-1 text-sm text-muted">■ 업장별 매출 실적 [단위: 천원, %]</p>
+
+      <div class="mt-4 overflow-x-auto">
+        <table class="w-full min-w-[720px] text-sm grid-table">
+          <thead>
+            <tr>
+              <th rowspan="2" class="border-b border-r border-mist bg-mist/40 px-3 py-2 text-center font-medium">구분</th>
+              <th colspan="3" class="border-b border-r border-mist bg-mist/40 px-3 py-2 text-center font-medium">주간</th>
+              <th colspan="3" class="border-b border-mist bg-mist/40 px-3 py-2 text-center font-medium">월간</th>
+            </tr>
+            <tr>
+              <th class="border-b border-r border-mist bg-mist/30 px-3 py-1.5 text-center font-medium">계획</th>
+              <th class="border-b border-r border-mist bg-mist/30 px-3 py-1.5 text-center font-medium">실적</th>
+              <th class="border-b border-r border-mist bg-mist/30 px-3 py-1.5 text-center font-medium">달성률</th>
+              <th class="border-b border-r border-mist bg-mist/30 px-3 py-1.5 text-center font-medium">계획</th>
+              <th class="border-b border-r border-mist bg-mist/30 px-3 py-1.5 text-center font-medium">실적</th>
+              <th class="border-b border-mist bg-mist/30 px-3 py-1.5 text-center font-medium">달성률</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-mist">
+            <tr>
+              <td class="border-r border-mist px-3 py-2 font-medium font-sans text-left">소금가게</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">14,460</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">16,059</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">111.1%</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">75,000</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">6,873</td>
+              <td class="px-3 py-2 text-right font-mono">9.2%</td>
+            </tr>
+            <tr>
+              <td class="border-r border-mist px-3 py-2 font-medium font-sans text-left">택배/쇼핑몰</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">10,573</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">18,049</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">170.7%</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">60,000</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">11,903</td>
+              <td class="px-3 py-2 text-right font-mono">19.8%</td>
+            </tr>
+            <tr>
+              <td class="border-r border-mist px-3 py-2 font-medium font-sans text-left">소금아이스크림</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">1,413</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">1,282</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">90.7%</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">6,500</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">877</td>
+              <td class="px-3 py-2 text-right font-mono">13.5%</td>
+            </tr>
+            <tr>
+              <td class="border-r border-mist px-3 py-2 font-medium font-sans text-left">해양힐링센터</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">3,295</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">3,071</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">93.2%</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">16,000</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">2,812</td>
+              <td class="px-3 py-2 text-right font-mono">17.6%</td>
+            </tr>
+            <tr>
+              <td class="border-r border-mist px-3 py-2 font-medium font-sans text-left">카라반</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">375</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">518</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">138.2%</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">2,000</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">518</td>
+              <td class="px-3 py-2 text-right font-mono">25.9%</td>
+            </tr>
+            <tr>
+              <td class="border-r border-mist px-3 py-2 font-medium font-sans text-left">소금항카페</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">5,463</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">5,517</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">101.0%</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">28,000</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">4,496</td>
+              <td class="px-3 py-2 text-right font-mono">16.1%</td>
+            </tr>
+            <tr class="total-row font-semibold bg-mist/40">
+              <td class="border-r border-mist px-3 py-2 font-sans text-center">합계</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">35,578</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">44,496</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">125.1%</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">187,500</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">27,479</td>
+              <td class="px-3 py-2 text-right font-mono">14.7%</td>
+            </tr>
+            <tr>
+              <td class="border-r border-mist px-3 py-2 font-medium font-sans text-left">박물관</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">5,757</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">1,391</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">24.2%</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">30,000</td>
+              <td class="border-r border-mist px-3 py-2 text-right font-mono">1,364</td>
+              <td class="px-3 py-2 text-right font-mono">4.5%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-2 text-xs text-muted/70">※ 전년동월 비교는 이번 워크북에 해당 데이터가 없어 표시하지 않습니다.</p>
+    </div>
+  </section>
+
+  <!-- ===================== 상태 2: 관리자 업로드 화면 ===================== -->
+  <section class="space-y-3">
+    <p class="text-xs font-semibold uppercase tracking-wider text-muted">상태 2 · 매출 목표 관리(관리자) — 워크북 업로드로 교체</p>
+    <div class="rounded-lg border border-mist bg-white">
+      <div class="border-b border-mist px-5 py-4">
+        <h2 class="text-sm font-semibold text-inktext">매출/생산 목표</h2>
+        <p class="mt-1 text-xs text-muted">
+          "주간_월간_업무보고" 워크북을 그대로 업로드하면 태평소금/태평염전/박물관 매출목표, 섬들채 업장별 매출목표·실적,
+          생산목표(월간)가 자동으로 반영됩니다. 더 이상 별도 템플릿을 채우지 않아도 됩니다.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 px-5 py-4">
+        <label class="cursor-pointer rounded-md bg-ink hover:bg-ink2 text-salt text-sm font-medium px-4 py-2 transition-colors">
+          엑셀 업로드
+        </label>
+        <span class="text-sm text-muted">마감일자 2026-09-06 기준 반영됨 · 128건</span>
+      </div>
+      <div class="border-t border-mist">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+              <th class="px-5 py-2 font-medium">업로드 일시</th>
+              <th class="px-5 py-2 font-medium">파일명</th>
+              <th class="px-5 py-2 font-medium">업로드자</th>
+              <th class="px-5 py-2 font-medium">마감일자</th>
+              <th class="px-5 py-2 font-medium">건수</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-mist">
+            <tr>
+              <td class="px-5 py-3 font-mono text-xs text-muted">2026-09-08 16:30</td>
+              <td class="px-5 py-3">주간_월간_업무보고_2026.09.07.xlsx</td>
+              <td class="px-5 py-3">관리자</td>
+              <td class="px-5 py-3 font-mono text-xs">2026-09-06</td>
+              <td class="px-5 py-3">128건</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 상태 3: 업로드 오류 ===================== -->
+  <section class="space-y-3">
+    <p class="text-xs font-semibold uppercase tracking-wider text-muted">상태 3 · 업로드 오류</p>
+    <div class="max-w-2xl rounded-lg border border-crimsond/30 bg-crimson/5 p-4 text-sm text-crimsond">
+      <p class="font-medium">업로드 실패</p>
+      <p class="mt-1">"팀보고" 시트에서 마감일자를 찾지 못했습니다. 원본 워크북 형식을 확인해주세요.</p>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
