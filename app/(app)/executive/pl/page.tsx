@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canViewExecutive } from "@/components/layout/nav-items";
+import { getGrantedHrefs } from "@/lib/auth/menu-access";
 import { getProfitLoss } from "@/app/actions/executive-pl";
 import { EXECUTIVE_PL_CORPS } from "@/lib/yerp/executive-corps";
 import { ProfitLossView } from "@/components/executive/ProfitLossView";
@@ -21,7 +22,9 @@ export default async function ExecutivePlPage() {
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase.from("profiles").select("team, role").eq("id", user.id).single();
-  if (!profile || !canViewExecutive(profile.team, profile.role)) redirect("/");
+  if (!profile) redirect("/");
+  const grantedHrefs = await getGrantedHrefs(supabase, user.id);
+  if (!canViewExecutive(profile.team, profile.role) && !grantedHrefs.has("/executive/pl")) redirect("/");
 
   const corpCode = EXECUTIVE_PL_CORPS[0].corpCode;
   const yearMonth = defaultYearMonth();

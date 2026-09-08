@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canViewExecutive } from "@/components/layout/nav-items";
+import { getGrantedHrefs } from "@/lib/auth/menu-access";
 import { getWeeklyReport, getComments } from "@/app/actions/executive-report";
 import { WeeklyReportView } from "@/components/executive/WeeklyReportView";
 
@@ -22,7 +23,9 @@ export default async function ExecutiveReportPage() {
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase.from("profiles").select("team, role").eq("id", user.id).single();
-  if (!profile || !canViewExecutive(profile.team, profile.role)) redirect("/");
+  if (!profile) redirect("/");
+  const grantedHrefs = await getGrantedHrefs(supabase, user.id);
+  if (!canViewExecutive(profile.team, profile.role) && !grantedHrefs.has("/executive/report")) redirect("/");
 
   const weekStartDate = currentWeekMonday();
   const [report, comments] = await Promise.all([getWeeklyReport(weekStartDate), getComments(weekStartDate)]);

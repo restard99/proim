@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/AppShell";
 import { ADMIN_NAV_ITEMS, getVisibleBusinessNavItems } from "@/components/layout/nav-items";
+import { getGrantedHrefs } from "@/lib/auth/menu-access";
 import { VIEW_AS_COOKIE } from "@/lib/view-as";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -22,7 +23,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .single();
   if (!profile) redirect("/login");
 
-  const businessNavItems = getVisibleBusinessNavItems(profile.team, profile.role);
+  const grantedHrefs = await getGrantedHrefs(supabase, user.id);
+  const businessNavItems = getVisibleBusinessNavItems(profile.team, profile.role, grantedHrefs);
   const adminNavItems = profile.role === "admin" ? ADMIN_NAV_ITEMS : [];
 
   return (

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canViewSaltfield } from "@/components/layout/nav-items";
+import { getGrantedHrefs } from "@/lib/auth/menu-access";
 import { getProductionRecordDetail } from "@/app/actions/saltfield-production";
 import { ProductionRecordDetail } from "@/components/saltfield/ProductionRecordDetail";
 
@@ -15,7 +16,8 @@ export default async function SaltfieldProductionDetailPage({ params }: { params
 
   const { data: profile } = await supabase.from("profiles").select("team, role").eq("id", user.id).single();
   if (!profile) redirect("/login");
-  if (!canViewSaltfield(profile.team, profile.role)) redirect("/");
+  const grantedHrefs = await getGrantedHrefs(supabase, user.id);
+  if (!canViewSaltfield(profile.team, profile.role) && !grantedHrefs.has("/saltfield-production")) redirect("/");
 
   const detail = await getProductionRecordDetail(date);
   if (!detail) notFound();

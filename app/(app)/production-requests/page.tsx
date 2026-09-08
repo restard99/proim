@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canViewProductionRequests } from "@/components/layout/nav-items";
+import { getGrantedHrefs } from "@/lib/auth/menu-access";
 import { ProductionRequestView } from "@/components/inventory/ProductionRequestView";
 
 export default async function ProductionRequestsPage() {
@@ -13,7 +14,8 @@ export default async function ProductionRequestsPage() {
   const { data: profile } = await supabase.from("profiles").select("team, role").eq("id", user.id).single();
   if (!profile) redirect("/login");
 
-  if (!canViewProductionRequests(profile.team, profile.role)) redirect("/");
+  const grantedHrefs = await getGrantedHrefs(supabase, user.id);
+  if (!canViewProductionRequests(profile.team, profile.role) && !grantedHrefs.has("/production-requests")) redirect("/");
 
   const canManage = profile.role === "admin" || (profile.team === "영업채산팀" && profile.role === "leader");
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canViewSaltfield } from "@/components/layout/nav-items";
+import { getGrantedHrefs } from "@/lib/auth/menu-access";
 import { getMaterialInventory, getMaterialMonths } from "@/app/actions/saltfield-materials";
 import { MaterialInventoryTable } from "@/components/saltfield/MaterialInventoryTable";
 
@@ -13,7 +14,8 @@ export default async function SaltfieldInventoryPage() {
 
   const { data: profile } = await supabase.from("profiles").select("team, role").eq("id", user.id).single();
   if (!profile) redirect("/login");
-  if (!canViewSaltfield(profile.team, profile.role)) redirect("/");
+  const grantedHrefs = await getGrantedHrefs(supabase, user.id);
+  if (!canViewSaltfield(profile.team, profile.role) && !grantedHrefs.has("/saltfield-inventory")) redirect("/");
 
   const [rows, months] = await Promise.all([getMaterialInventory(), getMaterialMonths()]);
 
