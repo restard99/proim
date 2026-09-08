@@ -1,6 +1,6 @@
 # TASK-002: 메뉴 데이터/판정 로직 통합 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `BUSINESS_MENU_ITEMS`(메뉴+그룹+판정함수+부여가능여부)를 만들어 `getVisibleBusinessNavItems`가 이 목록 하나로 동작하도록 다시 짰고, 관리 화면용 `GRANTABLE_MENU_ITEMS`는 그 목록을 필터링해서 얻는다. 개인별 부여 목록 조회 헬퍼도 추가했다.

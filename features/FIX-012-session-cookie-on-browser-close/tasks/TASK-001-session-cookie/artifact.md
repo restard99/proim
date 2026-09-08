@@ -1,6 +1,6 @@
 # TASK-001: 인증 쿠키를 세션 쿠키로 변경 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 수정 내용
 `@supabase/ssr`(v0.12.4)는 세션 쿠키를 쓸 때 만료기간을 내부적으로 400일로 강제한다 — `cookieOptions.maxAge`로 넘겨도 무시되는 라이브러리 자체 동작(실제 소스 확인: `setCookieOptions`가 항상 `maxAge: DEFAULT_COOKIE_OPTIONS.maxAge`로 덮어씀). 그래서 앱 쪽 옵션으로는 만료기간을 줄일 수 없어, 실제로 쿠키를 쓰는 마지막 단계(우리가 구현하는 `cookies.setAll`)에서 직접 만료값을 걷어내는 방식으로 해결했다.
