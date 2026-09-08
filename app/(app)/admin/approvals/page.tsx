@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ApprovalTable, type PendingProfile } from "@/components/admin/ApprovalTable";
-import { UserAccountTable } from "@/components/admin/UserAccountTable";
+import { AdminApprovalsTabs } from "@/components/admin/AdminApprovalsTabs";
+import { type PendingProfile } from "@/components/admin/ApprovalTable";
 import { listAllUsers } from "@/app/actions/admin-users";
+import { getGrantableUsers } from "@/app/actions/menu-permissions";
 
 export default async function AdminApprovalsPage() {
   const supabase = await createClient();
@@ -26,28 +27,18 @@ export default async function AdminApprovalsPage() {
   const usersResult = await listAllUsers();
   const allUsers = usersResult.ok ? usersResult.users : [];
 
+  const grantableResult = await getGrantableUsers();
+  const grantableUsers = grantableResult.ok ? grantableResult.users : [];
+
   return (
-    <div className="max-w-4xl px-6 lg:px-10 py-8">
+    <div className="max-w-6xl px-6 lg:px-10 py-8">
       <div className="flex items-baseline gap-3">
         <h1 className="text-xl font-semibold text-inktext">가입 승인 관리</h1>
-        <span
-          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            pendingList.length > 0 ? "text-crimsond bg-crimson/10" : "text-brine bg-brine/10"
-          }`}
-        >
-          대기중 {pendingList.length}건
-        </span>
       </div>
-      <p className="mt-1.5 text-sm text-muted">새로 가입한 계정을 확인하고 승인하거나 반려하세요.</p>
+      <p className="mt-1.5 text-sm text-muted">가입 승인, 계정 관리, 개인별 메뉴 권한을 한 곳에서 처리합니다.</p>
 
-      <ApprovalTable pending={pendingList} />
-
-      <div className="mt-12">
-        <h2 className="text-xl font-semibold text-inktext">전체 사용자</h2>
-        <p className="mt-1.5 text-sm text-muted">
-          비밀번호를 잊은 사용자를 위해 임시 비밀번호를 발급할 수 있습니다.
-        </p>
-        <UserAccountTable users={allUsers} />
+      <div className="mt-6">
+        <AdminApprovalsTabs pending={pendingList} allUsers={allUsers} grantableUsers={grantableUsers} />
       </div>
     </div>
   );
