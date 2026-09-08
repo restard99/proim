@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getTargetUploadHistory } from "@/app/actions/executive-targets";
+import { getWorkbookUploadHistory } from "@/app/actions/executive-targets";
 import { getPlConfirmedUploadHistory } from "@/app/actions/executive-pl-confirmed";
 import { getPlBusinessUnitUploadHistory } from "@/app/actions/executive-pl-business-unit";
 import { ExecutiveTargetUpload } from "@/components/admin/ExecutiveTargetUpload";
@@ -16,8 +16,8 @@ export default async function ExecutiveTargetsAdminPage() {
   const { data: viewer } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (viewer?.role !== "admin") redirect("/");
 
-  const [targetHistory, plConfirmedHistory, plBusinessUnitHistory] = await Promise.all([
-    getTargetUploadHistory(),
+  const [workbookHistory, plConfirmedHistory, plBusinessUnitHistory] = await Promise.all([
+    getWorkbookUploadHistory(),
     getPlConfirmedUploadHistory(),
     getPlBusinessUnitUploadHistory(),
   ]);
@@ -30,7 +30,7 @@ export default async function ExecutiveTargetsAdminPage() {
       </p>
       <div className="mt-6">
         <ExecutiveTargetUpload
-          targetHistory={targetHistory}
+          workbookHistory={workbookHistory}
           plConfirmedHistory={plConfirmedHistory}
           plBusinessUnitHistory={plBusinessUnitHistory}
         />

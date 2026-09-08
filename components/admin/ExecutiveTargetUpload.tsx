@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { uploadTargets, type TargetUploadHistoryRow } from "@/app/actions/executive-targets";
+import { uploadExecutiveTargetsFromWorkbook, type WorkbookUploadHistoryRow } from "@/app/actions/executive-targets";
 import { uploadPlConfirmed, type PlConfirmedUploadHistoryRow } from "@/app/actions/executive-pl-confirmed";
 import { uploadPlBusinessUnit, type PlBusinessUnitUploadHistoryRow } from "@/app/actions/executive-pl-business-unit";
 import { EXECUTIVE_PL_CORPS } from "@/lib/yerp/executive-corps";
@@ -22,7 +22,7 @@ function UploadSection({
   title: string;
   description: string;
   templateHref: string;
-  history: (TargetUploadHistoryRow | PlConfirmedUploadHistoryRow)[];
+  history: PlConfirmedUploadHistoryRow[];
   upload: (formData: FormData) => Promise<{ ok: true; recordCount: number } | { ok: false; message: string; errors?: string[] }>;
 }) {
   const router = useRouter();
@@ -115,6 +115,113 @@ function UploadSection({
                   <td className="px-5 py-3 font-mono text-xs text-muted">{formatDateTime(h.created_at)}</td>
                   <td className="px-5 py-3">{h.file_name ?? "-"}</td>
                   <td className="px-5 py-3">{h.uploaded_by_name ?? "-"}</td>
+                  <td className="px-5 py-3">{h.row_count}건</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// "주간_월간_업무보고" 워크북을 그대로 업로드하면 태평소금/태평염전/박물관 매출목표,
+// 태평소금·태평염전 생산목표(월간), 섬들채 업장별 매출목표·실적이 한 번에 반영된다.
+function WorkbookUploadSection({ history }: { history: WorkbookUploadHistoryRow[] }) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMessage(null);
+    setErrors([]);
+
+    const formData = new FormData();
+    formData.set("file", file);
+
+    startTransition(async () => {
+      const result = await uploadExecutiveTargetsFromWorkbook(formData);
+      if (!result.ok) {
+        setMessage(result.message);
+        setErrors(result.errors ?? []);
+      } else {
+        setMessage(`마감일자 ${result.asOfDate} 기준 ${result.recordCount}건 반영 완료`);
+        router.refresh();
+      }
+      if (inputRef.current) inputRef.current.value = "";
+    });
+  };
+
+  return (
+    <div className="rounded-lg border border-mist bg-white">
+      <div className="border-b border-mist px-5 py-4">
+        <h2 className="text-sm font-semibold text-inktext">매출/생산 목표</h2>
+        <p className="mt-1 text-xs text-muted">
+          &quot;주간_월간_업무보고&quot; 워크북을 그대로 업로드하면 태평소금/태평염전/박물관 매출목표(주간+월간),
+          섬들채 업장별 매출목표·실적(주간+월간), 태평소금·태평염전 생산목표(월간)가 자동으로 반영됩니다.
+          더 이상 별도 템플릿을 채우지 않아도 됩니다.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 px-5 py-4">
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx"
+          className="hidden"
+          id="upload-workbook-targets"
+          onChange={handleChange}
+          disabled={isPending}
+        />
+        <label
+          htmlFor="upload-workbook-targets"
+          className={`cursor-pointer rounded-md bg-ink hover:bg-ink2 text-salt text-sm font-medium px-4 py-2 transition-colors ${isPending ? "opacity-70 pointer-events-none" : ""}`}
+        >
+          {isPending ? "업로드하는 중…" : "엑셀 업로드"}
+        </label>
+        {message && <span className="text-sm text-muted">{message}</span>}
+      </div>
+
+      {errors.length > 0 && (
+        <div className="mx-5 mb-4 rounded-lg border border-crimsond/30 bg-crimson/5 p-4 text-sm text-crimsond">
+          <p className="font-medium">오류 {errors.length}건</p>
+          <ul className="mt-2 list-disc pl-5 space-y-1">
+            {errors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="border-t border-mist">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+              <th className="px-5 py-2 font-medium">업로드 일시</th>
+              <th className="px-5 py-2 font-medium">파일명</th>
+              <th className="px-5 py-2 font-medium">업로드자</th>
+              <th className="px-5 py-2 font-medium">마감일자</th>
+              <th className="px-5 py-2 font-medium">건수</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-mist">
+            {history.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-6 text-center text-sm text-muted">
+                  업로드 이력이 없습니다.
+                </td>
+              </tr>
+            ) : (
+              history.map((h, i) => (
+                <tr key={i}>
+                  <td className="px-5 py-3 font-mono text-xs text-muted">{formatDateTime(h.created_at)}</td>
+                  <td className="px-5 py-3">{h.file_name ?? "-"}</td>
+                  <td className="px-5 py-3">{h.uploaded_by_name ?? "-"}</td>
+                  <td className="px-5 py-3 font-mono text-xs">{h.as_of_date}</td>
                   <td className="px-5 py-3">{h.row_count}건</td>
                 </tr>
               ))
@@ -263,23 +370,17 @@ function BusinessUnitUploadSection({ history }: { history: PlBusinessUnitUploadH
 }
 
 export function ExecutiveTargetUpload({
-  targetHistory,
+  workbookHistory,
   plConfirmedHistory,
   plBusinessUnitHistory,
 }: {
-  targetHistory: TargetUploadHistoryRow[];
+  workbookHistory: WorkbookUploadHistoryRow[];
   plConfirmedHistory: PlConfirmedUploadHistoryRow[];
   plBusinessUnitHistory: PlBusinessUnitUploadHistoryRow[];
 }) {
   return (
     <div className="space-y-6">
-      <UploadSection
-        title="매출/생산 목표"
-        description="주간업무보고의 계획(목표) 수치. 법인별 매출 목표(주간/월간) + 태평소금 생산 목표(천일염/가공염, 주간/월간). 태평염전 생산 목표는 염전관리팀이 생산량 화면에서 별도로 업로드합니다."
-        templateHref="/templates/executive-targets-template.xlsx"
-        history={targetHistory}
-        upload={uploadTargets}
-      />
+      <WorkbookUploadSection history={workbookHistory} />
       <UploadSection
         title="회계팀 확정 손익"
         description="법인별(태평소금/태평염전/섬들채) 월별 매출/매출원가/판관비/영업외수익/영업외비용. 손익자료 화면에서 Y-ERP 자동집계(전산)와 나란히 비교됩니다."
