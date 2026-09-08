@@ -942,3 +942,42 @@ CREATE POLICY "production_material_inventory_delete_own" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'production-material-inventory' AND (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ============================================================
+-- FEAT-012-per-user-menu-permissions: 개인별 게시판(메뉴) 권한 부여
+-- ============================================================
+
+-- 팀 규칙으로는 원래 안 보이는 메뉴를 관리자가 특정 사람에게만 "추가로" 열어줄 때 쓴다.
+-- 부여=행 추가, 회수=행 삭제 방식이라(불리언 컬럼 대신) 새 메뉴가 생겨도 마이그레이션이
+-- 필요 없고, 이 테이블에 없으면 그냥 기존 팀 규칙대로 동작한다 — 팀 규칙보다 우선해서
+-- 메뉴를 숨기는 용도는 아니라 UPDATE 정책도 없다.
+CREATE TABLE IF NOT EXISTS user_menu_grants (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id),
+  user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  menu_href   TEXT NOT NULL,
+  granted_by  UUID NOT NULL REFERENCES profiles(id),
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, user_id, menu_href)
+);
+ALTER TABLE user_menu_grants ENABLE ROW LEVEL SECURITY;
+
+-- 본인 것 조회(사이드바 렌더링/페이지 가드에서 자기 자신에게 필요) + 관리자는 전체 조회
+DROP POLICY IF EXISTS "user_menu_grants_self_or_admin_select" ON user_menu_grants;
+CREATE POLICY "user_menu_grants_self_or_admin_select" ON user_menu_grants
+  FOR SELECT USING (
+    user_id = auth.uid() OR public.is_tenant_admin(tenant_id)
+  );
+
+-- 부여/회수는 관리자만
+DROP POLICY IF EXISTS "user_menu_grants_admin_insert" ON user_menu_grants;
+CREATE POLICY "user_menu_grants_admin_insert" ON user_menu_grants
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id) AND granted_by = auth.uid()
+  );
+
+DROP POLICY IF EXISTS "user_menu_grants_admin_delete" ON user_menu_grants;
+CREATE POLICY "user_menu_grants_admin_delete" ON user_menu_grants
+  FOR DELETE USING ( public.is_tenant_admin(tenant_id) );
+
+CREATE INDEX IF NOT EXISTS user_menu_grants_user_idx ON user_menu_grants(user_id);
