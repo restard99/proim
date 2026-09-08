@@ -360,26 +360,45 @@ function Page5({ report }: { report: WeeklyReportData }) {
 }
 
 function Page6({ report }: { report: WeeklyReportData }) {
-  const totalActual = report.page6.channels.reduce((s, c) => s + c.weekActual, 0);
+  if (!report.page6) {
+    return (
+      <Table title="■ 업장별 매출 실적 [단위: 원]">
+        <tbody>
+          <tr>
+            <td colSpan={7} className="py-10 text-center text-sm text-muted">
+              아직 반영된 목표/실적이 없습니다. 관리자가 &quot;매출 목표 관리&quot;에서 주간업무보고 워크북을 업로드해주세요.
+            </td>
+          </tr>
+        </tbody>
+      </Table>
+    );
+  }
+
   return (
-    <Table title="■ 채널별 매출 실적 [단위: 원]">
+    <Table title="■ 업장별 매출 실적 [단위: 원]">
       <thead>
         <tr>
           <th className="text-left">구분</th>
+          <th>주간 계획</th>
           <th>주간 실적</th>
+          <th>달성률</th>
+          <th>월간 계획</th>
+          <th>월간 실적</th>
+          <th>달성률</th>
         </tr>
       </thead>
       <tbody className="text-center">
-        {report.page6.channels.map((c) => (
-          <tr key={c.channel}>
-            <td className="text-left font-sans">{c.channel}</td>
-            <td>{won(c.weekActual)}</td>
+        {report.page6.units.map((u) => (
+          <tr key={u.businessUnit} className={u.businessUnit === "전체" ? "total-row" : undefined}>
+            <td className="text-left font-sans">{u.businessUnit === "전체" ? "합계" : u.businessUnit}</td>
+            <td>{won(u.weekPlan)}</td>
+            <td>{won(u.weekActual)}</td>
+            <td>{u.weekActual === null ? "-" : rate(u.weekActual, u.weekPlan)}</td>
+            <td>{won(u.monthPlan)}</td>
+            <td>{won(u.monthActual)}</td>
+            <td>{u.monthActual === null ? "-" : rate(u.monthActual, u.monthPlan)}</td>
           </tr>
         ))}
-        <tr className="total-row">
-          <td className="text-left font-sans">합계 (계획: {won(report.page6.weekPlan)})</td>
-          <td>{won(totalActual)}</td>
-        </tr>
       </tbody>
     </Table>
   );
