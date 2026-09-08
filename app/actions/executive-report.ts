@@ -2,12 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { EXECUTIVE_CORPS, type ExecutiveCorpCode } from "@/lib/yerp/executive-corps";
-import {
-  getSalesTotalByCorp,
-  getSalesByCustomer,
-  getSeomdeulchaeSalesByChannel,
-  type ExecutiveCustomerSales,
-} from "@/lib/yerp/executive-sales";
+import { getSalesTotalByCorp, getSalesByCustomer, type ExecutiveCustomerSales } from "@/lib/yerp/executive-sales";
 import { getTaepyeongSogeumProduction } from "@/lib/yerp/executive-production";
 
 function toYmd(iso: string) {
@@ -89,6 +84,47 @@ async function loadTargets(
   return { salesWeek, salesMonth, productionWeek };
 }
 
+export type SeomdeulchaeUnitReportRow = {
+  businessUnit: string;
+  weekPlan: number | null;
+  weekActual: number | null;
+  monthPlan: number | null;
+  monthActual: number | null;
+};
+
+// 섬들채 업장별 매출목표·실적(6페이지)은 Y-ERP로 실시간 계산이 안 되고(거래처명 체계가 업장과
+// 안 맞음) 주간업무보고 워크북에서 업로드된 스냅샷을 그대로 쓴다. 조회하는 주의 마지막 날
+// 이전(=이하)에 올라온 가장 최근 마감일자 스냅샷을 그 주의 값으로 본다.
+async function loadSeomdeulchaeUnitReport(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  weekEndDate: string,
+): Promise<SeomdeulchaeUnitReportRow[] | null> {
+  const { data: latest } = await supabase
+    .from("executive_seomdeulchae_unit_report")
+    .select("as_of_date")
+    .eq("tenant_id", tenantId)
+    .lte("as_of_date", weekEndDate)
+    .order("as_of_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!latest) return null;
+
+  const { data } = await supabase
+    .from("executive_seomdeulchae_unit_report")
+    .select("business_unit, week_plan, week_actual, month_plan, month_actual")
+    .eq("tenant_id", tenantId)
+    .eq("as_of_date", latest.as_of_date);
+
+  return (data ?? []).map((r) => ({
+    businessUnit: r.business_unit as string,
+    weekPlan: r.week_plan === null ? null : Number(r.week_plan),
+    weekActual: r.week_actual === null ? null : Number(r.week_actual),
+    monthPlan: r.month_plan === null ? null : Number(r.month_plan),
+    monthActual: r.month_actual === null ? null : Number(r.month_actual),
+  }));
+}
+
 export type WeeklyReportPage1Corp = {
   corpCode: ExecutiveCorpCode;
   corpName: string;
@@ -119,7 +155,7 @@ export type WeeklyReportData = {
     lastYearMonthActual: number;
   }[];
   page5: { customers: ExecutiveCustomerSales[]; weekActual: number; monthActual: number };
-  page6: { channels: { channel: string; weekActual: number }[]; weekPlan: number | null; monthActual: number };
+  page6: { units: SeomdeulchaeUnitReportRow[] } | null;
 };
 
 export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyReportData | null> {
@@ -140,23 +176,22 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
   const targets = await loadTargets(supabase, self.tenantId, weekStartDate, month.label);
 
   const corpCodes = EXECUTIVE_CORPS.map((c) => c.corpCode);
-  const [weekTotals, monthTotals, lastYearTotals, page2Customers, page5Customers, page6, page4Prod, page4ProdMonth, page4ProdLastYear] =
+  const [weekTotals, monthTotals, lastYearTotals, page2Customers, page5Customers, seomdeulchaeUnits, page4Prod, page4ProdMonth, page4ProdLastYear] =
     await Promise.all([
       getSalesTotalByCorp({ corpCodes, startDate: weekStartYmd, endDate: weekEndYmd }),
       getSalesTotalByCorp({ corpCodes, startDate: monthToDateStart, endDate: monthToDateEnd }),
       getSalesTotalByCorp({ corpCodes, startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
       getSalesByCustomer({ corpCode: "0400", startDate: weekStartYmd, endDate: weekEndYmd }),
       getSalesByCustomer({ corpCode: "0460", startDate: weekStartYmd, endDate: weekEndYmd }),
-      getSeomdeulchaeSalesByChannel({ startDate: weekStartYmd, endDate: weekEndYmd }),
+      loadSeomdeulchaeUnitReport(supabase, self.tenantId, weekEndDate),
       getTaepyeongSogeumProduction({ startDate: weekStartYmd, endDate: weekEndYmd }),
       getTaepyeongSogeumProduction({ startDate: monthToDateStart, endDate: monthToDateEnd }),
       getTaepyeongSogeumProduction({ startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
     ]);
 
-  const [page2Month, page5Month, page6Month] = await Promise.all([
+  const [page2Month, page5Month] = await Promise.all([
     getSalesByCustomer({ corpCode: "0400", startDate: monthToDateStart, endDate: monthToDateEnd }),
     getSalesByCustomer({ corpCode: "0460", startDate: monthToDateStart, endDate: monthToDateEnd }),
-    getSeomdeulchaeSalesByChannel({ startDate: monthToDateStart, endDate: monthToDateEnd }),
   ]);
 
   const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
@@ -209,11 +244,7 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
       : null,
     page4,
     page5: { customers: page5Customers, weekActual: sum(page5Customers), monthActual: sum(page5Month) },
-    page6: {
-      channels: page6.map((c) => ({ channel: c.channel, weekActual: c.amount })),
-      weekPlan: EXECUTIVE_CORPS.find((c) => c.corpCode === "0360") ? targets.salesWeek.get("0360") ?? null : null,
-      monthActual: sum(page6Month),
-    },
+    page6: seomdeulchaeUnits ? { units: seomdeulchaeUnits } : null,
   };
 }
 
