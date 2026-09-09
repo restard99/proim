@@ -360,20 +360,22 @@ function Page5({ report }: { report: WeeklyReportData }) {
   return <CustomerTable customers={report.page5.customers} total={report.page5.weekActual} />;
 }
 
-function TopProductsTable({ title, products }: { title: string; products: TopSellingProduct[] }) {
+function TopProductsTable({ products }: { products: TopSellingProduct[] }) {
   return (
-    <Table title={title}>
+    <Table title="■ 판매상품별 매출상위(월간 누적 기준) [단위: 원]">
       <thead>
         <tr>
           <th className="text-left">상품명</th>
-          <th>수량</th>
-          <th>금액</th>
+          <th>주간 수량</th>
+          <th>주간 금액</th>
+          <th>월간 수량</th>
+          <th>월간 금액</th>
         </tr>
       </thead>
       <tbody className="text-center">
         {products.length === 0 ? (
           <tr>
-            <td colSpan={3} className="py-6 text-sm text-muted">
+            <td colSpan={5} className="py-6 text-sm text-muted">
               데이터가 없습니다.
             </td>
           </tr>
@@ -381,8 +383,10 @@ function TopProductsTable({ title, products }: { title: string; products: TopSel
           products.map((p) => (
             <tr key={p.productCode}>
               <td className="text-left font-sans">{p.productName}</td>
-              <td>{kg(p.qty)}</td>
-              <td>{won(p.amount)}</td>
+              <td>{kg(p.weekQty)}</td>
+              <td>{won(p.weekAmount)}</td>
+              <td>{kg(p.monthQty)}</td>
+              <td>{won(p.monthAmount)}</td>
             </tr>
           ))
         )}
@@ -435,8 +439,7 @@ function Page6({ report }: { report: WeeklyReportData }) {
         </tbody>
       </Table>
 
-      <TopProductsTable title="■ 판매상품별 매출상위(주간 누적) [단위: 원]" products={report.page6.topProductsWeek} />
-      <TopProductsTable title="■ 판매상품별 매출상위(월간 누적) [단위: 원]" products={report.page6.topProductsMonth} />
+      <TopProductsTable products={report.page6.topProducts} />
     </div>
   );
 }

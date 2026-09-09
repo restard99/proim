@@ -122,17 +122,23 @@ async function sumNetAmountByUnit(
   return map;
 }
 
-export type TopSellingProduct = { productCode: string; productName: string; qty: number; amount: number };
+export type TopSellingProduct = {
+  productCode: string;
+  productName: string;
+  weekQty: number;
+  weekAmount: number;
+  monthQty: number;
+  monthAmount: number;
+};
 
-// 섬들채 6페이지 하단의 "판매상품별 매출상위". 상품코드 단위로 수량/금액을 더해서 실매출액
-// 기준 상위 N개만 추린다(6개 업장 전체 합산 — 박물관은 별도 법인이라 제외).
-async function getTopSellingProducts(
+type ProductAgg = { productCode: string; productName: string; qty: number; amount: number };
+
+async function sumByProduct(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
   startDate: string,
   endDate: string,
-  limit = 10,
-): Promise<TopSellingProduct[]> {
+): Promise<Map<string, ProductAgg>> {
   const { data } = await supabase
     .from("executive_seomdeulchae_sales_raw")
     .select("product_code, product_name, qty, net_amount")
@@ -141,7 +147,7 @@ async function getTopSellingProducts(
     .gte("sale_date", startDate)
     .lte("sale_date", endDate);
 
-  const map = new Map<string, TopSellingProduct>();
+  const map = new Map<string, ProductAgg>();
   for (const row of data ?? []) {
     const existing = map.get(row.product_code);
     if (existing) {
@@ -156,8 +162,37 @@ async function getTopSellingProducts(
       });
     }
   }
+  return map;
+}
 
-  return [...map.values()].sort((a, b) => b.amount - a.amount).slice(0, limit);
+// 섬들채 6페이지 하단의 "판매상품별 매출상위" — 한 표에 주간/월간을 같이 보여주기 위해
+// 월간 누적 실매출액 기준 상위 N개를 고르고, 그 상품들의 주간 실적을 같이 붙인다(6개 업장
+// 전체 합산 — 박물관은 별도 법인이라 제외). 이번 주에 안 팔렸으면 주간 값은 0이 된다.
+async function getTopSellingProducts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  weekStartDate: string,
+  weekEndDate: string,
+  monthStartDate: string,
+  limit = 10,
+): Promise<TopSellingProduct[]> {
+  const [weekMap, monthMap] = await Promise.all([
+    sumByProduct(supabase, tenantId, weekStartDate, weekEndDate),
+    sumByProduct(supabase, tenantId, monthStartDate, weekEndDate),
+  ]);
+
+  const topMonth = [...monthMap.values()].sort((a, b) => b.amount - a.amount).slice(0, limit);
+  return topMonth.map((m) => {
+    const w = weekMap.get(m.productCode);
+    return {
+      productCode: m.productCode,
+      productName: m.productName,
+      weekQty: w?.qty ?? 0,
+      weekAmount: w?.amount ?? 0,
+      monthQty: m.qty,
+      monthAmount: m.amount,
+    };
+  });
 }
 
 async function loadSeomdeulchaeUnitReport(
@@ -271,8 +306,7 @@ export type WeeklyReportData = {
   page5: { customers: ExecutiveCustomerSales[]; weekActual: number; monthActual: number };
   page6: {
     units: SeomdeulchaeUnitReportRow[];
-    topProductsWeek: TopSellingProduct[];
-    topProductsMonth: TopSellingProduct[];
+    topProducts: TopSellingProduct[];
   } | null;
 };
 
@@ -301,8 +335,7 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
     page2Customers,
     page5Customers,
     seomdeulchaeUnits,
-    topProductsWeek,
-    topProductsMonth,
+    topProducts,
     page4Prod,
     page4ProdMonth,
     page4ProdLastYear,
@@ -313,8 +346,7 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
     getSalesByCustomer({ corpCode: "0400", startDate: weekStartYmd, endDate: weekEndYmd }),
     getSalesByCustomer({ corpCode: "0460", startDate: weekStartYmd, endDate: weekEndYmd }),
     loadSeomdeulchaeUnitReport(supabase, self.tenantId, weekStartDate, weekEndDate, month.start),
-    getTopSellingProducts(supabase, self.tenantId, weekStartDate, weekEndDate),
-    getTopSellingProducts(supabase, self.tenantId, month.start, weekEndDate),
+    getTopSellingProducts(supabase, self.tenantId, weekStartDate, weekEndDate, month.start),
     getTaepyeongSogeumProduction({ startDate: weekStartYmd, endDate: weekEndYmd }),
     getTaepyeongSogeumProduction({ startDate: monthToDateStart, endDate: monthToDateEnd }),
     getTaepyeongSogeumProduction({ startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
@@ -375,7 +407,7 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
       : null,
     page4,
     page5: { customers: page5Customers, weekActual: sum(page5Customers), monthActual: sum(page5Month) },
-    page6: seomdeulchaeUnits ? { units: seomdeulchaeUnits, topProductsWeek, topProductsMonth } : null,
+    page6: seomdeulchaeUnits ? { units: seomdeulchaeUnits, topProducts } : null,
   };
 }
 
