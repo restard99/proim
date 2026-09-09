@@ -1177,3 +1177,49 @@ CREATE POLICY "executive_taepyeong_yeomjeon_sales_daily_admin_delete" ON executi
 
 CREATE INDEX IF NOT EXISTS executive_taepyeong_yeomjeon_sales_daily_lookup_idx
   ON executive_taepyeong_yeomjeon_sales_daily(tenant_id, sale_date);
+
+-- 태평염전 생산실적 스냅샷("생산-염전" 탭을 그대로 옮긴 PPT 페이지). 이 시트의 월별 실적
+-- 매트릭스 + 공구별(1공구/3공구) 실적표는 "최근 업로드 시점 기준" 스냅샷이라(과거 특정
+-- 주로 거슬러 올라가는 값이 아님) tenant_id 하나당 최신 값 한 건만 유지한다(테넌트당 1행,
+-- 업로드할 때마다 통째로 덮어씀). 표 구조가 복잡해 JSONB로 그대로 저장한다.
+CREATE TABLE IF NOT EXISTS executive_taepyeong_yeomjeon_production_snapshot (
+  tenant_id     UUID PRIMARY KEY REFERENCES tenants(id),
+  as_of_date    DATE NOT NULL,
+  snapshot      JSONB NOT NULL,
+  uploaded_by   UUID REFERENCES profiles(id),
+  file_name     TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE executive_taepyeong_yeomjeon_production_snapshot ENABLE ROW LEVEL SECURITY;
+
+-- 조회는 임원실 + 관리자 (executive_targets와 동일한 팀 조건)
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_production_snapshot_select" ON executive_taepyeong_yeomjeon_production_snapshot;
+CREATE POLICY "executive_taepyeong_yeomjeon_production_snapshot_select" ON executive_taepyeong_yeomjeon_production_snapshot
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+    )
+  );
+
+-- 입력/수정/삭제는 관리자만 (매출목표관리 워크북 업로드 액션이 처리)
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_production_snapshot_admin_insert" ON executive_taepyeong_yeomjeon_production_snapshot;
+CREATE POLICY "executive_taepyeong_yeomjeon_production_snapshot_admin_insert" ON executive_taepyeong_yeomjeon_production_snapshot
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_production_snapshot_admin_update" ON executive_taepyeong_yeomjeon_production_snapshot;
+CREATE POLICY "executive_taepyeong_yeomjeon_production_snapshot_admin_update" ON executive_taepyeong_yeomjeon_production_snapshot
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_production_snapshot_admin_delete" ON executive_taepyeong_yeomjeon_production_snapshot;
+CREATE POLICY "executive_taepyeong_yeomjeon_production_snapshot_admin_delete" ON executive_taepyeong_yeomjeon_production_snapshot
+  FOR DELETE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );

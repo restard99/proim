@@ -13,6 +13,7 @@ import {
   type RangeActualsReport,
   type RangeTopProduct,
 } from "@/app/actions/executive-report";
+import type { YeomjeonProductionSnapshot } from "@/lib/executive/parse-yeomjeon-production";
 
 const PAGE_TABS = [
   { id: "page1", label: "1. 전 사업장 매출실적" },
@@ -62,6 +63,13 @@ function rate(actual: number, plan: number | null): string {
   return `${((actual / plan) * 100).toFixed(1)}%`;
 }
 
+// 이미 비율(0.835 등)로 계산돼 있는 값을 퍼센트 문자열로 바꾼다(태평염전 생산실적 스냅샷처럼
+// 조회 시점이 아니라 업로드 시점에 이미 계산돼 저장된 값에 쓴다).
+function pct(ratio: number | null): string {
+  if (ratio === null) return "-";
+  return `${(ratio * 100).toFixed(1)}%`;
+}
+
 function topNWithRest<T extends { customerName: string; amount: number }>(rows: T[], n: number) {
   const top = rows.slice(0, n);
   const restTotal = rows.slice(n).reduce((s, r) => s + r.amount, 0);
@@ -72,10 +80,12 @@ export function WeeklyReportView({
   initialWeekStartDate,
   initialReport,
   initialComments,
+  yeomjeonProduction,
 }: {
   initialWeekStartDate: string;
   initialReport: WeeklyReportData | null;
   initialComments: WeeklyComment[];
+  yeomjeonProduction: YeomjeonProductionSnapshot | null;
 }) {
   const [weekStartDate, setWeekStartDate] = useState(initialWeekStartDate);
   const [report, setReport] = useState(initialReport);
@@ -206,7 +216,7 @@ export function WeeklyReportView({
             <>
               {activePage === "page1" && <Page1 report={report} />}
               {activePage === "page2" && <Page2 report={report} />}
-              {activePage === "page3" && <Page3 report={report} />}
+              {activePage === "page3" && <Page3 production={yeomjeonProduction} />}
               {activePage === "page4" && <Page4 report={report} />}
               {activePage === "page5" && <Page5 report={report} />}
               {activePage === "page6" && <Page6 report={report} />}
@@ -384,45 +394,104 @@ function Page2({ report }: { report: WeeklyReportData }) {
   );
 }
 
-function Page3({ report }: { report: WeeklyReportData }) {
-  const p3 = report.page3;
+// PPT 주간업무보고 "■ 태평염전 생산실적" + "■ 공구별 생산 실적" 페이지를 그대로 옮겼다.
+// "생산-염전" 탭에서 워크북을 업로드할 때마다 통째로 갱신되는 스냅샷이라, 조회 중인 주와
+// 무관하게 항상 최근 업로드 기준 값을 보여준다(주 단위로 거슬러 올라가는 값이 아님).
+function Page3({ production }: { production: YeomjeonProductionSnapshot | null }) {
+  if (!production) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <span className="rounded-full bg-sand/30 text-inktext px-2 py-0.5">매출목표관리 워크북 업로드 연동</span>
+        </div>
+        <div className="rounded-lg border border-mist bg-white px-4 py-10 text-center text-sm text-muted">
+          아직 생산실적 데이터가 업로드되지 않았습니다.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-xs text-muted">
         <span className="rounded-full bg-sand/30 text-inktext px-2 py-0.5">
-          염전관리팀 생산량 업로드 연동 (/saltfield-production)
+          기준일: {formatDateLabel(production.asOfDate)} (매출목표관리 워크북 업로드 연동, 최근 업로드 기준)
         </span>
       </div>
-      {!p3 ? (
-        <div className="rounded-lg border border-mist bg-white px-4 py-10 text-center text-sm text-muted">
-          이번 주 생산 데이터가 아직 업로드되지 않았습니다.
-        </div>
-      ) : (
-        <Table title="■ 생산 실적 [단위: 20kg/포]">
-          <thead>
-            <tr>
-              <th className="text-left">구분</th>
-              <th>계획</th>
-              <th>실적</th>
-              <th>달성률</th>
+
+      <Table title="■ 태평염전 생산실적 [단위: 20kg/포, %]">
+        <thead>
+          <tr>
+            <th className="text-left" rowSpan={2}>
+              월
+            </th>
+            <th colSpan={3}>월 생산목표</th>
+            <th colSpan={2}>전년 동월</th>
+            <th colSpan={3}>연누계</th>
+          </tr>
+          <tr>
+            <th>계획</th>
+            <th>실적</th>
+            <th>달성률</th>
+            <th>실적</th>
+            <th>대비율</th>
+            <th>당해</th>
+            <th>전년</th>
+            <th>대비율</th>
+          </tr>
+        </thead>
+        <tbody className="text-center">
+          {production.monthRows.map((m) => (
+            <tr key={m.monthLabel} className={m.monthLabel === "합계" ? "total-row" : undefined}>
+              <td className="text-left font-sans">{m.monthLabel}</td>
+              <td>{won(m.plan)}</td>
+              <td>{won(m.actual)}</td>
+              <td>{pct(m.achievementRate)}</td>
+              <td>{won(m.lastYearActual)}</td>
+              <td>{pct(m.vsLastYearRate)}</td>
+              <td>{won(m.ytdThisYear)}</td>
+              <td>{won(m.ytdLastYear)}</td>
+              <td>{pct(m.ytdRate)}</td>
             </tr>
-          </thead>
-          <tbody className="text-center">
-            <tr>
-              <td className="text-left font-sans font-medium text-inktext">주간</td>
-              <td>{won(p3.weeklyPlan)}</td>
-              <td>{won(p3.weeklyActual)}</td>
-              <td>{rate(p3.weeklyActual ?? 0, p3.weeklyPlan)}</td>
+          ))}
+        </tbody>
+      </Table>
+
+      <Table title="■ 공구별 생산 실적 [단위: 20kg/포, %]">
+        <thead>
+          <tr>
+            <th className="text-left">공구</th>
+            <th>주간</th>
+            <th>월간</th>
+            <th>연간 생산</th>
+            <th>비율</th>
+            <th>전년 동월 누계 생산량</th>
+            <th>대비율</th>
+          </tr>
+        </thead>
+        <tbody className="text-center">
+          <tr>
+            <td className="text-left font-sans">계획</td>
+            <td>{won(production.fieldWeeklyPlan)}</td>
+            <td>{won(production.fieldMonthlyPlan)}</td>
+            <td>{won(production.fieldAnnualPlan)}</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+          </tr>
+          {production.fieldRows.map((f) => (
+            <tr key={f.field} className={f.field === "합계" ? "total-row" : undefined}>
+              <td className="text-left font-sans">{f.field}</td>
+              <td>{won(f.weeklyActual)}</td>
+              <td>{won(f.monthlyActual)}</td>
+              <td>{won(f.annualActual)}</td>
+              <td>{pct(f.annualRatio)}</td>
+              <td>{won(f.lastYearYtd)}</td>
+              <td>{pct(f.vsLastYearRate)}</td>
             </tr>
-            <tr>
-              <td className="text-left font-sans font-medium text-inktext">월간</td>
-              <td>{won(p3.monthlyPlan)}</td>
-              <td>{won(p3.monthlyActual)}</td>
-              <td>{rate(p3.monthlyActual ?? 0, p3.monthlyPlan)}</td>
-            </tr>
-          </tbody>
-        </Table>
-      )}
+          ))}
+        </tbody>
+      </Table>
     </div>
   );
 }

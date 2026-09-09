@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { EXECUTIVE_CORPS, type ExecutiveCorpCode } from "@/lib/yerp/executive-corps";
 import { getSalesTotalByCorp, getSalesByCustomer, type ExecutiveCustomerSales } from "@/lib/yerp/executive-sales";
 import { getTaepyeongSogeumProduction } from "@/lib/yerp/executive-production";
+import type { YeomjeonProductionSnapshot } from "@/lib/executive/parse-yeomjeon-production";
 
 function toYmd(iso: string) {
   return iso.replaceAll("-", "");
@@ -634,4 +635,21 @@ export async function postComment(weekStartDate: string, body: string): Promise<
 
   if (error) return { ok: false, message: "저장 중 오류가 발생했습니다." };
   return { ok: true };
+}
+
+// 태평염전 생산실적 스냅샷("생산-염전" 탭을 그대로 옮긴 PPT 페이지). 워크북 업로드 시점
+// 기준으로 통째로 덮어써지는 스냅샷이라(과거 특정 주로 거슬러 올라가는 값이 아님) 조회 중인
+// 주와 무관하게 항상 "최근 업로드 기준" 값 하나만 있다.
+export async function getYeomjeonProductionSnapshot(): Promise<YeomjeonProductionSnapshot | null> {
+  const supabase = await createClient();
+  const self = await getSelf(supabase);
+  if (!self || !canViewReport(self.team, self.role)) return null;
+
+  const { data } = await supabase
+    .from("executive_taepyeong_yeomjeon_production_snapshot")
+    .select("snapshot")
+    .eq("tenant_id", self.tenantId)
+    .maybeSingle();
+
+  return (data?.snapshot as YeomjeonProductionSnapshot | undefined) ?? null;
 }

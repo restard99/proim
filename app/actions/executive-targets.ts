@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseExecutiveTargetsWorkbook } from "@/lib/executive/parse-targets";
 import { parseReportWorkbookTargets } from "@/lib/executive/parse-report-workbook-targets";
+import { parseYeomjeonProductionWorkbook } from "@/lib/executive/parse-yeomjeon-production";
 
 const MAX_SIZE = 15 * 1024 * 1024;
 // 워크북 한 번에 과거 전체 기간(주+월)의 목표가 다 나오다 보니 행 수가 꽤 될 수 있어
@@ -259,6 +260,24 @@ export async function uploadExecutiveTargetsFromWorkbook(formData: FormData): Pr
       .from("executive_taepyeong_yeomjeon_sales_daily")
       .upsert(chunk, { onConflict: "tenant_id,sale_date" });
     if (error) return { ok: false, message: "태평염전 일별 매출실적 저장 중 오류가 발생했습니다." };
+  }
+
+  // 태평염전 생산실적 스냅샷("생산-염전" 탭, PPT의 "■ 태평염전 생산실적" + "■ 공구별 생산
+  // 실적" 페이지). 이 부분은 새로 추가된 요구사항이라, 파싱에 실패해도(예: 기준일자 칸을
+  // 옛날 형식 파일에서 못 찾음) 업로드 전체를 실패 처리하지 않고 조용히 건너뛴다.
+  const productionSnapshot = await parseYeomjeonProductionWorkbook(buffer);
+  if (productionSnapshot.ok) {
+    const { error } = await supabase.from("executive_taepyeong_yeomjeon_production_snapshot").upsert(
+      {
+        tenant_id: self.tenantId,
+        as_of_date: productionSnapshot.snapshot.asOfDate,
+        snapshot: productionSnapshot.snapshot,
+        uploaded_by: self.userId,
+        file_name: file.name,
+      },
+      { onConflict: "tenant_id" },
+    );
+    if (error) return { ok: false, message: "태평염전 생산실적 스냅샷 저장 중 오류가 발생했습니다." };
   }
 
   revalidatePath("/admin/executive-targets");
