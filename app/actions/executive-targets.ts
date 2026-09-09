@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseExecutiveTargetsWorkbook } from "@/lib/executive/parse-targets";
 import { parseReportWorkbookTargets } from "@/lib/executive/parse-report-workbook-targets";
 import { parseYeomjeonProductionWorkbook } from "@/lib/executive/parse-yeomjeon-production";
+import { parseYeomjeonSalesBreakdownWorkbook } from "@/lib/executive/parse-yeomjeon-sales-breakdown";
 
 const MAX_SIZE = 15 * 1024 * 1024;
 // 워크북 한 번에 과거 전체 기간(주+월)의 목표가 다 나오다 보니 행 수가 꽤 될 수 있어
@@ -278,6 +279,22 @@ export async function uploadExecutiveTargetsFromWorkbook(formData: FormData): Pr
       { onConflict: "tenant_id" },
     );
     if (error) return { ok: false, message: "태평염전 생산실적 스냅샷 저장 중 오류가 발생했습니다." };
+  }
+
+  // 태평염전 판매처별 실적 스냅샷("매출-태평염전2" 탭, PPT의 "■ 판매처별 실적" 표). 생산실적
+  // 스냅샷과 동일하게 파싱 실패해도 업로드 전체는 실패 처리하지 않는다.
+  const salesBreakdown = await parseYeomjeonSalesBreakdownWorkbook(buffer);
+  if (salesBreakdown.ok) {
+    const { error } = await supabase.from("executive_taepyeong_yeomjeon_sales_breakdown_snapshot").upsert(
+      {
+        tenant_id: self.tenantId,
+        snapshot: salesBreakdown.snapshot,
+        uploaded_by: self.userId,
+        file_name: file.name,
+      },
+      { onConflict: "tenant_id" },
+    );
+    if (error) return { ok: false, message: "태평염전 판매처별 실적 스냅샷 저장 중 오류가 발생했습니다." };
   }
 
   revalidatePath("/admin/executive-targets");

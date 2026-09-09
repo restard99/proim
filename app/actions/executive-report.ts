@@ -5,6 +5,7 @@ import { EXECUTIVE_CORPS, type ExecutiveCorpCode } from "@/lib/yerp/executive-co
 import { getSalesTotalByCorp, getSalesByCustomer, type ExecutiveCustomerSales } from "@/lib/yerp/executive-sales";
 import { getTaepyeongSogeumProduction } from "@/lib/yerp/executive-production";
 import type { YeomjeonProductionSnapshot } from "@/lib/executive/parse-yeomjeon-production";
+import type { YeomjeonSalesBreakdownSnapshot } from "@/lib/executive/parse-yeomjeon-sales-breakdown";
 
 function toYmd(iso: string) {
   return iso.replaceAll("-", "");
@@ -652,4 +653,20 @@ export async function getYeomjeonProductionSnapshot(): Promise<YeomjeonProductio
     .maybeSingle();
 
   return (data?.snapshot as YeomjeonProductionSnapshot | undefined) ?? null;
+}
+
+// 태평염전 판매처별 실적 스냅샷("매출-태평염전2" 탭을 그대로 옮긴 PPT "■ 판매처별 실적"
+// 표). 생산실적 스냅샷과 동일하게 조회 중인 주와 무관하게 항상 "최근 업로드 기준" 값이다.
+export async function getYeomjeonSalesBreakdown(): Promise<YeomjeonSalesBreakdownSnapshot | null> {
+  const supabase = await createClient();
+  const self = await getSelf(supabase);
+  if (!self || !canViewReport(self.team, self.role)) return null;
+
+  const { data } = await supabase
+    .from("executive_taepyeong_yeomjeon_sales_breakdown_snapshot")
+    .select("snapshot")
+    .eq("tenant_id", self.tenantId)
+    .maybeSingle();
+
+  return (data?.snapshot as YeomjeonSalesBreakdownSnapshot | undefined) ?? null;
 }

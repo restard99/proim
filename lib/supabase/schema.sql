@@ -1223,3 +1223,46 @@ CREATE POLICY "executive_taepyeong_yeomjeon_production_snapshot_admin_delete" ON
   FOR DELETE USING (
     tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
   );
+
+-- 태평염전 판매처별 실적 스냅샷("매출-태평염전2" 탭을 그대로 옮긴 PPT "■ 판매처별 실적"
+-- 표). 생산실적 스냅샷과 동일하게 "최근 업로드 시점 기준" 값이라 tenant_id당 1행만 유지한다.
+CREATE TABLE IF NOT EXISTS executive_taepyeong_yeomjeon_sales_breakdown_snapshot (
+  tenant_id     UUID PRIMARY KEY REFERENCES tenants(id),
+  snapshot      JSONB NOT NULL,
+  uploaded_by   UUID REFERENCES profiles(id),
+  file_name     TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE executive_taepyeong_yeomjeon_sales_breakdown_snapshot ENABLE ROW LEVEL SECURITY;
+
+-- 조회는 임원실 + 관리자 (executive_targets와 동일한 팀 조건)
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_sales_breakdown_snapshot_select" ON executive_taepyeong_yeomjeon_sales_breakdown_snapshot;
+CREATE POLICY "executive_taepyeong_yeomjeon_sales_breakdown_snapshot_select" ON executive_taepyeong_yeomjeon_sales_breakdown_snapshot
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+    )
+  );
+
+-- 입력/수정/삭제는 관리자만 (매출목표관리 워크북 업로드 액션이 처리)
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_sales_breakdown_snapshot_admin_insert" ON executive_taepyeong_yeomjeon_sales_breakdown_snapshot;
+CREATE POLICY "executive_taepyeong_yeomjeon_sales_breakdown_snapshot_admin_insert" ON executive_taepyeong_yeomjeon_sales_breakdown_snapshot
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_sales_breakdown_snapshot_admin_update" ON executive_taepyeong_yeomjeon_sales_breakdown_snapshot;
+CREATE POLICY "executive_taepyeong_yeomjeon_sales_breakdown_snapshot_admin_update" ON executive_taepyeong_yeomjeon_sales_breakdown_snapshot
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_sales_breakdown_snapshot_admin_delete" ON executive_taepyeong_yeomjeon_sales_breakdown_snapshot;
+CREATE POLICY "executive_taepyeong_yeomjeon_sales_breakdown_snapshot_admin_delete" ON executive_taepyeong_yeomjeon_sales_breakdown_snapshot
+  FOR DELETE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );

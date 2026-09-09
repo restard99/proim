@@ -14,6 +14,7 @@ import {
   type RangeTopProduct,
 } from "@/app/actions/executive-report";
 import type { YeomjeonProductionSnapshot } from "@/lib/executive/parse-yeomjeon-production";
+import type { YeomjeonSalesBreakdownSnapshot } from "@/lib/executive/parse-yeomjeon-sales-breakdown";
 
 const PAGE_TABS = [
   { id: "page1", label: "1. 전 사업장 매출실적" },
@@ -81,11 +82,13 @@ export function WeeklyReportView({
   initialReport,
   initialComments,
   yeomjeonProduction,
+  yeomjeonSalesBreakdown,
 }: {
   initialWeekStartDate: string;
   initialReport: WeeklyReportData | null;
   initialComments: WeeklyComment[];
   yeomjeonProduction: YeomjeonProductionSnapshot | null;
+  yeomjeonSalesBreakdown: YeomjeonSalesBreakdownSnapshot | null;
 }) {
   const [weekStartDate, setWeekStartDate] = useState(initialWeekStartDate);
   const [report, setReport] = useState(initialReport);
@@ -215,7 +218,7 @@ export function WeeklyReportView({
           ) : (
             <>
               {activePage === "page1" && <Page1 report={report} />}
-              {activePage === "page2" && <Page2 report={report} />}
+              {activePage === "page2" && <Page2 report={report} salesBreakdown={yeomjeonSalesBreakdown} />}
               {activePage === "page3" && <Page3 production={yeomjeonProduction} />}
               {activePage === "page4" && <Page4 report={report} />}
               {activePage === "page5" && <Page5 report={report} />}
@@ -384,11 +387,60 @@ function CustomerTable({ customers, total }: { customers: WeeklyReportData["page
   );
 }
 
-function Page2({ report }: { report: WeeklyReportData }) {
+// PPT "3. 태평염전" 페이지의 "■ 판매처별 실적" 표(매출-태평염전2 탭)를 그대로 옮겼다. 채널별
+// (도매/관내,기타/태평소금/서비스사업부/합계) 주간·월간 수량/금액/단가를 보여준다. 생산실적
+// 스냅샷과 마찬가지로 워크북을 업로드할 때마다 통째로 갱신되는 "최근 업로드 기준" 값이다.
+function SalesBreakdownTable({ breakdown }: { breakdown: YeomjeonSalesBreakdownSnapshot | null }) {
+  if (!breakdown) return null;
+
+  return (
+    <Table title={`■ 판매처별 실적 [단위: 20kg 포, 금액: 원, 단가: 원]`}>
+      <thead>
+        <tr>
+          <th className="text-left" rowSpan={2}>
+            구분
+          </th>
+          <th colSpan={3}>주간{breakdown.weekLabel ? ` (${breakdown.weekLabel})` : ""}</th>
+          <th colSpan={3}>월간{breakdown.monthLabel ? ` (${breakdown.monthLabel})` : ""}</th>
+        </tr>
+        <tr>
+          <th>수량</th>
+          <th>금액</th>
+          <th>단가</th>
+          <th>수량</th>
+          <th>금액</th>
+          <th>단가</th>
+        </tr>
+      </thead>
+      <tbody className="text-center">
+        {breakdown.rows.map((r) => (
+          <tr key={r.channel} className={r.channel === "합계" ? "total-row" : undefined}>
+            <td className="text-left font-sans">{r.channel}</td>
+            <td>{kg(r.weekQty)}</td>
+            <td>{won(r.weekAmount)}</td>
+            <td>{won(r.weekUnitPrice)}</td>
+            <td>{kg(r.monthQty)}</td>
+            <td>{won(r.monthAmount)}</td>
+            <td>{won(r.monthUnitPrice)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
+
+function Page2({
+  report,
+  salesBreakdown,
+}: {
+  report: WeeklyReportData;
+  salesBreakdown: YeomjeonSalesBreakdownSnapshot | null;
+}) {
   const yeomjeon = report.page1.corps.find((c) => c.corpCode === "0400");
   return (
     <div className="space-y-4">
       {yeomjeon && <CorpWeeklySummaryTable corp={yeomjeon} />}
+      <SalesBreakdownTable breakdown={salesBreakdown} />
       <CustomerTable customers={report.page2.customers} total={report.page2.weekActual} />
     </div>
   );

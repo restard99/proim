@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canViewExecutive } from "@/components/layout/nav-items";
 import { getGrantedHrefs } from "@/lib/auth/menu-access";
-import { getWeeklyReport, getComments, getYeomjeonProductionSnapshot } from "@/app/actions/executive-report";
+import {
+  getWeeklyReport,
+  getComments,
+  getYeomjeonProductionSnapshot,
+  getYeomjeonSalesBreakdown,
+} from "@/app/actions/executive-report";
 import { WeeklyReportView } from "@/components/executive/WeeklyReportView";
 
 function currentWeekMonday(): string {
@@ -28,10 +33,11 @@ export default async function ExecutiveReportPage() {
   if (!canViewExecutive(profile.team, profile.role) && !grantedHrefs.has("/executive/report")) redirect("/");
 
   const weekStartDate = currentWeekMonday();
-  const [report, comments, yeomjeonProduction] = await Promise.all([
+  const [report, comments, yeomjeonProduction, yeomjeonSalesBreakdown] = await Promise.all([
     getWeeklyReport(weekStartDate),
     getComments(weekStartDate),
     getYeomjeonProductionSnapshot(),
+    getYeomjeonSalesBreakdown(),
   ]);
 
   return (
@@ -40,6 +46,7 @@ export default async function ExecutiveReportPage() {
       initialReport={report}
       initialComments={comments}
       yeomjeonProduction={yeomjeonProduction}
+      yeomjeonSalesBreakdown={yeomjeonSalesBreakdown}
     />
   );
 }
