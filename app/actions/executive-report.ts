@@ -411,6 +411,103 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
   };
 }
 
+// 기간(월 범위) 실적 합산 조회 — 계획은 주/월 단위 스냅샷이라 임의 범위에 합산하는 게 의미가
+// 없어서 제외하고, 실적만 범위 그대로 합산해 보여준다. 대부분의 실적 조회 함수(Y-ERP 매출/생산
+// 조회, 섬들채 원시 판매 집계)가 원래부터 임의 시작일~종료일을 받도록 만들어져 있어 그대로
+// 재사용한다. 태평염전 생산(saltfield_production_records)만 예외로, 그 테이블은 날짜별
+// daily_total이 실제 그날 생산량이라 범위 안 날짜들의 daily_total을 직접 더하면 된다(주간/월간
+// 계획·누적 컬럼은 특정 시점 스냅샷이라 범위 합산에 못 쓴다).
+async function sumSaltfieldDailyTotal(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  startDate: string,
+  endDate: string,
+): Promise<number | null> {
+  const { data } = await supabase
+    .from("saltfield_production_records")
+    .select("daily_total")
+    .eq("tenant_id", tenantId)
+    .gte("record_date", startDate)
+    .lte("record_date", endDate);
+
+  if (!data || data.length === 0) return null;
+  return data.reduce((s, r) => s + Number(r.daily_total ?? 0), 0);
+}
+
+export type RangeTopProduct = { productCode: string; productName: string; qty: number; amount: number };
+
+export type RangeActualsReport = {
+  rangeStart: string;
+  rangeEnd: string;
+  page1: { corpCode: ExecutiveCorpCode; corpName: string; actual: number }[];
+  page2: { customers: ExecutiveCustomerSales[]; actual: number };
+  page3: { actual: number | null };
+  page4: { category: "천일염" | "가공염"; actual: number }[];
+  page5: { customers: ExecutiveCustomerSales[]; actual: number };
+  page6: {
+    units: { businessUnit: string; actual: number }[];
+    topProducts: RangeTopProduct[];
+  } | null;
+};
+
+export async function getRangeActualsReport(rangeStart: string, rangeEnd: string): Promise<RangeActualsReport | null> {
+  const supabase = await createClient();
+  const self = await getSelf(supabase);
+  if (!self || !canViewReport(self.team, self.role)) return null;
+
+  const startYmd = toYmd(rangeStart);
+  const endYmd = toYmd(rangeEnd);
+  const corpCodes = EXECUTIVE_CORPS.map((c) => c.corpCode);
+
+  const [corpTotals, page2Customers, page5Customers, prodByCategory, saltfieldActual, unitActualMap, productMap] =
+    await Promise.all([
+      getSalesTotalByCorp({ corpCodes, startDate: startYmd, endDate: endYmd }),
+      getSalesByCustomer({ corpCode: "0400", startDate: startYmd, endDate: endYmd }),
+      getSalesByCustomer({ corpCode: "0460", startDate: startYmd, endDate: endYmd }),
+      getTaepyeongSogeumProduction({ startDate: startYmd, endDate: endYmd }),
+      sumSaltfieldDailyTotal(supabase, self.tenantId, rangeStart, rangeEnd),
+      sumNetAmountByUnit(supabase, self.tenantId, rangeStart, rangeEnd),
+      sumByProduct(supabase, self.tenantId, rangeStart, rangeEnd),
+    ]);
+
+  const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
+
+  const page1 = EXECUTIVE_CORPS.map((c) => ({
+    corpCode: c.corpCode,
+    corpName: c.corpName,
+    actual: corpTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
+  }));
+
+  const page6HasData = unitActualMap.size > 0;
+  const page6 = page6HasData
+    ? {
+        units: [
+          ...SEOMDEULCHAE_UNITS.map((u) => ({ businessUnit: u, actual: unitActualMap.get(u) ?? 0 })),
+          {
+            businessUnit: "전체",
+            actual: SEOMDEULCHAE_UNITS.reduce((s, u) => s + (unitActualMap.get(u) ?? 0), 0),
+          },
+          { businessUnit: "박물관", actual: unitActualMap.get("박물관") ?? 0 },
+        ],
+        topProducts: [...productMap.values()]
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 10)
+          .map((p) => ({ productCode: p.productCode, productName: p.productName, qty: p.qty, amount: p.amount })),
+      }
+    : null;
+
+  return {
+    rangeStart,
+    rangeEnd,
+    page1,
+    page2: { customers: page2Customers, actual: sum(page2Customers) },
+    page3: { actual: saltfieldActual },
+    page4: prodByCategory.map((p) => ({ category: p.category, actual: p.qtyKg })),
+    page5: { customers: page5Customers, actual: sum(page5Customers) },
+    page6,
+  };
+}
+
 export type WeeklyComment = {
   id: string;
   body: string;

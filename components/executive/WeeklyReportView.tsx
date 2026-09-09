@@ -5,9 +5,12 @@ import {
   getWeeklyReport,
   getComments,
   postComment,
+  getRangeActualsReport,
   type WeeklyReportData,
   type WeeklyComment,
   type TopSellingProduct,
+  type RangeActualsReport,
+  type RangeTopProduct,
 } from "@/app/actions/executive-report";
 
 const PAGE_TABS = [
@@ -27,21 +30,16 @@ function addDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-// 임의의 날짜가 속한 주의 월요일을 구한다 (app/(app)/executive/report/page.tsx의
-// currentWeekMonday()와 동일한 방식 — UTC 기준, 일요일은 -6일 보정).
-function mondayOf(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  const day = d.getUTCDay(); // 0=일 ... 1=월
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  d.setUTCDate(d.getUTCDate() + diffToMonday);
-  return d.toISOString().slice(0, 10);
+// "YYYY-MM"의 마지막 날짜("YYYY-MM-DD")를 구한다.
+function lastDayOfMonth(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return `${ym}-${String(lastDay).padStart(2, "0")}`;
 }
 
-// "YYYY-MM" 월 문자열끼리 delta개월만큼 이동한 "YYYY-MM"을 구한다.
-function shiftMonth(ym: string, delta: number): string {
-  const [y, m] = ym.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+function formatMonthLabel(ym: string) {
+  const [y, m] = ym.split("-");
+  return `${y}.${m}`;
 }
 
 function formatDateLabel(iso: string) {
@@ -85,6 +83,8 @@ export function WeeklyReportView({
   const [isPending, startTransition] = useTransition();
   const [commentText, setCommentText] = useState("");
   const [isPostingComment, startPostingComment] = useTransition();
+  const [rangeReport, setRangeReport] = useState<RangeActualsReport | null>(null);
+  const [isPendingRange, startRangeTransition] = useTransition();
 
   const weekEndDate = addDays(weekStartDate, 6);
 
@@ -99,17 +99,20 @@ export function WeeklyReportView({
 
   const navigateWeek = (deltaDays: number) => loadWeek(addDays(weekStartDate, deltaDays));
 
-  // 현재 보고 있는 주가 속한 월(月) — 서버의 monthRange()도 weekStartDate에서 그대로 파생되므로 동일하다.
-  const currentMonth = weekStartDate.slice(0, 7);
-
-  const jumpToMonth = (ym: string) => {
-    if (!ym) return;
-    const next = mondayOf(`${ym}-01`);
-    if (next === weekStartDate) return;
-    loadWeek(next);
+  // 달력 버튼: 첫 클릭한 달을 시작월로, 두 번째 클릭한 달을 종료월(그 달 마지막 날까지)로 잡아
+  // 기간 실적 합산 조회로 전환한다. 계획 데이터는 주/월 단위 스냅샷이라 범위 합산에 의미가 없어
+  // 실적만 조회한다.
+  const handleRangeSelect = (startYm: string, endYm: string) => {
+    const [a, b] = startYm <= endYm ? [startYm, endYm] : [endYm, startYm];
+    const rangeStart = `${a}-01`;
+    const rangeEnd = lastDayOfMonth(b);
+    startRangeTransition(async () => {
+      const result = await getRangeActualsReport(rangeStart, rangeEnd);
+      setRangeReport(result);
+    });
   };
 
-  const navigateMonth = (delta: number) => jumpToMonth(shiftMonth(currentMonth, delta));
+  const exitRangeMode = () => setRangeReport(null);
 
   const handlePostComment = () => {
     const body = commentText.trim();
@@ -148,30 +151,23 @@ export function WeeklyReportView({
             다음 주 →
           </button>
           <span className="w-px self-stretch bg-mist mx-1" aria-hidden />
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => navigateMonth(-1)}
-            className="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40 disabled:opacity-50"
-          >
-            ◀ 이전 달
-          </button>
-          <input
-            type="month"
-            aria-label="월로 조회"
-            disabled={isPending}
-            value={currentMonth}
-            onChange={(e) => jumpToMonth(e.target.value)}
-            className="rounded-md border border-mist px-2 py-1.5 text-sm text-inktext disabled:opacity-50"
-          />
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => navigateMonth(1)}
-            className="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40 disabled:opacity-50"
-          >
-            다음 달 ▶
-          </button>
+          {rangeReport ? (
+            <>
+              <span className="text-sm font-medium text-inktext px-2">
+                기간 실적 {formatMonthLabel(rangeReport.rangeStart.slice(0, 7))} ~{" "}
+                {formatMonthLabel(rangeReport.rangeEnd.slice(0, 7))}
+              </span>
+              <button
+                type="button"
+                onClick={exitRangeMode}
+                className="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40"
+              >
+                주간 보고로 돌아가기
+              </button>
+            </>
+          ) : (
+            <MonthRangePicker disabled={isPendingRange} onSelect={handleRangeSelect} />
+          )}
         </div>
       </header>
 
@@ -192,7 +188,16 @@ export function WeeklyReportView({
             ))}
           </div>
 
-          {!report ? (
+          {rangeReport ? (
+            <>
+              {activePage === "page1" && <RangePage1 report={rangeReport} />}
+              {activePage === "page2" && <CustomerTable customers={rangeReport.page2.customers} total={rangeReport.page2.actual} />}
+              {activePage === "page3" && <RangePage3 report={rangeReport} />}
+              {activePage === "page4" && <RangePage4 report={rangeReport} />}
+              {activePage === "page5" && <CustomerTable customers={rangeReport.page5.customers} total={rangeReport.page5.actual} />}
+              {activePage === "page6" && <RangePage6 report={rangeReport} />}
+            </>
+          ) : !report ? (
             <div className="rounded-lg border border-mist bg-white px-4 py-10 text-center text-sm text-muted">
               데이터를 불러올 수 없습니다.
             </div>
@@ -207,44 +212,46 @@ export function WeeklyReportView({
             </>
           )}
 
-          <div className="overflow-hidden rounded-lg border border-mist bg-white">
-            <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">임원 코멘트</div>
-            <div className="divide-y divide-mist">
-              {comments.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-muted">아직 코멘트가 없습니다.</p>
-              ) : (
-                comments.map((c) => (
-                  <div key={c.id} className="px-4 py-3">
-                    <p className="text-sm">
-                      <span className="font-medium text-inktext">{c.authorName ?? "익명"}</span>
-                      <span className="text-xs text-muted ml-2">
-                        {new Date(c.createdAt).toLocaleString("ko-KR")}
-                      </span>
-                    </p>
-                    <p className="text-sm text-inktext mt-1 whitespace-pre-wrap">{c.body}</p>
-                  </div>
-                ))
-              )}
+          {!rangeReport && (
+            <div className="overflow-hidden rounded-lg border border-mist bg-white">
+              <div className="border-b border-mist bg-mist/30 px-4 py-2 text-sm font-semibold">임원 코멘트</div>
+              <div className="divide-y divide-mist">
+                {comments.length === 0 ? (
+                  <p className="px-4 py-4 text-sm text-muted">아직 코멘트가 없습니다.</p>
+                ) : (
+                  comments.map((c) => (
+                    <div key={c.id} className="px-4 py-3">
+                      <p className="text-sm">
+                        <span className="font-medium text-inktext">{c.authorName ?? "익명"}</span>
+                        <span className="text-xs text-muted ml-2">
+                          {new Date(c.createdAt).toLocaleString("ko-KR")}
+                        </span>
+                      </p>
+                      <p className="text-sm text-inktext mt-1 whitespace-pre-wrap">{c.body}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex items-center gap-2 border-t border-mist p-3">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="코멘트를 남겨보세요"
+                  disabled={isPostingComment}
+                  className="flex-1 rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
+                />
+                <button
+                  type="button"
+                  onClick={handlePostComment}
+                  disabled={isPostingComment}
+                  className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-salt hover:bg-ink2 disabled:opacity-50"
+                >
+                  등록
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 border-t border-mist p-3">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="코멘트를 남겨보세요"
-                disabled={isPostingComment}
-                className="flex-1 rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
-              />
-              <button
-                type="button"
-                onClick={handlePostComment}
-                disabled={isPostingComment}
-                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-salt hover:bg-ink2 disabled:opacity-50"
-              >
-                등록
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </main>
     </div>
@@ -495,6 +502,236 @@ function Page6({ report }: { report: WeeklyReportData }) {
       </Table>
 
       <TopProductsTable products={report.page6.topProducts} />
+    </div>
+  );
+}
+
+// 기간(월 범위) 실적 조회용 달력 버튼. 첫 번째 클릭한 달이 시작월, 두 번째 클릭한 달이
+// 종료월(그 달 마지막 날까지)이 되어 바로 조회를 실행한다.
+function MonthRangePicker({
+  disabled,
+  onSelect,
+}: {
+  disabled: boolean;
+  onSelect: (startYm: string, endYm: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [year, setYear] = useState(() => new Date().getUTCFullYear());
+  const [tempStart, setTempStart] = useState<string | null>(null);
+
+  const closeAndReset = () => {
+    setOpen(false);
+    setTempStart(null);
+  };
+
+  const handleMonthClick = (ym: string) => {
+    if (!tempStart) {
+      setTempStart(ym);
+      return;
+    }
+    onSelect(tempStart, ym);
+    closeAndReset();
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => (open ? closeAndReset() : setOpen(true))}
+        className="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40 disabled:opacity-50"
+      >
+        📅 기간 조회
+      </button>
+      {open && (
+        <div className="absolute right-0 z-10 mt-1 w-64 rounded-lg border border-mist bg-white p-3 shadow-lg">
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setYear((y) => y - 1)}
+              className="px-2 text-sm text-muted hover:text-inktext"
+            >
+              ◀
+            </button>
+            <span className="text-sm font-medium text-inktext">{year}년</span>
+            <button
+              type="button"
+              onClick={() => setYear((y) => y + 1)}
+              className="px-2 text-sm text-muted hover:text-inktext"
+            >
+              ▶
+            </button>
+          </div>
+          <p className="mb-2 text-xs text-muted">
+            {tempStart ? `시작월 ${formatMonthLabel(tempStart)} 선택됨 — 종료월을 선택하세요` : "시작월을 선택하세요"}
+          </p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {Array.from({ length: 12 }, (_, i) => {
+              const ym = `${year}-${String(i + 1).padStart(2, "0")}`;
+              const selected = ym === tempStart;
+              return (
+                <button
+                  key={ym}
+                  type="button"
+                  onClick={() => handleMonthClick(ym)}
+                  className={`rounded-md px-2 py-1.5 text-xs ${
+                    selected ? "bg-ink text-salt" : "text-inktext hover:bg-mist/40"
+                  }`}
+                >
+                  {i + 1}월
+                </button>
+              );
+            })}
+          </div>
+          {tempStart && (
+            <button type="button" onClick={closeAndReset} className="mt-2 text-xs text-muted underline">
+              취소
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RangePage1({ report }: { report: RangeActualsReport }) {
+  return (
+    <Table title="■ 기간 매출실적 [단위: 원]">
+      <thead>
+        <tr>
+          <th className="text-left">구분</th>
+          <th>실적</th>
+        </tr>
+      </thead>
+      <tbody className="text-center">
+        {report.page1.map((c) => (
+          <tr key={c.corpCode}>
+            <td className="text-left font-sans font-medium text-inktext">{c.corpName}</td>
+            <td className="text-brine">{won(c.actual)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
+
+function RangePage3({ report }: { report: RangeActualsReport }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-xs text-muted">
+        <span className="rounded-full bg-sand/30 text-inktext px-2 py-0.5">
+          염전관리팀 생산량 업로드 연동 (/saltfield-production)
+        </span>
+      </div>
+      <Table title="■ 기간 생산실적 [단위: 20kg/포]">
+        <thead>
+          <tr>
+            <th className="text-left">구분</th>
+            <th>실적</th>
+          </tr>
+        </thead>
+        <tbody className="text-center">
+          <tr>
+            <td className="text-left font-sans font-medium text-inktext">태평염전</td>
+            <td>{won(report.page3.actual)}</td>
+          </tr>
+        </tbody>
+      </Table>
+    </div>
+  );
+}
+
+function RangePage4({ report }: { report: RangeActualsReport }) {
+  return (
+    <Table title="■ 기간 생산실적 [단위: kg]">
+      <thead>
+        <tr>
+          <th className="text-left">구분</th>
+          <th>실적</th>
+        </tr>
+      </thead>
+      <tbody className="text-center">
+        {report.page4.map((p) => (
+          <tr key={p.category}>
+            <td className="text-left font-sans font-medium text-inktext">{p.category}</td>
+            <td className="text-brine">{kg(p.actual)}</td>
+          </tr>
+        ))}
+        <tr className="total-row">
+          <td className="text-left font-sans">합계</td>
+          <td>{kg(report.page4.reduce((s, p) => s + p.actual, 0))}</td>
+        </tr>
+      </tbody>
+    </Table>
+  );
+}
+
+function RangeTopProductsTable({ products }: { products: RangeTopProduct[] }) {
+  return (
+    <Table title="■ 판매상품별 매출상위(기간 합계) [단위: 원]">
+      <thead>
+        <tr>
+          <th className="text-left">상품명</th>
+          <th>수량</th>
+          <th>금액</th>
+        </tr>
+      </thead>
+      <tbody className="text-center">
+        {products.length === 0 ? (
+          <tr>
+            <td colSpan={3} className="py-6 text-sm text-muted">
+              데이터가 없습니다.
+            </td>
+          </tr>
+        ) : (
+          products.map((p) => (
+            <tr key={p.productCode}>
+              <td className="text-left font-sans">{p.productName}</td>
+              <td>{kg(p.qty)}</td>
+              <td>{won(p.amount)}</td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </Table>
+  );
+}
+
+function RangePage6({ report }: { report: RangeActualsReport }) {
+  if (!report.page6) {
+    return (
+      <Table title="■ 업장별 매출 실적 [단위: 원]">
+        <tbody>
+          <tr>
+            <td colSpan={2} className="py-10 text-center text-sm text-muted">
+              해당 기간에 매출 데이터가 없습니다.
+            </td>
+          </tr>
+        </tbody>
+      </Table>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Table title="■ 기간 업장별 매출 실적 [단위: 원]">
+        <thead>
+          <tr>
+            <th className="text-left">구분</th>
+            <th>실적</th>
+          </tr>
+        </thead>
+        <tbody className="text-center">
+          {report.page6.units.map((u) => (
+            <tr key={u.businessUnit} className={u.businessUnit === "전체" ? "total-row" : undefined}>
+              <td className="text-left font-sans">{u.businessUnit === "전체" ? "합계" : u.businessUnit}</td>
+              <td>{won(u.actual)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+
+      <RangeTopProductsTable products={report.page6.topProducts} />
     </div>
   );
 }
