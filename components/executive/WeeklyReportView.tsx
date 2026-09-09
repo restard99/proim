@@ -37,6 +37,13 @@ function mondayOf(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+// "YYYY-MM" 월 문자열끼리 delta개월만큼 이동한 "YYYY-MM"을 구한다.
+function shiftMonth(ym: string, delta: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 function formatDateLabel(iso: string) {
   return iso.replaceAll("-", ".");
 }
@@ -92,12 +99,17 @@ export function WeeklyReportView({
 
   const navigateWeek = (deltaDays: number) => loadWeek(addDays(weekStartDate, deltaDays));
 
-  const handleDatePick = (pickedDate: string) => {
-    if (!pickedDate) return;
-    const next = mondayOf(pickedDate);
+  // 현재 보고 있는 주가 속한 월(月) — 서버의 monthRange()도 weekStartDate에서 그대로 파생되므로 동일하다.
+  const currentMonth = weekStartDate.slice(0, 7);
+
+  const jumpToMonth = (ym: string) => {
+    if (!ym) return;
+    const next = mondayOf(`${ym}-01`);
     if (next === weekStartDate) return;
     loadWeek(next);
   };
+
+  const navigateMonth = (delta: number) => jumpToMonth(shiftMonth(currentMonth, delta));
 
   const handlePostComment = () => {
     const body = commentText.trim();
@@ -135,14 +147,31 @@ export function WeeklyReportView({
           >
             다음 주 →
           </button>
-          <input
-            type="date"
-            aria-label="날짜로 조회"
+          <span className="w-px self-stretch bg-mist mx-1" aria-hidden />
+          <button
+            type="button"
             disabled={isPending}
-            value={weekStartDate}
-            onChange={(e) => handleDatePick(e.target.value)}
+            onClick={() => navigateMonth(-1)}
+            className="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40 disabled:opacity-50"
+          >
+            ◀ 이전 달
+          </button>
+          <input
+            type="month"
+            aria-label="월로 조회"
+            disabled={isPending}
+            value={currentMonth}
+            onChange={(e) => jumpToMonth(e.target.value)}
             className="rounded-md border border-mist px-2 py-1.5 text-sm text-inktext disabled:opacity-50"
           />
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => navigateMonth(1)}
+            className="rounded-md border border-mist px-3 py-1.5 text-sm text-muted hover:bg-mist/40 disabled:opacity-50"
+          >
+            다음 달 ▶
+          </button>
         </div>
       </header>
 
