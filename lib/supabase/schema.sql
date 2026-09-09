@@ -706,7 +706,11 @@ CREATE TABLE IF NOT EXISTS executive_targets (
   uploaded_by   UUID REFERENCES profiles(id),
   file_name     TEXT,
   created_at    TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (tenant_id, metric, corp_code, category, period_type, period_key)
+  -- corp_code/category가 metric에 따라 NULL일 수 있는데(sales는 category NULL, production은
+  -- corp_code NULL), 일반 UNIQUE는 NULL끼리 "다르다"고 봐서 업로드할 때마다 기존 값을
+  -- 덮어쓰지 못하고 계속 새 행이 쌓이는 문제가 있었다(FIX-016) — NULLS NOT DISTINCT로
+  -- NULL도 같은 값으로 취급해 정상적으로 upsert 충돌을 잡도록 한다.
+  UNIQUE NULLS NOT DISTINCT (tenant_id, metric, corp_code, category, period_type, period_key)
 );
 ALTER TABLE executive_targets ENABLE ROW LEVEL SECURITY;
 
