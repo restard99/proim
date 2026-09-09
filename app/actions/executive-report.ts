@@ -32,6 +32,32 @@ function lastYearFullMonthRange(iso: string): { start: string; end: string } {
   return { start, end };
 }
 
+function daysInMonthOf(monthKey: string): number {
+  const [y, m] = monthKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+// 주간계획은 워크북의 성긴 일자별 표에 그 주 보고서가 실제로 만들어진 날에만 값이 있어서
+// 믿을 수 없다(안 만들어진 주는 비어 있고, 달을 걸치는 주는 한쪽 달만 반영해 값이 틀린
+// 사례도 확인됨 — 8/31~9/6 주는 원본이 9월 몫만 반영하고 8/31 하루치를 빠뜨림). 그래서
+// 주간계획은 원본 값을 아예 쓰지 않고, 그 주에 속한 7일 각각이 속한 달의 "월간계획 ÷ 그
+// 달 일수"를 날짜별로 더해 항상 직접 계산한다(달을 안 걸치는 보통의 주는 결국
+// 월간계획÷일수×7과 같은 값이 된다).
+function computeWeekPlanFromMonthly(weekStartDate: string, monthPlanByKey: Map<string, number> | undefined): number | null {
+  if (!monthPlanByKey) return null;
+  let total = 0;
+  let hasAny = false;
+  for (let i = 0; i < 7; i++) {
+    const day = addDays(weekStartDate, i);
+    const monthKey = day.slice(0, 7);
+    const monthPlan = monthPlanByKey.get(monthKey);
+    if (monthPlan === undefined) continue;
+    total += monthPlan / daysInMonthOf(monthKey);
+    hasAny = true;
+  }
+  return hasAny ? total : null;
+}
+
 async function getSelf(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
@@ -49,39 +75,45 @@ function canViewReport(team: string, role: string) {
 }
 
 type TargetLookup = {
-  salesWeek: Map<string, number>; // corpCode -> value
-  salesMonth: Map<string, number>;
+  salesWeek: Map<string, number>; // corpCode -> value (워크북에 명시된 그 주 값 — 달을 걸치는 주는 파서에서 이미 두 조각을 더해 둠)
+  salesMonthByKey: Map<string, Map<string, number>>; // corpCode -> monthKey('YYYY-MM') -> value
   productionWeek: Map<string, number>; // category -> value
 };
 
+// monthKeys는 보통 한 달(주가 한 달 안에 다 들어가는 경우)이지만, 8/31~9/6처럼 주가 두 달에
+// 걸치면 두 달 다 넘어온다 — 워크북에 그 주 값이 아예 없을 때(아직 보고서가 안 만들어진
+// 진행 중인 주 등) 월간계획으로 대체 계산하려면 걸쳐 있는 두 달의 월간계획이 다 필요하다.
 async function loadTargets(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
   weekStartDate: string,
-  monthKey: string,
+  monthKeys: string[],
 ): Promise<TargetLookup> {
+  const monthClauses = monthKeys.map((mk) => `and(period_type.eq.month,period_key.eq.${mk})`).join(",");
   const { data } = await supabase
     .from("executive_targets")
     .select("metric, corp_code, category, period_type, period_key, target_value")
     .eq("tenant_id", tenantId)
-    .or(
-      `and(period_type.eq.week,period_key.eq.${weekStartDate}),and(period_type.eq.month,period_key.eq.${monthKey})`,
-    );
+    .or(`and(period_type.eq.week,period_key.eq.${weekStartDate}),${monthClauses}`);
 
   const salesWeek = new Map<string, number>();
-  const salesMonth = new Map<string, number>();
+  const salesMonthByKey = new Map<string, Map<string, number>>();
   const productionWeek = new Map<string, number>();
 
   for (const row of data ?? []) {
     if (row.metric === "sales" && row.corp_code) {
-      if (row.period_type === "week") salesWeek.set(row.corp_code, Number(row.target_value));
-      else salesMonth.set(row.corp_code, Number(row.target_value));
+      if (row.period_type === "week") {
+        salesWeek.set(row.corp_code, Number(row.target_value));
+      } else if (row.period_type === "month") {
+        if (!salesMonthByKey.has(row.corp_code)) salesMonthByKey.set(row.corp_code, new Map());
+        salesMonthByKey.get(row.corp_code)!.set(row.period_key, Number(row.target_value));
+      }
     } else if (row.metric === "production" && row.category && row.period_type === "week") {
       productionWeek.set(row.category, Number(row.target_value));
     }
   }
 
-  return { salesWeek, salesMonth, productionWeek };
+  return { salesWeek, salesMonthByKey, productionWeek };
 }
 
 export type SeomdeulchaeUnitReportRow = {
@@ -325,7 +357,11 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
   const lastYearMonthStartYmd = toYmd(lastYearMonth.start);
   const lastYearMonthEndYmd = toYmd(lastYearMonth.end);
 
-  const targets = await loadTargets(supabase, self.tenantId, weekStartDate, month.label);
+  // 주가 두 달에 걸치면(예: 8/31 월요일 시작 ~ 9/6 일요일) 두 달의 월간계획이 다 필요하다.
+  const startMonthKey = weekStartDate.slice(0, 7);
+  const endMonthKey = weekEndDate.slice(0, 7);
+  const monthKeys = startMonthKey === endMonthKey ? [startMonthKey] : [startMonthKey, endMonthKey];
+  const targets = await loadTargets(supabase, self.tenantId, weekStartDate, monthKeys);
 
   const corpCodes = EXECUTIVE_CORPS.map((c) => c.corpCode);
   const [
@@ -359,22 +395,17 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
 
   const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
 
-  // 주간계획이 워크북에 그 주(週)로 명시돼 있지 않을 때(성긴 표라 해당 보고 주가 아니면
-  // 비어 있음, 또는 태평염전처럼 애초에 주간 단위가 없는 시트) 쓰는 대체 계산이다.
-  // "월간계획을 그 달 일수로 나눈 값 × 7"로, 실제 원본 워크북이 주간계획을 채워 넣을 때도
-  // 이 공식 그대로 계산해 넣는다는 걸 실측으로 확인했다(사용자 확인).
-  const daysInMonth = Number(month.end.slice(-2));
-  const weekPlanFromMonth = (monthPlan: number | null) =>
-    monthPlan === null ? null : (monthPlan / daysInMonth) * 7;
-
   const page1Corps: WeeklyReportPage1Corp[] = EXECUTIVE_CORPS.map((c) => {
-    const monthPlan = targets.salesMonth.get(c.corpCode) ?? null;
+    const monthPlanByKey = targets.salesMonthByKey.get(c.corpCode);
     return {
       corpCode: c.corpCode,
       corpName: c.corpName,
-      weekPlan: targets.salesWeek.get(c.corpCode) ?? weekPlanFromMonth(monthPlan),
+      // 워크북에 그 주 값이 있으면(달을 걸치는 주는 파서가 이미 두 조각을 더해 둠) 그대로
+      // 쓰고, 아직 보고서가 안 만들어진 진행 중인 주처럼 값이 아예 없을 때만 월간계획
+      // 기반으로 대체 계산한다.
+      weekPlan: targets.salesWeek.get(c.corpCode) ?? computeWeekPlanFromMonthly(weekStartDate, monthPlanByKey),
       weekActual: weekTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
-      monthPlan,
+      monthPlan: monthPlanByKey?.get(startMonthKey) ?? null,
       monthActual: monthTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
       lastYearMonthActual: lastYearTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
     };

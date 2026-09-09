@@ -118,8 +118,16 @@ function readDailyPlanSeries(
     const dateText = cellText(row.getCell(dateCol));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) continue;
 
+    // 달을 걸치는 주(예: 8/31 월요일~9/6 일요일)는 원본이 보고서를 그 주 안에서 두 번
+    // 나눠 만든다 — 월말 날짜(8/31)에 그 달 몫만큼, 그 주 일요일(9/6)에 나머지 달 몫만큼을
+    // 따로 기록한다. 그래서 같은 주(월요일 기준)에 값이 두 번 나오면 마지막 값으로 덮어쓰지
+    // 않고 더해야 그 주 전체 목표가 맞는다(실측으로 확인: 8/31=28,335,000 + 9/6=120,980,000
+    // = 그 주 실제 목표 149,315,000).
     const weekVal = cellNum(row.getCell(start));
-    if (weekVal !== null) weekPlans.set(mondayOf(dateText), weekVal);
+    if (weekVal !== null) {
+      const monday = mondayOf(dateText);
+      weekPlans.set(monday, (weekPlans.get(monday) ?? 0) + weekVal);
+    }
 
     // 월간계획은 같은 달 안에서 여러 번(매주 보고서마다) 반복 기록되므로, 날짜 순으로
     // 훑으면서 늦은 값으로 계속 덮어써 가장 최근 값을 쓴다.
