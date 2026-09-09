@@ -1,6 +1,6 @@
 # TASK-005: 주간업무보고 데이터 소스 교체 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `getSeomdeulchaeSalesByChannel`(Y-ERP 채널별 실시간 집계) 대신 `loadSeomdeulchaeUnitReport`로 `executive_seomdeulchae_unit_report`에서 조회 주의 마지막 날 이하 중 가장 최근 마감일자 스냅샷을 가져오도록 바꿨다. `page6` 타입을 업장별 목표·실적 배열로 바꾸고, 스냅샷이 아직 없으면 `null`을 반환한다.

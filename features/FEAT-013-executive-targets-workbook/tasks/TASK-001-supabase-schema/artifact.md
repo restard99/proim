@@ -1,6 +1,6 @@
 # TASK-001: Supabase 스키마 — 아티팩트
 
-## 상태: 코드 작성 완료 (Supabase 적용 대기)
+## 상태: 대체됨 (superseded) — `executive_seomdeulchae_unit_report`는 TASK-009에서 `executive_seomdeulchae_unit_target`으로 교체되어 DROP됨
 
 ## 구현 내용
 `executive_seomdeulchae_unit_report` 테이블과 RLS 정책을 `executive_targets`와 동일한 팀 조건(조회: 임원실+관리자, 입력/삭제: 관리자)으로 추가했다. 매주 통째로 갱신되는 스냅샷이라 UPDATE 정책은 두지 않았다.

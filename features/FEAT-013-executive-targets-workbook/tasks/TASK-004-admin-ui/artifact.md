@@ -1,6 +1,6 @@
 # TASK-004: 매출 목표 관리 화면 교체 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 "매출/생산 목표" 섹션을 새 `WorkbookUploadSection`으로 교체했다(마감일자 열 추가). 기존 `uploadTargets`/`getTargetUploadHistory`/템플릿 파일은 코드·파일 그대로 남겨두고 화면에서만 뺐다.
