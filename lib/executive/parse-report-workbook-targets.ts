@@ -198,12 +198,23 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
     corpTargets.push({ corpCode: "0460", ...readDailyPlanSeries(taepyeongSogeumWs, 2, "AJ") });
   }
 
-  // 태평염전(법인 전체) — 매출-태평염전1, L열부터
+  // 태평염전(법인 전체) — 매출-태평염전1. 이 시트는 다른 두 매출 시트와 달리 일자별 성긴
+  // 표가 목표값의 신뢰할 수 있는 출처가 아니다(실측 결과 L열부터 시작하는 블록에 계획비 다음
+  // 빈 칸이 하나 끼어 있어 열이 하나씩 밀려 읽힘). 대신 4행(헤더: 총/1월~12월)+5행(값)에
+  // 항상 다 채워져 있는 "월별 목표" 표(N~AA열)에서 월간계획만 바로 읽는다. 주간계획은 이
+  // 시트에 별도로 없고, 실측해보니 성긴 표에 어쩌다 있는 값도 월간계획을 그 달 일수로 나눠
+  // 7을 곱한 값과 정확히 같았다 — 즉 원본 자체가 "주간계획 = 월간계획/일수*7"로 계산해 넣은
+  // 값이라, 굳이 성긴 표에서 따로 읽지 않고 조회 시점에 executive-report.ts에서 월간계획으로
+  // 그때그때 계산한다(월간계획이 이 표 덕분에 항상 있으니 주간계획도 항상 계산 가능해진다).
   const taepyeongYeomjeonWs = wb.getWorksheet("매출-태평염전1");
   if (!taepyeongYeomjeonWs) {
     errors.push('"매출-태평염전1" 시트를 찾을 수 없습니다.');
   } else {
-    corpTargets.push({ corpCode: "0400", ...readDailyPlanSeries(taepyeongYeomjeonWs, 2, "L") });
+    corpTargets.push({
+      corpCode: "0400",
+      weekPlans: [],
+      monthPlans: readMonthlyRow(taepyeongYeomjeonWs, 4, 5, colNum("N"), colNum("AA"), year),
+    });
   }
 
   // 섬들채 업장별(6개) + 박물관 — 매출-서비스1. 섬들채 법인 전체(0360)는 6개 업장을

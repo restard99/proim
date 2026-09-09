@@ -359,15 +359,26 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
 
   const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
 
-  const page1Corps: WeeklyReportPage1Corp[] = EXECUTIVE_CORPS.map((c) => ({
-    corpCode: c.corpCode,
-    corpName: c.corpName,
-    weekPlan: targets.salesWeek.get(c.corpCode) ?? null,
-    weekActual: weekTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
-    monthPlan: targets.salesMonth.get(c.corpCode) ?? null,
-    monthActual: monthTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
-    lastYearMonthActual: lastYearTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
-  }));
+  // 주간계획이 워크북에 그 주(週)로 명시돼 있지 않을 때(성긴 표라 해당 보고 주가 아니면
+  // 비어 있음, 또는 태평염전처럼 애초에 주간 단위가 없는 시트) 쓰는 대체 계산이다.
+  // "월간계획을 그 달 일수로 나눈 값 × 7"로, 실제 원본 워크북이 주간계획을 채워 넣을 때도
+  // 이 공식 그대로 계산해 넣는다는 걸 실측으로 확인했다(사용자 확인).
+  const daysInMonth = Number(month.end.slice(-2));
+  const weekPlanFromMonth = (monthPlan: number | null) =>
+    monthPlan === null ? null : (monthPlan / daysInMonth) * 7;
+
+  const page1Corps: WeeklyReportPage1Corp[] = EXECUTIVE_CORPS.map((c) => {
+    const monthPlan = targets.salesMonth.get(c.corpCode) ?? null;
+    return {
+      corpCode: c.corpCode,
+      corpName: c.corpName,
+      weekPlan: targets.salesWeek.get(c.corpCode) ?? weekPlanFromMonth(monthPlan),
+      weekActual: weekTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
+      monthPlan,
+      monthActual: monthTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
+      lastYearMonthActual: lastYearTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
+    };
+  });
 
   // 태평염전 생산(3페이지)은 염전관리팀이 업로드하는 saltfield_production_records를 그대로 조회한다.
   const { data: saltfieldRow } = await supabase
