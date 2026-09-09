@@ -6,6 +6,7 @@ import { uploadExecutiveTargetsFromWorkbook, type WorkbookUploadHistoryRow } fro
 import { uploadPlConfirmed, type PlConfirmedUploadHistoryRow } from "@/app/actions/executive-pl-confirmed";
 import { uploadPlBusinessUnit, type PlBusinessUnitUploadHistoryRow } from "@/app/actions/executive-pl-business-unit";
 import { EXECUTIVE_PL_CORPS } from "@/lib/yerp/executive-corps";
+import { SeomdeulchaeSalesUploadPanel } from "@/components/executive/SeomdeulchaeSalesUploadPanel";
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -381,6 +382,17 @@ export function ExecutiveTargetUpload({
   return (
     <div className="space-y-6">
       <WorkbookUploadSection history={workbookHistory} />
+      <div className="rounded-lg border border-mist bg-white">
+        <div className="border-b border-mist px-5 py-4">
+          <h2 className="text-sm font-semibold text-inktext">매출업로드</h2>
+          <p className="mt-1 text-xs text-muted">
+            섬들채 업장별 실적(매출)을 업로드합니다. &quot;게시판 권한&quot;에서 지정한 섬들채 담당자도 이 화면을 별도로(왼쪽 메뉴 &quot;매출업로드&quot;) 이용할 수 있습니다.
+          </p>
+        </div>
+        <div className="p-5">
+          <SeomdeulchaeSalesUploadPanel />
+        </div>
+      </div>
       <UploadSection
         title="회계팀 확정 손익"
         description="법인별(태평소금/태평염전/섬들채) 월별 매출/매출원가/판관비/영업외수익/영업외비용. 손익자료 화면에서 Y-ERP 자동집계(전산)와 나란히 비교됩니다."

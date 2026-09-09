@@ -132,6 +132,16 @@ export const EXECUTIVE_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+export const SEOMDEULCHAE_SALES_UPLOAD_NAV_ITEMS: NavItem[] = [
+  {
+    href: "/executive/sales-upload",
+    label: "매출업로드",
+    iconPath:
+      "M10 3a1 1 0 0 1 1 1v7.586l1.293-1.293a1 1 0 1 1 1.414 1.414l-3 3a1 1 0 0 1-1.414 0l-3-3a1 1 0 1 1 1.414-1.414L9 11.586V4a1 1 0 0 1 1-1ZM4 14a1 1 0 0 1 1 1v1a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1a1 1 0 1 1 2 0v1a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-1a1 1 0 0 1 1-1Z",
+    team: "섬들채",
+  },
+];
+
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   {
     href: "/admin/approvals",
@@ -206,6 +216,12 @@ export function canViewExecutive(team: string | null | undefined, role: string |
   return team === "임원실";
 }
 
+// 매출업로드(섬들채 업장별 실적): 기본은 관리자만 — 섬들채 담당자 중 지정한 사람은 "게시판
+// 권한" 화면에서 개인별로 추가 허용해서 쓴다(팀 전체에게 여는 화면이 아니라 개인 지정용).
+export function canUploadSeomdeulchaeSales(team: string | null | undefined, role: string | null | undefined): boolean {
+  return role === "admin";
+}
+
 type MenuCheck = (team: string | null | undefined, role: string | null | undefined) => boolean;
 
 // 업무 메뉴 전체를 한 곳에 모아둔다 — "왼쪽 메뉴에 무엇을 보여줄지"(getVisibleBusinessNavItems)와
@@ -231,6 +247,12 @@ export const BUSINESS_MENU_ITEMS: BusinessMenuEntry[] = [
   { item: SALTFIELD_NAV_ITEMS[1], group: "염전관리", check: canViewSaltfield, grantable: true },
   { item: EXECUTIVE_NAV_ITEMS[0], group: "임원실", check: canViewExecutive, grantable: true },
   { item: EXECUTIVE_NAV_ITEMS[1], group: "임원실", check: canViewExecutive, grantable: true },
+  {
+    item: SEOMDEULCHAE_SALES_UPLOAD_NAV_ITEMS[0],
+    group: "섬들채",
+    check: canUploadSeomdeulchaeSales,
+    grantable: true,
+  },
 ];
 
 // 관리자가 "게시판 권한" 화면에서 개인별로 추가 허용을 켜고 끌 수 있는 메뉴 목록.
