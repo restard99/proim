@@ -392,7 +392,7 @@ export function ExecutiveTargetUpload({
             섬들채 POS &quot;매출관리 &gt; 매출현황 &gt; 일자별 &gt; 상품별&quot;에서 내려받은 파일을 업로드합니다.
           </p>
           <ul className="mt-1.5 space-y-0.5 text-xs text-muted/80">
-            <li>· 카드분류 확인: 매출관리 &gt; 승인현황 &gt; 승인현황</li>
+            <li>· 카드분류 확인: 매출관리 &gt; 승인현황 &gt; 승인현황 &gt; 카드승인현황</li>
             <li>· 면세 확인: 매출관리 &gt; 매출현황 &gt; 당일매출상세현황</li>
           </ul>
         </div>
