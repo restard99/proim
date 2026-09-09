@@ -75,6 +75,9 @@ export function parseSeomdeulchaeSalesRawWorkbook(buffer: Buffer): ParseSalesRaw
     const [dateRaw, unitRaw, productCode, productName, qty, gross, discount, net] = r;
     const rowNum = i + 1;
 
+    // 표 맨 끝에 "합계" 같은 요약 행이 붙어 나오는 파일이 있다(데이터 행이 아님) — 조용히 건너뛴다.
+    if (String(dateRaw ?? "").trim() === "합계") continue;
+
     const saleDate = toDateString(dateRaw);
     if (!saleDate) {
       errors.push(`${rowNum}행: 일자 형식을 읽지 못했습니다 (${String(dateRaw)}).`);
