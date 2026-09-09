@@ -25,7 +25,9 @@ export default async function SeomdeulchaeSalesUploadPage() {
   return (
     <div className="max-w-4xl px-6 lg:px-10 py-8">
       <h1 className="text-xl font-semibold text-inktext">매출업로드</h1>
-      <p className="mt-1.5 text-sm text-muted">섬들채 업장별 실적(매출)을 업로드합니다.</p>
+      <p className="mt-1.5 text-sm text-muted">
+        섬들채 POS &quot;매출관리 &gt; 매출현황 &gt; 일자별 &gt; 상품별&quot;에서 내려받은 파일을 업로드합니다.
+      </p>
       <div className="mt-6">
         <SeomdeulchaeSalesUploadPanel summary={summary} />
       </div>

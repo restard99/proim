@@ -389,7 +389,7 @@ export function ExecutiveTargetUpload({
         <div className="border-b border-mist px-5 py-4">
           <h2 className="text-sm font-semibold text-inktext">매출업로드</h2>
           <p className="mt-1 text-xs text-muted">
-            섬들채 업장별 실적(매출)을 업로드합니다. &quot;게시판 권한&quot;에서 지정한 섬들채 담당자도 이 화면을 별도로(왼쪽 메뉴 &quot;매출업로드&quot;) 이용할 수 있습니다.
+            섬들채 POS &quot;매출관리 &gt; 매출현황 &gt; 일자별 &gt; 상품별&quot;에서 내려받은 파일을 업로드합니다.
           </p>
         </div>
         <div className="p-5">
