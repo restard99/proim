@@ -207,28 +207,23 @@ export async function uploadExecutiveTargetsFromWorkbook(formData: FormData): Pr
     .upsert(targetRows, { onConflict: "tenant_id,metric,corp_code,category,period_type,period_key" });
   if (targetsError) return { ok: false, message: "매출/생산 목표 저장 중 오류가 발생했습니다." };
 
-  // 섬들채 업장별 스냅샷은 개별 값이 누적되는 게 아니라 이번 마감일자 기준 전체가 통째로
-  // 갱신되는 성격이라, 같은 as_of_date의 기존 행을 지우고 새로 넣는다.
-  const { error: deleteError } = await supabase
-    .from("executive_seomdeulchae_unit_report")
-    .delete()
-    .eq("tenant_id", self.tenantId)
-    .eq("as_of_date", parsed.asOfDate);
-  if (deleteError) return { ok: false, message: "섬들채 업장별 목표 저장 중 오류가 발생했습니다." };
-
+  // 섬들채 업장별 목표(계획)만 upsert한다 — week_actual/month_actual은 여기서 건드리지
+  // 않는다(생략된 키는 postgrest가 그대로 두므로, 매출업로드가 별도로 채운 실적 값과
+  // 서로 덮어쓰지 않는다). 실적은 이제 이 업로드가 아니라 섬들채 POS 원시 판매 데이터에서
+  // 그때그때 계산한다.
   const unitRows = parsed.seomdeulchaeUnits.map((u) => ({
     tenant_id: self.tenantId,
     as_of_date: parsed.asOfDate,
     business_unit: u.businessUnit,
     week_plan: u.weekPlan,
-    week_actual: u.weekActual,
     month_plan: u.monthPlan,
-    month_actual: u.monthActual,
     uploaded_by: self.userId,
     file_name: file.name,
   }));
-  const { error: insertError } = await supabase.from("executive_seomdeulchae_unit_report").insert(unitRows);
-  if (insertError) return { ok: false, message: "섬들채 업장별 목표 저장 중 오류가 발생했습니다." };
+  const { error: unitError } = await supabase
+    .from("executive_seomdeulchae_unit_report")
+    .upsert(unitRows, { onConflict: "tenant_id,as_of_date,business_unit" });
+  if (unitError) return { ok: false, message: "섬들채 업장별 목표 저장 중 오류가 발생했습니다." };
 
   revalidatePath("/admin/executive-targets");
   revalidatePath("/executive/report");

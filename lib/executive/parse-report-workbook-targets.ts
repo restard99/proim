@@ -24,9 +24,7 @@ export type ProductionTargetRow = {
 export type SeomdeulchaeUnitRow = {
   businessUnit: string; // '전체'|'소금가게'|'택배/쇼핑몰'|'소금아이스크림'|'해양힐링센터'|'카라반'|'소금항카페'|'박물관'
   weekPlan: number | null;
-  weekActual: number | null;
   monthPlan: number | null;
-  monthActual: number | null;
 };
 
 export type ParseWorkbookTargetsResult =
@@ -87,13 +85,16 @@ function findAsOfDate(ws: ExcelJS.Worksheet): string | null {
   return null;
 }
 
-// dateCol(보통 B열)에서 asOfDate와 같은 날짜를 찾아, blockStartCol부터 12칸짜리 블록을 읽는다.
-function readDailyBlock(
+// dateCol(보통 B열)에서 asOfDate와 같은 날짜를 찾아, blockStartCol부터 시작하는 12칸짜리
+// 블록에서 계획(목표)값만 읽는다. 실적은 이제 이 워크북이 아니라 섬들채 POS 원시 판매
+// 데이터 업로드(매출업로드)에서 가져온다 — 계획과 실적의 출처를 분리해 서로 다른 담당자가
+// 각자의 자료를 올려도 섞이지 않게 한다.
+function readDailyPlan(
   ws: ExcelJS.Worksheet,
   dateCol: number,
   blockStartCol: string,
   asOfDate: string,
-): { weekPlan: number | null; weekActual: number | null; monthPlan: number | null; monthActual: number | null } | null {
+): { weekPlan: number | null; monthPlan: number | null } | null {
   let matchedRow = -1;
   for (let r = 1; r <= ws.rowCount; r++) {
     if (cellText(ws.getRow(r).getCell(dateCol)) === asOfDate) {
@@ -107,9 +108,7 @@ function readDailyBlock(
   const row = ws.getRow(matchedRow);
   return {
     weekPlan: cellNum(row.getCell(start)), // 0: 주간계획
-    weekActual: cellNum(row.getCell(start + 1)), // 1: 주간실적
     monthPlan: cellNum(row.getCell(start + 3)), // 3: 월간계획
-    monthActual: cellNum(row.getCell(start + 4)), // 4: 월간실적
   };
 }
 
@@ -158,7 +157,7 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
   if (!taepyeongSogeumWs) {
     errors.push('"매출-태평소금1" 시트를 찾을 수 없습니다.');
   } else {
-    const block = readDailyBlock(taepyeongSogeumWs, 2, "AJ", asOfDate);
+    const block = readDailyPlan(taepyeongSogeumWs, 2, "AJ", asOfDate);
     if (!block) errors.push(`"매출-태평소금1" 시트에서 마감일자(${asOfDate}) 행을 찾지 못했습니다.`);
     else corpTargets.push({ corpCode: "0460", weekPlan: block.weekPlan, monthPlan: block.monthPlan });
   }
@@ -168,15 +167,15 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
   if (!taepyeongYeomjeonWs) {
     errors.push('"매출-태평염전1" 시트를 찾을 수 없습니다.');
   } else {
-    const block = readDailyBlock(taepyeongYeomjeonWs, 2, "L", asOfDate);
+    const block = readDailyPlan(taepyeongYeomjeonWs, 2, "L", asOfDate);
     if (!block) errors.push(`"매출-태평염전1" 시트에서 마감일자(${asOfDate}) 행을 찾지 못했습니다.`);
     else corpTargets.push({ corpCode: "0400", weekPlan: block.weekPlan, monthPlan: block.monthPlan });
   }
 
-  // 섬들채 업장별 + 박물관 — 매출-서비스1, 업장 6개 + 박물관 블록
-  // "전체" 블록은 원본에 그대로 있지만(X열) 계획은 6개 업장 합과 일치하는데 실적은 박물관까지
-  // 포함된 값이 들어있어(실제 파일로 확인된 원본의 불일치) 믿지 않는다. "합계" 행은 항상
-  // 아래 나열된 6개 업장의 합으로 직접 계산해, 화면에 보이는 개별 행들과 항상 맞아떨어지게 한다.
+  // 섬들채 업장별 + 박물관 — 매출-서비스1, 업장 6개 + 박물관 블록. "전체"(합계) 행은 6개
+  // 업장의 계획을 직접 합산해서 계산한다(원본 "전체" 블록의 계획은 6개 업장 합과 일치함이
+  // 실제 파일로 확인됐지만, 화면에 보이는 개별 행들과 항상 맞아떨어지도록 굳이 원본 대신
+  // 직접 계산한다).
   const seomdeulchaeUnits: SeomdeulchaeUnitRow[] = [];
   const serviceWs = wb.getWorksheet("매출-서비스1");
   if (!serviceWs) {
@@ -190,12 +189,12 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
       { unit: "카라반", col: "CF" },
       { unit: "소금항카페", col: "CR" },
     ];
-    const museumBlock = readDailyBlock(serviceWs, 2, "DD", asOfDate);
+    const museumBlock = readDailyPlan(serviceWs, 2, "DD", asOfDate);
     if (!museumBlock) errors.push(`"매출-서비스1" 시트에서 "박물관"(DD열) 마감일자(${asOfDate}) 행을 찾지 못했습니다.`);
 
     const unitRows: SeomdeulchaeUnitRow[] = [];
     for (const { unit, col } of unitBlocks) {
-      const block = readDailyBlock(serviceWs, 2, col, asOfDate);
+      const block = readDailyPlan(serviceWs, 2, col, asOfDate);
       if (!block) {
         errors.push(`"매출-서비스1" 시트에서 "${unit}"(${col}열) 마감일자(${asOfDate}) 행을 찾지 못했습니다.`);
         continue;
@@ -209,9 +208,7 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
       const total: SeomdeulchaeUnitRow = {
         businessUnit: "전체",
         weekPlan: sum((r) => r.weekPlan),
-        weekActual: sum((r) => r.weekActual),
         monthPlan: sum((r) => r.monthPlan),
-        monthActual: sum((r) => r.monthActual),
       };
       seomdeulchaeUnits.push(total, ...unitRows);
       corpTargets.push({ corpCode: "0360", weekPlan: total.weekPlan, monthPlan: total.monthPlan });

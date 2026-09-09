@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkbookUploadHistory } from "@/app/actions/executive-targets";
 import { getPlConfirmedUploadHistory } from "@/app/actions/executive-pl-confirmed";
 import { getPlBusinessUnitUploadHistory } from "@/app/actions/executive-pl-business-unit";
+import { getSeomdeulchaeSalesRawSummary } from "@/app/actions/executive-seomdeulchae-sales";
 import { ExecutiveTargetUpload } from "@/components/admin/ExecutiveTargetUpload";
 
 export default async function ExecutiveTargetsAdminPage() {
@@ -16,10 +17,11 @@ export default async function ExecutiveTargetsAdminPage() {
   const { data: viewer } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (viewer?.role !== "admin") redirect("/");
 
-  const [workbookHistory, plConfirmedHistory, plBusinessUnitHistory] = await Promise.all([
+  const [workbookHistory, plConfirmedHistory, plBusinessUnitHistory, salesRawSummary] = await Promise.all([
     getWorkbookUploadHistory(),
     getPlConfirmedUploadHistory(),
     getPlBusinessUnitUploadHistory(),
+    getSeomdeulchaeSalesRawSummary(),
   ]);
 
   return (
@@ -33,6 +35,7 @@ export default async function ExecutiveTargetsAdminPage() {
           workbookHistory={workbookHistory}
           plConfirmedHistory={plConfirmedHistory}
           plBusinessUnitHistory={plBusinessUnitHistory}
+          salesRawSummary={salesRawSummary}
         />
       </div>
     </div>

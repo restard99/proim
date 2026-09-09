@@ -6,6 +6,7 @@ import { uploadExecutiveTargetsFromWorkbook, type WorkbookUploadHistoryRow } fro
 import { uploadPlConfirmed, type PlConfirmedUploadHistoryRow } from "@/app/actions/executive-pl-confirmed";
 import { uploadPlBusinessUnit, type PlBusinessUnitUploadHistoryRow } from "@/app/actions/executive-pl-business-unit";
 import { EXECUTIVE_PL_CORPS } from "@/lib/yerp/executive-corps";
+import type { SalesRawSummary } from "@/app/actions/executive-seomdeulchae-sales";
 import { SeomdeulchaeSalesUploadPanel } from "@/components/executive/SeomdeulchaeSalesUploadPanel";
 
 function formatDateTime(iso: string) {
@@ -374,10 +375,12 @@ export function ExecutiveTargetUpload({
   workbookHistory,
   plConfirmedHistory,
   plBusinessUnitHistory,
+  salesRawSummary,
 }: {
   workbookHistory: WorkbookUploadHistoryRow[];
   plConfirmedHistory: PlConfirmedUploadHistoryRow[];
   plBusinessUnitHistory: PlBusinessUnitUploadHistoryRow[];
+  salesRawSummary: SalesRawSummary;
 }) {
   return (
     <div className="space-y-6">
@@ -390,7 +393,7 @@ export function ExecutiveTargetUpload({
           </p>
         </div>
         <div className="p-5">
-          <SeomdeulchaeSalesUploadPanel />
+          <SeomdeulchaeSalesUploadPanel summary={salesRawSummary} />
         </div>
       </div>
       <UploadSection

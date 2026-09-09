@@ -1032,3 +1032,88 @@ CREATE POLICY "executive_seomdeulchae_unit_report_admin_delete" ON executive_seo
 
 CREATE INDEX IF NOT EXISTS executive_seomdeulchae_unit_report_lookup_idx
   ON executive_seomdeulchae_unit_report(tenant_id, as_of_date DESC);
+
+-- 섬들채(POS) 원시 판매 데이터를 그대로 저장한다. "일자별(상품별)" 내보내기를 업로드하면
+-- 상품 단위로 이미 하루치가 집계돼 있어(같은 날짜·업장·상품코드가 한 행), 그 조합을
+-- UNIQUE로 두고 upsert해서 겹치는 기간을 다시 올려도 중복되지 않게 한다. 주간업무보고
+-- 6페이지의 업장별 실적은 이 원본 데이터에서 그때그때 주간/월누적으로 집계해서 보여준다
+-- (목표처럼 스냅샷을 미리 계산해 저장하지 않음 — Y-ERP 기반 다른 페이지들과 같은 방식).
+CREATE TABLE IF NOT EXISTS executive_seomdeulchae_sales_raw (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id),
+  sale_date         DATE NOT NULL,
+  corp_code         TEXT NOT NULL,   -- '0360'(섬들채) 또는 '0440'(박물관)
+  business_unit     TEXT NOT NULL,   -- 매핑된 표준 업장명
+  product_code      TEXT NOT NULL,
+  product_name      TEXT,
+  qty               NUMERIC,
+  gross_amount      NUMERIC,
+  discount_amount   NUMERIC,
+  net_amount        NUMERIC NOT NULL,
+  uploaded_by       UUID REFERENCES profiles(id),
+  file_name         TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, sale_date, business_unit, product_code)
+);
+ALTER TABLE executive_seomdeulchae_sales_raw ENABLE ROW LEVEL SECURITY;
+
+-- 조회는 임원실 + 관리자 + 이 화면(매출업로드)을 개인 부여받은 사람(본인이 올린 걸 확인할 수 있게)
+DROP POLICY IF EXISTS "executive_seomdeulchae_sales_raw_select" ON executive_seomdeulchae_sales_raw;
+CREATE POLICY "executive_seomdeulchae_sales_raw_select" ON executive_seomdeulchae_sales_raw
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+      OR EXISTS (
+        SELECT 1 FROM user_menu_grants g
+        WHERE g.tenant_id = tenant_id AND g.user_id = auth.uid() AND g.menu_href = '/executive/sales-upload'
+      )
+    )
+  );
+
+-- 입력은 관리자 + 이 화면을 개인 부여받은 사람만
+DROP POLICY IF EXISTS "executive_seomdeulchae_sales_raw_insert" ON executive_seomdeulchae_sales_raw;
+CREATE POLICY "executive_seomdeulchae_sales_raw_insert" ON executive_seomdeulchae_sales_raw
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (
+        SELECT 1 FROM user_menu_grants g
+        WHERE g.tenant_id = tenant_id AND g.user_id = auth.uid() AND g.menu_href = '/executive/sales-upload'
+      )
+    )
+  );
+
+-- 겹치는 기간 재업로드 시 upsert(같은 날짜·업장·상품코드는 갱신)라 UPDATE도 같은 대상에게 허용
+DROP POLICY IF EXISTS "executive_seomdeulchae_sales_raw_update" ON executive_seomdeulchae_sales_raw;
+CREATE POLICY "executive_seomdeulchae_sales_raw_update" ON executive_seomdeulchae_sales_raw
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (
+        SELECT 1 FROM user_menu_grants g
+        WHERE g.tenant_id = tenant_id AND g.user_id = auth.uid() AND g.menu_href = '/executive/sales-upload'
+      )
+    )
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (
+        SELECT 1 FROM user_menu_grants g
+        WHERE g.tenant_id = tenant_id AND g.user_id = auth.uid() AND g.menu_href = '/executive/sales-upload'
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS "executive_seomdeulchae_sales_raw_admin_delete" ON executive_seomdeulchae_sales_raw;
+CREATE POLICY "executive_seomdeulchae_sales_raw_admin_delete" ON executive_seomdeulchae_sales_raw
+  FOR DELETE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+CREATE INDEX IF NOT EXISTS executive_seomdeulchae_sales_raw_lookup_idx
+  ON executive_seomdeulchae_sales_raw(tenant_id, business_unit, sale_date);

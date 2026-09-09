@@ -92,37 +92,89 @@ export type SeomdeulchaeUnitReportRow = {
   monthActual: number | null;
 };
 
-// 섬들채 업장별 매출목표·실적(6페이지)은 Y-ERP로 실시간 계산이 안 되고(거래처명 체계가 업장과
-// 안 맞음) 주간업무보고 워크북에서 업로드된 스냅샷을 그대로 쓴다. 조회하는 주의 마지막 날
-// 이전(=이하)에 올라온 가장 최근 마감일자 스냅샷을 그 주의 값으로 본다.
+// 섬들채 업장별 목표(계획)는 주간업무보고 워크북 업로드 스냅샷(executive_seomdeulchae_unit_report,
+// 조회하는 주 이전 중 가장 최근 마감일자)에서, 실적은 POS 원시 판매 데이터
+// (executive_seomdeulchae_sales_raw)에서 그때그때 주간/월누적(월초~조회주 마지막날)으로
+// 직접 집계한다 — 계획과 실적을 서로 다른 업로드가 채우기 때문에 조회 시점에 합친다.
+// "전체"(합계)는 원본에 그런 업장이 없어(POS 대분류가 6개 실제 업장뿐) 그 6개를 직접 더해서
+// 만든다 — 화면에 보이는 개별 업장 행들과 항상 정확히 맞아떨어지게 하기 위해서다.
+const SEOMDEULCHAE_UNITS = ["소금가게", "택배/쇼핑몰", "소금아이스크림", "해양힐링센터", "카라반", "소금항카페"] as const;
+
+async function sumNetAmountByUnit(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  startDate: string,
+  endDate: string,
+): Promise<Map<string, number>> {
+  const { data } = await supabase
+    .from("executive_seomdeulchae_sales_raw")
+    .select("business_unit, net_amount")
+    .eq("tenant_id", tenantId)
+    .gte("sale_date", startDate)
+    .lte("sale_date", endDate);
+
+  const map = new Map<string, number>();
+  for (const row of data ?? []) {
+    map.set(row.business_unit, (map.get(row.business_unit) ?? 0) + Number(row.net_amount));
+  }
+  return map;
+}
+
 async function loadSeomdeulchaeUnitReport(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
+  weekStartDate: string,
   weekEndDate: string,
+  monthStartDate: string,
 ): Promise<SeomdeulchaeUnitReportRow[] | null> {
-  const { data: latest } = await supabase
-    .from("executive_seomdeulchae_unit_report")
-    .select("as_of_date")
-    .eq("tenant_id", tenantId)
-    .lte("as_of_date", weekEndDate)
-    .order("as_of_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!latest) return null;
+  const [planRows, weekActualMap, monthActualMap] = await Promise.all([
+    (async () => {
+      const { data: latest } = await supabase
+        .from("executive_seomdeulchae_unit_report")
+        .select("as_of_date")
+        .eq("tenant_id", tenantId)
+        .lte("as_of_date", weekEndDate)
+        .order("as_of_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!latest) return [];
+      const { data } = await supabase
+        .from("executive_seomdeulchae_unit_report")
+        .select("business_unit, week_plan, month_plan")
+        .eq("tenant_id", tenantId)
+        .eq("as_of_date", latest.as_of_date);
+      return data ?? [];
+    })(),
+    sumNetAmountByUnit(supabase, tenantId, weekStartDate, weekEndDate),
+    sumNetAmountByUnit(supabase, tenantId, monthStartDate, weekEndDate),
+  ]);
 
-  const { data } = await supabase
-    .from("executive_seomdeulchae_unit_report")
-    .select("business_unit, week_plan, week_actual, month_plan, month_actual")
-    .eq("tenant_id", tenantId)
-    .eq("as_of_date", latest.as_of_date);
+  const planMap = new Map(planRows.map((r) => [r.business_unit as string, r]));
+  if (planMap.size === 0 && weekActualMap.size === 0 && monthActualMap.size === 0) return null;
 
-  return (data ?? []).map((r) => ({
-    businessUnit: r.business_unit as string,
-    weekPlan: r.week_plan === null ? null : Number(r.week_plan),
-    weekActual: r.week_actual === null ? null : Number(r.week_actual),
-    monthPlan: r.month_plan === null ? null : Number(r.month_plan),
-    monthActual: r.month_actual === null ? null : Number(r.month_actual),
-  }));
+  function buildRow(unit: string): SeomdeulchaeUnitReportRow {
+    const plan = planMap.get(unit);
+    return {
+      businessUnit: unit,
+      weekPlan: plan?.week_plan == null ? null : Number(plan.week_plan),
+      weekActual: weekActualMap.has(unit) ? (weekActualMap.get(unit) as number) : null,
+      monthPlan: plan?.month_plan == null ? null : Number(plan.month_plan),
+      monthActual: monthActualMap.has(unit) ? (monthActualMap.get(unit) as number) : null,
+    };
+  }
+
+  const unitRows = SEOMDEULCHAE_UNITS.map((u) => buildRow(u));
+  const sumIfAny = (pick: (r: SeomdeulchaeUnitReportRow) => number | null) =>
+    unitRows.some((r) => pick(r) !== null) ? unitRows.reduce((s, r) => s + (pick(r) ?? 0), 0) : null;
+  const totalRow: SeomdeulchaeUnitReportRow = {
+    businessUnit: "전체",
+    weekPlan: sumIfAny((r) => r.weekPlan),
+    weekActual: sumIfAny((r) => r.weekActual),
+    monthPlan: sumIfAny((r) => r.monthPlan),
+    monthActual: sumIfAny((r) => r.monthActual),
+  };
+
+  return [totalRow, ...unitRows, buildRow("박물관")];
 }
 
 export type WeeklyReportPage1Corp = {
@@ -183,7 +235,7 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
       getSalesTotalByCorp({ corpCodes, startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
       getSalesByCustomer({ corpCode: "0400", startDate: weekStartYmd, endDate: weekEndYmd }),
       getSalesByCustomer({ corpCode: "0460", startDate: weekStartYmd, endDate: weekEndYmd }),
-      loadSeomdeulchaeUnitReport(supabase, self.tenantId, weekEndDate),
+      loadSeomdeulchaeUnitReport(supabase, self.tenantId, weekStartDate, weekEndDate, month.start),
       getTaepyeongSogeumProduction({ startDate: weekStartYmd, endDate: weekEndYmd }),
       getTaepyeongSogeumProduction({ startDate: monthToDateStart, endDate: monthToDateEnd }),
       getTaepyeongSogeumProduction({ startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
