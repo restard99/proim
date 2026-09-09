@@ -245,9 +245,29 @@ export async function uploadExecutiveTargetsFromWorkbook(formData: FormData): Pr
     if (error) return { ok: false, message: "섬들채 업장별 목표 저장 중 오류가 발생했습니다." };
   }
 
+  // 태평염전 일별 매출실적(Y-ERP 반영이 늦어 워크북 F열을 대신 씀).
+  const dailySalesRows = parsed.taepyeongYeomjeonDailySales.map((d) => ({
+    tenant_id: self.tenantId,
+    sale_date: d.saleDate,
+    amount: d.amount,
+    uploaded_by: self.userId,
+    file_name: file.name,
+  }));
+  for (let i = 0; i < dailySalesRows.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = dailySalesRows.slice(i, i + UPSERT_CHUNK_SIZE);
+    const { error } = await supabase
+      .from("executive_taepyeong_yeomjeon_sales_daily")
+      .upsert(chunk, { onConflict: "tenant_id,sale_date" });
+    if (error) return { ok: false, message: "태평염전 일별 매출실적 저장 중 오류가 발생했습니다." };
+  }
+
   revalidatePath("/admin/executive-targets");
   revalidatePath("/executive/report");
-  return { ok: true, recordCount: targetRows.length + unitRows.length, asOfDate: parsed.asOfDate };
+  return {
+    ok: true,
+    recordCount: targetRows.length + unitRows.length + dailySalesRows.length,
+    asOfDate: parsed.asOfDate,
+  };
 }
 
 export type WorkbookUploadHistoryRow = {

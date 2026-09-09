@@ -32,6 +32,8 @@ export type SeomdeulchaeUnitSeries = {
   monthPlans: PeriodValue[];
 };
 
+export type DailySalesRow = { saleDate: string; amount: number };
+
 export type ParseWorkbookTargetsResult =
   | {
       ok: true;
@@ -39,6 +41,7 @@ export type ParseWorkbookTargetsResult =
       corpTargets: CorpTargetSeries[];
       productionTargets: ProductionTargetRow[];
       seomdeulchaeUnits: SeomdeulchaeUnitSeries[];
+      taepyeongYeomjeonDailySales: DailySalesRow[];
     }
   | { ok: false; errors: string[] };
 
@@ -141,6 +144,22 @@ function readDailyPlanSeries(
   };
 }
 
+// dateCol에 값이 있는 모든 행에서 amountCol의 일별 매출실적을 그대로 읽는다(태평염전
+// Y-ERP 반영이 실제보다 늦어 워크북의 수기 일별 실적을 대신 쓰기 위함 — readDailyPlanSeries와
+// 달리 이 값은 날짜별로 매일 채워져 있어(성긴 표 아님) 그대로 하루 단위 실적으로 저장한다).
+function readDailySales(ws: ExcelJS.Worksheet, dateCol: number, amountCol: number): DailySalesRow[] {
+  const out: DailySalesRow[] = [];
+  for (let r = 1; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    const dateText = cellText(row.getCell(dateCol));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) continue;
+    const amount = cellNum(row.getCell(amountCol));
+    if (amount === null) continue;
+    out.push({ saleDate: dateText, amount });
+  }
+  return out;
+}
+
 // 여러 시리즈(예: 섬들채 6개 업장)를 같은 periodKey끼리 더한다. 전부 다 그 기간의 값을
 // 가지고 있을 때만 합산해서, 일부 업장 데이터가 빠진 기간을 실제보다 적게 보여주지 않는다.
 function sumSeriesAcrossUnits(seriesList: PeriodValue[][]): PeriodValue[] {
@@ -206,14 +225,17 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
     corpTargets.push({ corpCode: "0460", ...readDailyPlanSeries(taepyeongSogeumWs, 2, "AJ") });
   }
 
-  // 태평염전(법인 전체) — 매출-태평염전1. 이 시트는 다른 두 매출 시트와 달리 일자별 성긴
-  // 표가 목표값의 신뢰할 수 있는 출처가 아니다(실측 결과 L열부터 시작하는 블록에 계획비 다음
-  // 빈 칸이 하나 끼어 있어 열이 하나씩 밀려 읽힘). 대신 4행(헤더: 총/1월~12월)+5행(값)에
-  // 항상 다 채워져 있는 "월별 목표" 표(N~AA열)에서 월간계획만 바로 읽는다. 주간계획은 이
-  // 시트에 별도로 없고, 실측해보니 성긴 표에 어쩌다 있는 값도 월간계획을 그 달 일수로 나눠
-  // 7을 곱한 값과 정확히 같았다 — 즉 원본 자체가 "주간계획 = 월간계획/일수*7"로 계산해 넣은
-  // 값이라, 굳이 성긴 표에서 따로 읽지 않고 조회 시점에 executive-report.ts에서 월간계획으로
-  // 그때그때 계산한다(월간계획이 이 표 덕분에 항상 있으니 주간계획도 항상 계산 가능해진다).
+  // 태평염전(법인 전체) — 매출-태평염전1. 이 시트의 L열 성긴 블록은 주간계획 출처로 못 쓴다.
+  // 달을 안 걸치는 보통 주는 값이 정상이지만(예: 432,000,000÷31×7), 달을 걸치는 주(예:
+  // 8/31~9/6)는 두 조각으로 나뉘어 있지 않고 "9/6에 이미 두 조각 다 합친 정확한 값"이
+  // 들어있는데, 8/31 칸에도 직전 주(8/24~8/30) 값이 지워지지 않고 그대로 남아 있다(태평소금
+  // 시트와 달리 여기는 두 칸 다 채워짐 = 실측으로 확인). 그래서 그냥 더하면 이중 계산이 된다.
+  // 월간계획도 계획비 다음에 빈 칸이 하나 더 끼어 있어(다른 두 매출 시트와 블록 구조가 다름)
+  // 고정 오프셋으로 못 읽는다. 그래서 주간·월간 둘 다 이 블록을 안 쓰고, 4행(헤더:
+  // 총/1월~12월)+5행(값)에 항상 다 채워져 있는 "월별 목표" 표(N~AA열)에서 월간계획만 읽고,
+  // 주간계획은 executive-report.ts에서 그 월간계획을 날짜별로 일할 계산해 만든다(달을 걸치는
+  // 주도 정확히 맞음 — 실측 확인: 148,335,483.87 = 8/31 하루(432M÷31) + 9/1~9/6 엿새(672M÷30×6),
+  // 원본이 9/6에 넣어 둔 값과 정확히 일치).
   const taepyeongYeomjeonWs = wb.getWorksheet("매출-태평염전1");
   if (!taepyeongYeomjeonWs) {
     errors.push('"매출-태평염전1" 시트를 찾을 수 없습니다.');
@@ -224,6 +246,10 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
       monthPlans: readMonthlyRow(taepyeongYeomjeonWs, 4, 5, colNum("N"), colNum("AA"), year),
     });
   }
+
+  // 태평염전 일별 매출실적(F열) — Y-ERP 반영이 실제보다 늦어(사용자 확인) 워크북의 수기
+  // 일별 실적을 그대로 저장해 두고, 조회 시점에 주간/월누적으로 합산해 쓴다.
+  const taepyeongYeomjeonDailySales = taepyeongYeomjeonWs ? readDailySales(taepyeongYeomjeonWs, 2, colNum("F")) : [];
 
   // 섬들채 업장별(6개) + 박물관 — 매출-서비스1. 섬들채 법인 전체(0360)는 6개 업장을
   // 기간별로 합산해서 만든다(원본 "전체" 블록은 신뢰하지 않음 — TASK-002에서 실적 기준
@@ -282,5 +308,5 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
   }
 
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, asOfDate, corpTargets, productionTargets, seomdeulchaeUnits };
+  return { ok: true, asOfDate, corpTargets, productionTargets, seomdeulchaeUnits, taepyeongYeomjeonDailySales };
 }

@@ -1126,3 +1126,54 @@ CREATE POLICY "executive_seomdeulchae_sales_raw_admin_delete" ON executive_seomd
 
 CREATE INDEX IF NOT EXISTS executive_seomdeulchae_sales_raw_lookup_idx
   ON executive_seomdeulchae_sales_raw(tenant_id, business_unit, sale_date);
+
+-- 태평염전 일별 매출실적. Y-ERP 반영이 실제보다 늦어(사용자 확인) 당장은 믿을 수 없어서,
+-- "주간_월간_업무보고" 워크북의 매출-태평염전1 탭 F열(일자별 매출실적)을 그대로 저장해
+-- 조회 시점에 주간/월누적으로 합산한다 — Y-ERP 데이터가 나중에 따라잡으면 다시 Y-ERP로
+-- 돌리면 되므로, 없는 기간(과거)은 executive-report.ts에서 Y-ERP 값으로 대체한다.
+CREATE TABLE IF NOT EXISTS executive_taepyeong_yeomjeon_sales_daily (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id),
+  sale_date     DATE NOT NULL,
+  amount        NUMERIC NOT NULL,
+  uploaded_by   UUID REFERENCES profiles(id),
+  file_name     TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, sale_date)
+);
+ALTER TABLE executive_taepyeong_yeomjeon_sales_daily ENABLE ROW LEVEL SECURITY;
+
+-- 조회는 임원실 + 관리자 (executive_targets와 동일한 팀 조건)
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_sales_daily_select" ON executive_taepyeong_yeomjeon_sales_daily;
+CREATE POLICY "executive_taepyeong_yeomjeon_sales_daily_select" ON executive_taepyeong_yeomjeon_sales_daily
+  FOR SELECT USING (
+    tenant_id = public.my_tenant_id()
+    AND (
+      public.is_tenant_admin(tenant_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.team = '임원실')
+    )
+  );
+
+-- 입력/수정/삭제는 관리자만 (매출목표관리 워크북 업로드 액션이 처리)
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_sales_daily_admin_insert" ON executive_taepyeong_yeomjeon_sales_daily;
+CREATE POLICY "executive_taepyeong_yeomjeon_sales_daily_admin_insert" ON executive_taepyeong_yeomjeon_sales_daily
+  FOR INSERT WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_sales_daily_admin_update" ON executive_taepyeong_yeomjeon_sales_daily;
+CREATE POLICY "executive_taepyeong_yeomjeon_sales_daily_admin_update" ON executive_taepyeong_yeomjeon_sales_daily
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_taepyeong_yeomjeon_sales_daily_admin_delete" ON executive_taepyeong_yeomjeon_sales_daily;
+CREATE POLICY "executive_taepyeong_yeomjeon_sales_daily_admin_delete" ON executive_taepyeong_yeomjeon_sales_daily
+  FOR DELETE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+CREATE INDEX IF NOT EXISTS executive_taepyeong_yeomjeon_sales_daily_lookup_idx
+  ON executive_taepyeong_yeomjeon_sales_daily(tenant_id, sale_date);

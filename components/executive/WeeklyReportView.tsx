@@ -7,6 +7,7 @@ import {
   postComment,
   getRangeActualsReport,
   type WeeklyReportData,
+  type WeeklyReportPage1Corp,
   type WeeklyComment,
   type TopSellingProduct,
   type RangeActualsReport,
@@ -302,6 +303,45 @@ function Page1({ report }: { report: WeeklyReportData }) {
   );
 }
 
+// PPT 주간업무보고 개별 법인 페이지(예: "3. 태평염전") 상단에 있는 "■ 주간 매출 실적" 표를
+// 그대로 옮긴 것 — 1페이지(전 사업장 매출실적)의 그 법인 행과 같은 데이터를, 주간/월간/전년동월
+// 그룹 헤더로 보여준다.
+function CorpWeeklySummaryTable({ corp }: { corp: WeeklyReportPage1Corp }) {
+  return (
+    <Table title="■ 주간 매출 실적 [단위: 원]">
+      <thead>
+        <tr>
+          <th colSpan={3}>주간</th>
+          <th colSpan={3}>월간</th>
+          <th colSpan={2}>전년 동월</th>
+        </tr>
+        <tr>
+          <th>계획</th>
+          <th>실적</th>
+          <th>달성률</th>
+          <th>계획</th>
+          <th>실적</th>
+          <th>달성률</th>
+          <th>실적</th>
+          <th>대비율</th>
+        </tr>
+      </thead>
+      <tbody className="text-center">
+        <tr>
+          <td>{won(corp.weekPlan)}</td>
+          <td className="text-brine">{won(corp.weekActual)}</td>
+          <td>{rate(corp.weekActual, corp.weekPlan)}</td>
+          <td>{won(corp.monthPlan)}</td>
+          <td>{won(corp.monthActual)}</td>
+          <td>{rate(corp.monthActual, corp.monthPlan)}</td>
+          <td>{won(corp.lastYearMonthActual)}</td>
+          <td>{rate(corp.monthActual, corp.lastYearMonthActual)}</td>
+        </tr>
+      </tbody>
+    </Table>
+  );
+}
+
 function CustomerTable({ customers, total }: { customers: WeeklyReportData["page2"]["customers"]; total: number }) {
   const { top, restTotal } = topNWithRest(customers, 8);
   return (
@@ -335,7 +375,13 @@ function CustomerTable({ customers, total }: { customers: WeeklyReportData["page
 }
 
 function Page2({ report }: { report: WeeklyReportData }) {
-  return <CustomerTable customers={report.page2.customers} total={report.page2.weekActual} />;
+  const yeomjeon = report.page1.corps.find((c) => c.corpCode === "0400");
+  return (
+    <div className="space-y-4">
+      {yeomjeon && <CorpWeeklySummaryTable corp={yeomjeon} />}
+      <CustomerTable customers={report.page2.customers} total={report.page2.weekActual} />
+    </div>
+  );
 }
 
 function Page3({ report }: { report: WeeklyReportData }) {

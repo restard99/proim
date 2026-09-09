@@ -154,6 +154,27 @@ async function sumNetAmountByUnit(
   return map;
 }
 
+// 태평염전 Y-ERP 매출 반영이 실제보다 늦어(사용자 확인) 워크북에 수기로 올라오는 일별
+// 매출실적(executive_taepyeong_yeomjeon_sales_daily)을 대신 쓴다. 그 범위에 업로드된 값이
+// 하나도 없으면(아직 안 올라온 최신 기간이 아니라 애초에 이 트래킹 이전의 옛날 기간) null을
+// 반환해서, 호출 측이 예전처럼 Y-ERP 값으로 대체할 수 있게 한다.
+async function sumTaepyeongYeomjeonDailySales(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  startDate: string,
+  endDate: string,
+): Promise<number | null> {
+  const { data } = await supabase
+    .from("executive_taepyeong_yeomjeon_sales_daily")
+    .select("amount")
+    .eq("tenant_id", tenantId)
+    .gte("sale_date", startDate)
+    .lte("sale_date", endDate);
+
+  if (!data || data.length === 0) return null;
+  return data.reduce((s, r) => s + Number(r.amount), 0);
+}
+
 export type TopSellingProduct = {
   productCode: string;
   productName: string;
@@ -375,6 +396,8 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
     page4Prod,
     page4ProdMonth,
     page4ProdLastYear,
+    yeomjeonWeekActual,
+    yeomjeonMonthActual,
   ] = await Promise.all([
     getSalesTotalByCorp({ corpCodes, startDate: weekStartYmd, endDate: weekEndYmd }),
     getSalesTotalByCorp({ corpCodes, startDate: monthToDateStart, endDate: monthToDateEnd }),
@@ -386,6 +409,8 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
     getTaepyeongSogeumProduction({ startDate: weekStartYmd, endDate: weekEndYmd }),
     getTaepyeongSogeumProduction({ startDate: monthToDateStart, endDate: monthToDateEnd }),
     getTaepyeongSogeumProduction({ startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
+    sumTaepyeongYeomjeonDailySales(supabase, self.tenantId, weekStartDate, weekEndDate),
+    sumTaepyeongYeomjeonDailySales(supabase, self.tenantId, month.start, weekEndDate),
   ]);
 
   const [page2Month, page5Month] = await Promise.all([
@@ -397,6 +422,10 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
 
   const page1Corps: WeeklyReportPage1Corp[] = EXECUTIVE_CORPS.map((c) => {
     const monthPlanByKey = targets.salesMonthByKey.get(c.corpCode);
+    // 태평염전은 Y-ERP 반영이 실제보다 늦어서(사용자 확인) 워크북에 수기로 올라오는 일별
+    // 매출실적을 우선 쓰고, 그 범위에 아직 업로드된 값이 없을 때만(트래킹 이전의 옛 기간)
+    // 예전처럼 Y-ERP 값으로 대체한다.
+    const isYeomjeon = c.corpCode === "0400";
     return {
       corpCode: c.corpCode,
       corpName: c.corpName,
@@ -404,9 +433,9 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
       // 쓰고, 아직 보고서가 안 만들어진 진행 중인 주처럼 값이 아예 없을 때만 월간계획
       // 기반으로 대체 계산한다.
       weekPlan: targets.salesWeek.get(c.corpCode) ?? computeWeekPlanFromMonthly(weekStartDate, monthPlanByKey),
-      weekActual: weekTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
+      weekActual: (isYeomjeon ? yeomjeonWeekActual : null) ?? weekTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
       monthPlan: monthPlanByKey?.get(startMonthKey) ?? null,
-      monthActual: monthTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
+      monthActual: (isYeomjeon ? yeomjeonMonthActual : null) ?? monthTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
       lastYearMonthActual: lastYearTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
     };
   });
