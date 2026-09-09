@@ -1,17 +1,22 @@
 import "server-only";
 import ExcelJS from "exceljs";
 
-// "주간_월간_업무보고" 워크북을 그대로 업로드하면, 그 안에 이미 있는 목표(계획)·실적 수치를
-// 정해진 위치에서 자동으로 뽑아온다. 매출 3개 시트(매출-태평소금1/매출-태평염전1/매출-서비스1)는
+// "주간_월간_업무보고" 워크북을 그대로 업로드하면, 그 안에 이미 있는 목표(계획) 수치를 정해진
+// 위치에서 자동으로 뽑아온다. 매출 3개 시트(매출-태평소금1/매출-태평염전1/매출-서비스1)는
 // 모두 "일자별로 한 행 + 그 행 안에 12열짜리 블록(주간계획/주간실적/계획비/월간계획/월간실적/
 // 월간달성율/월누적계획/월누적실적/월누적달성율/연간계획/연간실적/연간진행율)" 구조를 공유한다.
-// "팀보고" 시트의 마감일자와 같은 날짜의 행을 찾아 그 블록을 읽으면, 하드코딩된 셀 좌표 없이도
-// 매주 다른 파일에서 항상 최신 마감일자 기준 수치를 정확히 가져올 수 있다.
+//
+// 이 표는 매일 채워지는 게 아니라 "보고서를 실제로 만든 날"에만 값이 들어있는 성긴 표다
+// (실제 파일로 확인 — 예: 8/23, 8/30, 9/6처럼 매주 보고일에만 값이 있고 나머지는 빈 칸).
+// 그래서 값이 채워진 행을 전부 스캔해서 그 날이 속한 주(월요일 기준)/월의 목표로 기록하면,
+// 워크북 한 번 업로드로 그 안에 있던 과거 모든 주/월의 목표가 한꺼번에 채워진다.
 
-export type CorpTargetRow = {
-  corpCode: string; // '0460'|'0400'|'0440'
-  weekPlan: number | null;
-  monthPlan: number | null;
+type PeriodValue = { periodKey: string; value: number };
+
+export type CorpTargetSeries = {
+  corpCode: string; // '0460'|'0400'|'0360'|'0440'
+  weekPlans: PeriodValue[]; // periodKey: 주 시작일(월요일, YYYY-MM-DD)
+  monthPlans: PeriodValue[]; // periodKey: 'YYYY-MM'
 };
 
 export type ProductionTargetRow = {
@@ -21,19 +26,19 @@ export type ProductionTargetRow = {
   targetValue: number;
 };
 
-export type SeomdeulchaeUnitRow = {
-  businessUnit: string; // '전체'|'소금가게'|'택배/쇼핑몰'|'소금아이스크림'|'해양힐링센터'|'카라반'|'소금항카페'|'박물관'
-  weekPlan: number | null;
-  monthPlan: number | null;
+export type SeomdeulchaeUnitSeries = {
+  businessUnit: string; // '소금가게'|'택배/쇼핑몰'|'소금아이스크림'|'해양힐링센터'|'카라반'|'소금항카페'
+  weekPlans: PeriodValue[];
+  monthPlans: PeriodValue[];
 };
 
 export type ParseWorkbookTargetsResult =
   | {
       ok: true;
       asOfDate: string;
-      corpTargets: CorpTargetRow[];
+      corpTargets: CorpTargetSeries[];
       productionTargets: ProductionTargetRow[];
-      seomdeulchaeUnits: SeomdeulchaeUnitRow[];
+      seomdeulchaeUnits: SeomdeulchaeUnitSeries[];
     }
   | { ok: false; errors: string[] };
 
@@ -68,8 +73,18 @@ function colNum(letters: string): number {
   return n;
 }
 
+// 날짜가 속한 주의 월요일을 구한다(executive-targets.ts의 mondayOf()와 동일한 규칙).
+function mondayOf(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const day = d.getUTCDay(); // 0=일 ... 6=토
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diffToMonday);
+  return d.toISOString().slice(0, 10);
+}
+
 // "팀보고" 시트 어딘가에 "마감일자" 라벨이 있고 같은 행의 다른 칸에 날짜가 들어있다.
 // 위치가 바뀌어도 라벨을 찾아 그 옆(또는 근처)에서 날짜를 읽도록 라벨 기준으로 찾는다.
+// (이 값 자체는 이제 어느 행을 읽을지 고르는 데는 안 쓰고, 업로드 결과 표시용으로만 쓴다.)
 function findAsOfDate(ws: ExcelJS.Worksheet): string | null {
   for (let r = 1; r <= Math.min(ws.rowCount, 30); r++) {
     const row = ws.getRow(r);
@@ -85,35 +100,58 @@ function findAsOfDate(ws: ExcelJS.Worksheet): string | null {
   return null;
 }
 
-// dateCol(보통 B열)에서 asOfDate와 같은 날짜를 찾아, blockStartCol부터 시작하는 12칸짜리
-// 블록에서 계획(목표)값만 읽는다. 실적은 이제 이 워크북이 아니라 섬들채 POS 원시 판매
-// 데이터 업로드(매출업로드)에서 가져온다 — 계획과 실적의 출처를 분리해 서로 다른 담당자가
-// 각자의 자료를 올려도 섞이지 않게 한다.
-function readDailyPlan(
+// dateCol(보통 B열)에 값이 있는 모든 행을 스캔해서, blockStartCol부터 시작하는 12칸짜리
+// 블록에서 그 행에 실제로 채워진 주간계획/월간계획을 전부 모은다. 실적은 이제 이 워크북이
+// 아니라 섬들채 POS 원시 판매 데이터 업로드(매출업로드)에서 가져온다 — 계획과 실적의 출처를
+// 분리해 서로 다른 담당자가 각자의 자료를 올려도 섞이지 않게 한다.
+function readDailyPlanSeries(
   ws: ExcelJS.Worksheet,
   dateCol: number,
   blockStartCol: string,
-  asOfDate: string,
-): { weekPlan: number | null; monthPlan: number | null } | null {
-  let matchedRow = -1;
-  for (let r = 1; r <= ws.rowCount; r++) {
-    if (cellText(ws.getRow(r).getCell(dateCol)) === asOfDate) {
-      matchedRow = r;
-      break;
-    }
-  }
-  if (matchedRow === -1) return null;
-
+): { weekPlans: PeriodValue[]; monthPlans: PeriodValue[] } {
   const start = colNum(blockStartCol);
-  const row = ws.getRow(matchedRow);
+  const weekPlans = new Map<string, number>();
+  const monthPlans = new Map<string, number>();
+
+  for (let r = 1; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    const dateText = cellText(row.getCell(dateCol));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) continue;
+
+    const weekVal = cellNum(row.getCell(start));
+    if (weekVal !== null) weekPlans.set(mondayOf(dateText), weekVal);
+
+    // 월간계획은 같은 달 안에서 여러 번(매주 보고서마다) 반복 기록되므로, 날짜 순으로
+    // 훑으면서 늦은 값으로 계속 덮어써 가장 최근 값을 쓴다.
+    const monthVal = cellNum(row.getCell(start + 3));
+    if (monthVal !== null) monthPlans.set(dateText.slice(0, 7), monthVal);
+  }
+
   return {
-    weekPlan: cellNum(row.getCell(start)), // 0: 주간계획
-    monthPlan: cellNum(row.getCell(start + 3)), // 3: 월간계획
+    weekPlans: [...weekPlans.entries()].map(([periodKey, value]) => ({ periodKey, value })),
+    monthPlans: [...monthPlans.entries()].map(([periodKey, value]) => ({ periodKey, value })),
   };
 }
 
+// 여러 시리즈(예: 섬들채 6개 업장)를 같은 periodKey끼리 더한다. 전부 다 그 기간의 값을
+// 가지고 있을 때만 합산해서, 일부 업장 데이터가 빠진 기간을 실제보다 적게 보여주지 않는다.
+function sumSeriesAcrossUnits(seriesList: PeriodValue[][]): PeriodValue[] {
+  const keys = new Set<string>();
+  for (const series of seriesList) for (const p of series) keys.add(p.periodKey);
+
+  const out: PeriodValue[] = [];
+  for (const key of keys) {
+    const values = seriesList.map((series) => series.find((p) => p.periodKey === key)?.value);
+    if (values.every((v) => v !== undefined)) {
+      out.push({ periodKey: key, value: values.reduce((sum, v) => sum + (v as number), 0) });
+    }
+  }
+  return out;
+}
+
 // 생산-소금/생산-염전처럼 "구분 행 + 총/1월~12월 열"로 된 단순 월간 매트릭스에서, 헤더 라벨로
-// 월을 찾아 그 달의 값을 읽는다. "총"(합계) 열은 건너뛴다.
+// 월을 찾아 그 달의 값을 읽는다. "총"(합계) 열은 건너뛴다. (이 표는 성긴 일자별 표가 아니라
+// 12개월이 항상 다 있는 고정폭 표라 스캔 없이 그대로 읽으면 된다.)
 function readMonthlyRow(
   ws: ExcelJS.Worksheet,
   headerRow: number,
@@ -121,8 +159,8 @@ function readMonthlyRow(
   startCol: number,
   endCol: number,
   year: number,
-): { periodKey: string; value: number }[] {
-  const out: { periodKey: string; value: number }[] = [];
+): PeriodValue[] {
+  const out: PeriodValue[] = [];
   const header = ws.getRow(headerRow);
   const value = ws.getRow(valueRow);
   for (let c = startCol; c <= endCol; c++) {
@@ -150,16 +188,14 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
   if (!asOfDate) return { ok: false, errors: ['"팀보고" 시트에서 마감일자를 찾지 못했습니다.'] };
   const year = Number(asOfDate.slice(0, 4));
 
-  const corpTargets: CorpTargetRow[] = [];
+  const corpTargets: CorpTargetSeries[] = [];
 
   // 태평소금(법인 전체) — 매출-태평소금1, AJ열부터
   const taepyeongSogeumWs = wb.getWorksheet("매출-태평소금1");
   if (!taepyeongSogeumWs) {
     errors.push('"매출-태평소금1" 시트를 찾을 수 없습니다.');
   } else {
-    const block = readDailyPlan(taepyeongSogeumWs, 2, "AJ", asOfDate);
-    if (!block) errors.push(`"매출-태평소금1" 시트에서 마감일자(${asOfDate}) 행을 찾지 못했습니다.`);
-    else corpTargets.push({ corpCode: "0460", weekPlan: block.weekPlan, monthPlan: block.monthPlan });
+    corpTargets.push({ corpCode: "0460", ...readDailyPlanSeries(taepyeongSogeumWs, 2, "AJ") });
   }
 
   // 태평염전(법인 전체) — 매출-태평염전1, L열부터
@@ -167,16 +203,13 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
   if (!taepyeongYeomjeonWs) {
     errors.push('"매출-태평염전1" 시트를 찾을 수 없습니다.');
   } else {
-    const block = readDailyPlan(taepyeongYeomjeonWs, 2, "L", asOfDate);
-    if (!block) errors.push(`"매출-태평염전1" 시트에서 마감일자(${asOfDate}) 행을 찾지 못했습니다.`);
-    else corpTargets.push({ corpCode: "0400", weekPlan: block.weekPlan, monthPlan: block.monthPlan });
+    corpTargets.push({ corpCode: "0400", ...readDailyPlanSeries(taepyeongYeomjeonWs, 2, "L") });
   }
 
-  // 섬들채 업장별 + 박물관 — 매출-서비스1, 업장 6개 + 박물관 블록. "전체"(합계) 행은 6개
-  // 업장의 계획을 직접 합산해서 계산한다(원본 "전체" 블록의 계획은 6개 업장 합과 일치함이
-  // 실제 파일로 확인됐지만, 화면에 보이는 개별 행들과 항상 맞아떨어지도록 굳이 원본 대신
-  // 직접 계산한다).
-  const seomdeulchaeUnits: SeomdeulchaeUnitRow[] = [];
+  // 섬들채 업장별(6개) + 박물관 — 매출-서비스1. 섬들채 법인 전체(0360)는 6개 업장을
+  // 기간별로 합산해서 만든다(원본 "전체" 블록은 신뢰하지 않음 — TASK-002에서 실적 기준
+  // 불일치를 확인한 바 있어 계획도 같은 방식으로 직접 계산해 화면과 항상 맞아떨어지게 한다).
+  const seomdeulchaeUnits: SeomdeulchaeUnitSeries[] = [];
   const serviceWs = wb.getWorksheet("매출-서비스1");
   if (!serviceWs) {
     errors.push('"매출-서비스1" 시트를 찾을 수 없습니다.');
@@ -189,34 +222,16 @@ export async function parseReportWorkbookTargets(buffer: Buffer): Promise<ParseW
       { unit: "카라반", col: "CF" },
       { unit: "소금항카페", col: "CR" },
     ];
-    const museumBlock = readDailyPlan(serviceWs, 2, "DD", asOfDate);
-    if (!museumBlock) errors.push(`"매출-서비스1" 시트에서 "박물관"(DD열) 마감일자(${asOfDate}) 행을 찾지 못했습니다.`);
-
-    const unitRows: SeomdeulchaeUnitRow[] = [];
     for (const { unit, col } of unitBlocks) {
-      const block = readDailyPlan(serviceWs, 2, col, asOfDate);
-      if (!block) {
-        errors.push(`"매출-서비스1" 시트에서 "${unit}"(${col}열) 마감일자(${asOfDate}) 행을 찾지 못했습니다.`);
-        continue;
-      }
-      unitRows.push({ businessUnit: unit, ...block });
+      seomdeulchaeUnits.push({ businessUnit: unit, ...readDailyPlanSeries(serviceWs, 2, col) });
     }
 
-    if (unitRows.length === unitBlocks.length) {
-      const sum = (pick: (r: SeomdeulchaeUnitRow) => number | null) =>
-        unitRows.reduce((s, r) => (pick(r) === null ? s : s + (pick(r) as number)), 0);
-      const total: SeomdeulchaeUnitRow = {
-        businessUnit: "전체",
-        weekPlan: sum((r) => r.weekPlan),
-        monthPlan: sum((r) => r.monthPlan),
-      };
-      seomdeulchaeUnits.push(total, ...unitRows);
-      corpTargets.push({ corpCode: "0360", weekPlan: total.weekPlan, monthPlan: total.monthPlan });
-    }
-    if (museumBlock) {
-      seomdeulchaeUnits.push({ businessUnit: "박물관", ...museumBlock });
-      corpTargets.push({ corpCode: "0440", weekPlan: museumBlock.weekPlan, monthPlan: museumBlock.monthPlan });
-    }
+    corpTargets.push({
+      corpCode: "0360",
+      weekPlans: sumSeriesAcrossUnits(seomdeulchaeUnits.map((u) => u.weekPlans)),
+      monthPlans: sumSeriesAcrossUnits(seomdeulchaeUnits.map((u) => u.monthPlans)),
+    });
+    corpTargets.push({ corpCode: "0440", ...readDailyPlanSeries(serviceWs, 2, "DD") });
   }
 
   // 생산목표(월간만) — 태평소금: 생산-소금 V5(천일염)/V6(가공염), W=총(건너뜀)/X~AI=1~12월

@@ -988,27 +988,28 @@ CREATE INDEX IF NOT EXISTS user_menu_grants_user_idx ON user_menu_grants(user_id
 
 -- 섬들채 업장별(+전체+박물관) 매출목표·실적 스냅샷. Y-ERP 실시간 집계로는 업장 구분이
 -- 안 되고(거래처명 체계가 업장과 안 맞음) 주간업무보고 워크북에만 정확한 수치가 있어,
--- 업로드 시점(마감일자) 그대로 저장했다가 주간업무보고에서 그대로 읽는다. 매주 통째로
--- 갱신되는 스냅샷이라 UPDATE 정책은 두지 않는다(같은 as_of_date는 지우고 다시 넣는 방식).
-CREATE TABLE IF NOT EXISTS executive_seomdeulchae_unit_report (
+-- 섬들채 업장별(6개 실제 업장 — 박물관은 별도 법인이라 executive_targets에서 다룸) 매출목표.
+-- 워크북의 일자별 블록은 "보고서를 실제로 만든 날"에만 값이 채워져 있는 성긴 표라(매일 채워지는
+-- 게 아님), 업로드할 때 채워진 행을 전부 스캔해서 주(월요일 기준)/월 단위로 나온 값을 그
+-- 기간의 목표로 그대로 저장한다 — 그래서 워크북 한 번 업로드로 그 안에 있던 과거 모든
+-- 주/월의 목표가 한꺼번에 채워진다(executive_targets와 동일한 period_type/period_key 방식).
+CREATE TABLE IF NOT EXISTS executive_seomdeulchae_unit_target (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id      UUID NOT NULL REFERENCES tenants(id),
-  as_of_date     DATE NOT NULL,
   business_unit  TEXT NOT NULL,
-  week_plan      NUMERIC,
-  week_actual    NUMERIC,
-  month_plan     NUMERIC,
-  month_actual   NUMERIC,
+  period_type    TEXT NOT NULL CHECK (period_type IN ('week', 'month')),
+  period_key     TEXT NOT NULL,  -- week: 주 시작일(월요일, YYYY-MM-DD) / month: 'YYYY-MM'
+  target_value   NUMERIC NOT NULL,
   uploaded_by    UUID REFERENCES profiles(id),
   file_name      TEXT,
   created_at     TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (tenant_id, as_of_date, business_unit)
+  UNIQUE (tenant_id, business_unit, period_type, period_key)
 );
-ALTER TABLE executive_seomdeulchae_unit_report ENABLE ROW LEVEL SECURITY;
+ALTER TABLE executive_seomdeulchae_unit_target ENABLE ROW LEVEL SECURITY;
 
 -- 조회는 임원실 + 관리자 (executive_targets와 동일한 팀 조건)
-DROP POLICY IF EXISTS "executive_seomdeulchae_unit_report_select" ON executive_seomdeulchae_unit_report;
-CREATE POLICY "executive_seomdeulchae_unit_report_select" ON executive_seomdeulchae_unit_report
+DROP POLICY IF EXISTS "executive_seomdeulchae_unit_target_select" ON executive_seomdeulchae_unit_target;
+CREATE POLICY "executive_seomdeulchae_unit_target_select" ON executive_seomdeulchae_unit_target
   FOR SELECT USING (
     tenant_id = public.my_tenant_id()
     AND (
@@ -1017,21 +1018,29 @@ CREATE POLICY "executive_seomdeulchae_unit_report_select" ON executive_seomdeulc
     )
   );
 
--- 입력/삭제는 관리자만
-DROP POLICY IF EXISTS "executive_seomdeulchae_unit_report_admin_insert" ON executive_seomdeulchae_unit_report;
-CREATE POLICY "executive_seomdeulchae_unit_report_admin_insert" ON executive_seomdeulchae_unit_report
+-- 입력/수정/삭제는 관리자만
+DROP POLICY IF EXISTS "executive_seomdeulchae_unit_target_admin_insert" ON executive_seomdeulchae_unit_target;
+CREATE POLICY "executive_seomdeulchae_unit_target_admin_insert" ON executive_seomdeulchae_unit_target
   FOR INSERT WITH CHECK (
     tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
   );
 
-DROP POLICY IF EXISTS "executive_seomdeulchae_unit_report_admin_delete" ON executive_seomdeulchae_unit_report;
-CREATE POLICY "executive_seomdeulchae_unit_report_admin_delete" ON executive_seomdeulchae_unit_report
+DROP POLICY IF EXISTS "executive_seomdeulchae_unit_target_admin_update" ON executive_seomdeulchae_unit_target;
+CREATE POLICY "executive_seomdeulchae_unit_target_admin_update" ON executive_seomdeulchae_unit_target
+  FOR UPDATE USING (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  ) WITH CHECK (
+    tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
+  );
+
+DROP POLICY IF EXISTS "executive_seomdeulchae_unit_target_admin_delete" ON executive_seomdeulchae_unit_target;
+CREATE POLICY "executive_seomdeulchae_unit_target_admin_delete" ON executive_seomdeulchae_unit_target
   FOR DELETE USING (
     tenant_id = public.my_tenant_id() AND public.is_tenant_admin(tenant_id)
   );
 
-CREATE INDEX IF NOT EXISTS executive_seomdeulchae_unit_report_lookup_idx
-  ON executive_seomdeulchae_unit_report(tenant_id, as_of_date DESC);
+CREATE INDEX IF NOT EXISTS executive_seomdeulchae_unit_target_lookup_idx
+  ON executive_seomdeulchae_unit_target(tenant_id, business_unit, period_type, period_key);
 
 -- 섬들채(POS) 원시 판매 데이터를 그대로 저장한다. "일자별(상품별)" 내보내기를 업로드하면
 -- 상품 단위로 이미 하루치가 집계돼 있어(같은 날짜·업장·상품코드가 한 행), 그 조합을

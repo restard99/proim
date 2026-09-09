@@ -92,12 +92,14 @@ export type SeomdeulchaeUnitReportRow = {
   monthActual: number | null;
 };
 
-// 섬들채 업장별 목표(계획)는 주간업무보고 워크북 업로드 스냅샷(executive_seomdeulchae_unit_report,
-// 조회하는 주 이전 중 가장 최근 마감일자)에서, 실적은 POS 원시 판매 데이터
-// (executive_seomdeulchae_sales_raw)에서 그때그때 주간/월누적(월초~조회주 마지막날)으로
-// 직접 집계한다 — 계획과 실적을 서로 다른 업로드가 채우기 때문에 조회 시점에 합친다.
-// "전체"(합계)는 원본에 그런 업장이 없어(POS 대분류가 6개 실제 업장뿐) 그 6개를 직접 더해서
-// 만든다 — 화면에 보이는 개별 업장 행들과 항상 정확히 맞아떨어지게 하기 위해서다.
+// 섬들채 업장별 목표(계획)는 워크북 업로드로 채워진 executive_seomdeulchae_unit_target에서
+// 조회하는 주/월과 정확히 일치하는 기간을 그대로 찾는다(워크북 한 번 업로드로 과거 모든
+// 주/월이 다 채워지므로, executive_targets의 법인별 목표 조회와 똑같이 "정확히 그 기간" 매칭이면
+// 충분하다). 박물관은 업장이 아니라 별도 법인이라 executive_targets(corp_code='0440')에서
+// 가져온다. 실적은 POS 원시 판매 데이터(executive_seomdeulchae_sales_raw)에서 그때그때
+// 주간/월누적(월초~조회주 마지막날)으로 직접 집계한다 — 계획과 실적을 서로 다른 업로드가
+// 채우기 때문에 조회 시점에 합친다. "전체"(합계)는 원본에 그런 업장이 없어(POS 대분류가
+// 6개 실제 업장뿐) 그 6개를 직접 더해서 만든다.
 const SEOMDEULCHAE_UNITS = ["소금가게", "택배/쇼핑몰", "소금아이스크림", "해양힐링센터", "카라반", "소금항카페"] as const;
 
 async function sumNetAmountByUnit(
@@ -127,43 +129,59 @@ async function loadSeomdeulchaeUnitReport(
   weekEndDate: string,
   monthStartDate: string,
 ): Promise<SeomdeulchaeUnitReportRow[] | null> {
-  const [planRows, weekActualMap, monthActualMap] = await Promise.all([
-    (async () => {
-      const { data: latest } = await supabase
-        .from("executive_seomdeulchae_unit_report")
-        .select("as_of_date")
-        .eq("tenant_id", tenantId)
-        .lte("as_of_date", weekEndDate)
-        .order("as_of_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!latest) return [];
-      const { data } = await supabase
-        .from("executive_seomdeulchae_unit_report")
-        .select("business_unit, week_plan, month_plan")
-        .eq("tenant_id", tenantId)
-        .eq("as_of_date", latest.as_of_date);
-      return data ?? [];
-    })(),
+  const monthKey = monthStartDate.slice(0, 7);
+
+  const [unitPlanRows, museumPlanRows, weekActualMap, monthActualMap] = await Promise.all([
+    supabase
+      .from("executive_seomdeulchae_unit_target")
+      .select("business_unit, period_type, target_value")
+      .eq("tenant_id", tenantId)
+      .in("business_unit", SEOMDEULCHAE_UNITS)
+      .or(`and(period_type.eq.week,period_key.eq.${weekStartDate}),and(period_type.eq.month,period_key.eq.${monthKey})`)
+      .then((r) => r.data ?? []),
+    supabase
+      .from("executive_targets")
+      .select("period_type, target_value")
+      .eq("tenant_id", tenantId)
+      .eq("metric", "sales")
+      .eq("corp_code", "0440")
+      .or(`and(period_type.eq.week,period_key.eq.${weekStartDate}),and(period_type.eq.month,period_key.eq.${monthKey})`)
+      .then((r) => r.data ?? []),
     sumNetAmountByUnit(supabase, tenantId, weekStartDate, weekEndDate),
     sumNetAmountByUnit(supabase, tenantId, monthStartDate, weekEndDate),
   ]);
 
-  const planMap = new Map(planRows.map((r) => [r.business_unit as string, r]));
-  if (planMap.size === 0 && weekActualMap.size === 0 && monthActualMap.size === 0) return null;
+  const unitWeekPlan = new Map<string, number>();
+  const unitMonthPlan = new Map<string, number>();
+  for (const r of unitPlanRows) {
+    const map = r.period_type === "week" ? unitWeekPlan : unitMonthPlan;
+    map.set(r.business_unit as string, Number(r.target_value));
+  }
+  const museumWeekPlan = museumPlanRows.find((r) => r.period_type === "week")?.target_value ?? null;
+  const museumMonthPlan = museumPlanRows.find((r) => r.period_type === "month")?.target_value ?? null;
 
-  function buildRow(unit: string): SeomdeulchaeUnitReportRow {
-    const plan = planMap.get(unit);
+  if (
+    unitWeekPlan.size === 0 &&
+    unitMonthPlan.size === 0 &&
+    museumWeekPlan === null &&
+    museumMonthPlan === null &&
+    weekActualMap.size === 0 &&
+    monthActualMap.size === 0
+  ) {
+    return null;
+  }
+
+  function buildRow(unit: string, weekPlan: number | null, monthPlan: number | null): SeomdeulchaeUnitReportRow {
     return {
       businessUnit: unit,
-      weekPlan: plan?.week_plan == null ? null : Number(plan.week_plan),
+      weekPlan,
       weekActual: weekActualMap.has(unit) ? (weekActualMap.get(unit) as number) : null,
-      monthPlan: plan?.month_plan == null ? null : Number(plan.month_plan),
+      monthPlan,
       monthActual: monthActualMap.has(unit) ? (monthActualMap.get(unit) as number) : null,
     };
   }
 
-  const unitRows = SEOMDEULCHAE_UNITS.map((u) => buildRow(u));
+  const unitRows = SEOMDEULCHAE_UNITS.map((u) => buildRow(u, unitWeekPlan.get(u) ?? null, unitMonthPlan.get(u) ?? null));
   const sumIfAny = (pick: (r: SeomdeulchaeUnitReportRow) => number | null) =>
     unitRows.some((r) => pick(r) !== null) ? unitRows.reduce((s, r) => s + (pick(r) ?? 0), 0) : null;
   const totalRow: SeomdeulchaeUnitReportRow = {
@@ -174,7 +192,11 @@ async function loadSeomdeulchaeUnitReport(
     monthActual: sumIfAny((r) => r.monthActual),
   };
 
-  return [totalRow, ...unitRows, buildRow("박물관")];
+  return [
+    totalRow,
+    ...unitRows,
+    buildRow("박물관", museumWeekPlan === null ? null : Number(museumWeekPlan), museumMonthPlan === null ? null : Number(museumMonthPlan)),
+  ];
 }
 
 export type WeeklyReportPage1Corp = {

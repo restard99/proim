@@ -6,22 +6,14 @@ import { parseExecutiveTargetsWorkbook } from "@/lib/executive/parse-targets";
 import { parseReportWorkbookTargets } from "@/lib/executive/parse-report-workbook-targets";
 
 const MAX_SIZE = 15 * 1024 * 1024;
+// 워크북 한 번에 과거 전체 기간(주+월)의 목표가 다 나오다 보니 행 수가 꽤 될 수 있어
+// (수십 개 기간 × 여러 법인/업장), 요청 하나에 너무 많은 행을 보내지 않도록 나눠 올린다.
+const UPSERT_CHUNK_SIZE = 500;
 
 export type UploadResult = { ok: true; recordCount: number } | { ok: false; message: string; errors?: string[] };
 export type UploadWorkbookResult =
   | { ok: true; recordCount: number; asOfDate: string }
   | { ok: false; message: string; errors?: string[] };
-
-// 마감일자(주 안의 어느 요일이든)가 속한 주의 월요일을 구한다. period_key(week)는 항상
-// 월요일 기준이어야 하고(loadTargets/getWeeklyReport가 그렇게 조회), 마감일자는 실제로는
-// 항상 일요일이지만 방어적으로 어떤 요일이 와도 그 주의 월요일을 계산한다.
-function mondayOf(dateStr: string): string {
-  const d = new Date(`${dateStr}T00:00:00Z`);
-  const day = d.getUTCDay(); // 0=일 ... 6=토
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  d.setUTCDate(d.getUTCDate() + diffToMonday);
-  return d.toISOString().slice(0, 10);
-}
 
 export type TargetUploadHistoryRow = {
   created_at: string;
@@ -145,9 +137,9 @@ export async function uploadExecutiveTargetsFromWorkbook(formData: FormData): Pr
   }
   if (!parsed.ok) return { ok: false, message: `업로드 실패 (${parsed.errors.length}건 오류)`, errors: parsed.errors };
 
-  const weekKey = mondayOf(parsed.asOfDate);
-  const monthKey = parsed.asOfDate.slice(0, 7);
-
+  // 워크북 안에 있던 모든 주/월의 목표를 한꺼번에 올린다(마감일자 하루치가 아니라
+  // 워크북에 실제로 채워져 있던 과거 전체 기간) — 그래야 과거 특정 주를 조회해도 그 주의
+  // 목표가 나온다.
   const targetRows: {
     tenant_id: string;
     metric: "sales" | "production";
@@ -161,28 +153,28 @@ export async function uploadExecutiveTargetsFromWorkbook(formData: FormData): Pr
   }[] = [];
 
   for (const t of parsed.corpTargets) {
-    if (t.weekPlan !== null) {
+    for (const { periodKey, value } of t.weekPlans) {
       targetRows.push({
         tenant_id: self.tenantId,
         metric: "sales",
         corp_code: t.corpCode,
         category: null,
         period_type: "week",
-        period_key: weekKey,
-        target_value: t.weekPlan,
+        period_key: periodKey,
+        target_value: value,
         uploaded_by: self.userId,
         file_name: file.name,
       });
     }
-    if (t.monthPlan !== null) {
+    for (const { periodKey, value } of t.monthPlans) {
       targetRows.push({
         tenant_id: self.tenantId,
         metric: "sales",
         corp_code: t.corpCode,
         category: null,
         period_type: "month",
-        period_key: monthKey,
-        target_value: t.monthPlan,
+        period_key: periodKey,
+        target_value: value,
         uploaded_by: self.userId,
         file_name: file.name,
       });
@@ -202,28 +194,56 @@ export async function uploadExecutiveTargetsFromWorkbook(formData: FormData): Pr
     });
   }
 
-  const { error: targetsError } = await supabase
-    .from("executive_targets")
-    .upsert(targetRows, { onConflict: "tenant_id,metric,corp_code,category,period_type,period_key" });
-  if (targetsError) return { ok: false, message: "매출/생산 목표 저장 중 오류가 발생했습니다." };
+  for (let i = 0; i < targetRows.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = targetRows.slice(i, i + UPSERT_CHUNK_SIZE);
+    const { error } = await supabase
+      .from("executive_targets")
+      .upsert(chunk, { onConflict: "tenant_id,metric,corp_code,category,period_type,period_key" });
+    if (error) return { ok: false, message: "매출/생산 목표 저장 중 오류가 발생했습니다." };
+  }
 
-  // 섬들채 업장별 목표(계획)만 upsert한다 — week_actual/month_actual은 여기서 건드리지
-  // 않는다(생략된 키는 postgrest가 그대로 두므로, 매출업로드가 별도로 채운 실적 값과
-  // 서로 덮어쓰지 않는다). 실적은 이제 이 업로드가 아니라 섬들채 POS 원시 판매 데이터에서
-  // 그때그때 계산한다.
-  const unitRows = parsed.seomdeulchaeUnits.map((u) => ({
-    tenant_id: self.tenantId,
-    as_of_date: parsed.asOfDate,
-    business_unit: u.businessUnit,
-    week_plan: u.weekPlan,
-    month_plan: u.monthPlan,
-    uploaded_by: self.userId,
-    file_name: file.name,
-  }));
-  const { error: unitError } = await supabase
-    .from("executive_seomdeulchae_unit_report")
-    .upsert(unitRows, { onConflict: "tenant_id,as_of_date,business_unit" });
-  if (unitError) return { ok: false, message: "섬들채 업장별 목표 저장 중 오류가 발생했습니다." };
+  // 섬들채 업장별(6개 실제 업장) 목표도 워크북에 있던 모든 주/월을 한꺼번에 올린다.
+  const unitRows: {
+    tenant_id: string;
+    business_unit: string;
+    period_type: "week" | "month";
+    period_key: string;
+    target_value: number;
+    uploaded_by: string;
+    file_name: string;
+  }[] = [];
+  for (const u of parsed.seomdeulchaeUnits) {
+    for (const { periodKey, value } of u.weekPlans) {
+      unitRows.push({
+        tenant_id: self.tenantId,
+        business_unit: u.businessUnit,
+        period_type: "week",
+        period_key: periodKey,
+        target_value: value,
+        uploaded_by: self.userId,
+        file_name: file.name,
+      });
+    }
+    for (const { periodKey, value } of u.monthPlans) {
+      unitRows.push({
+        tenant_id: self.tenantId,
+        business_unit: u.businessUnit,
+        period_type: "month",
+        period_key: periodKey,
+        target_value: value,
+        uploaded_by: self.userId,
+        file_name: file.name,
+      });
+    }
+  }
+
+  for (let i = 0; i < unitRows.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = unitRows.slice(i, i + UPSERT_CHUNK_SIZE);
+    const { error } = await supabase
+      .from("executive_seomdeulchae_unit_target")
+      .upsert(chunk, { onConflict: "tenant_id,business_unit,period_type,period_key" });
+    if (error) return { ok: false, message: "섬들채 업장별 목표 저장 중 오류가 발생했습니다." };
+  }
 
   revalidatePath("/admin/executive-targets");
   revalidatePath("/executive/report");
