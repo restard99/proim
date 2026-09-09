@@ -122,6 +122,44 @@ async function sumNetAmountByUnit(
   return map;
 }
 
+export type TopSellingProduct = { productCode: string; productName: string; qty: number; amount: number };
+
+// 섬들채 6페이지 하단의 "판매상품별 매출상위". 상품코드 단위로 수량/금액을 더해서 실매출액
+// 기준 상위 N개만 추린다(6개 업장 전체 합산 — 박물관은 별도 법인이라 제외).
+async function getTopSellingProducts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  startDate: string,
+  endDate: string,
+  limit = 10,
+): Promise<TopSellingProduct[]> {
+  const { data } = await supabase
+    .from("executive_seomdeulchae_sales_raw")
+    .select("product_code, product_name, qty, net_amount")
+    .eq("tenant_id", tenantId)
+    .in("business_unit", SEOMDEULCHAE_UNITS)
+    .gte("sale_date", startDate)
+    .lte("sale_date", endDate);
+
+  const map = new Map<string, TopSellingProduct>();
+  for (const row of data ?? []) {
+    const existing = map.get(row.product_code);
+    if (existing) {
+      existing.qty += Number(row.qty ?? 0);
+      existing.amount += Number(row.net_amount);
+    } else {
+      map.set(row.product_code, {
+        productCode: row.product_code,
+        productName: row.product_name ?? row.product_code,
+        qty: Number(row.qty ?? 0),
+        amount: Number(row.net_amount),
+      });
+    }
+  }
+
+  return [...map.values()].sort((a, b) => b.amount - a.amount).slice(0, limit);
+}
+
 async function loadSeomdeulchaeUnitReport(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
@@ -184,6 +222,7 @@ async function loadSeomdeulchaeUnitReport(
   const unitRows = SEOMDEULCHAE_UNITS.map((u) => buildRow(u, unitWeekPlan.get(u) ?? null, unitMonthPlan.get(u) ?? null));
   const sumIfAny = (pick: (r: SeomdeulchaeUnitReportRow) => number | null) =>
     unitRows.some((r) => pick(r) !== null) ? unitRows.reduce((s, r) => s + (pick(r) ?? 0), 0) : null;
+  // 박물관은 별도 법인이라 합계(전체)에 넣지 않는다 — unitRows(6개 실제 업장)만 더한다.
   const totalRow: SeomdeulchaeUnitReportRow = {
     businessUnit: "전체",
     weekPlan: sumIfAny((r) => r.weekPlan),
@@ -192,9 +231,10 @@ async function loadSeomdeulchaeUnitReport(
     monthActual: sumIfAny((r) => r.monthActual),
   };
 
+  // 표시 순서는 PPT 원본과 동일하게 "업장 6개 → 합계 → 박물관"으로 맞춘다.
   return [
-    totalRow,
     ...unitRows,
+    totalRow,
     buildRow("박물관", museumWeekPlan === null ? null : Number(museumWeekPlan), museumMonthPlan === null ? null : Number(museumMonthPlan)),
   ];
 }
@@ -229,7 +269,11 @@ export type WeeklyReportData = {
     lastYearMonthActual: number;
   }[];
   page5: { customers: ExecutiveCustomerSales[]; weekActual: number; monthActual: number };
-  page6: { units: SeomdeulchaeUnitReportRow[] } | null;
+  page6: {
+    units: SeomdeulchaeUnitReportRow[];
+    topProductsWeek: TopSellingProduct[];
+    topProductsMonth: TopSellingProduct[];
+  } | null;
 };
 
 export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyReportData | null> {
@@ -250,18 +294,31 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
   const targets = await loadTargets(supabase, self.tenantId, weekStartDate, month.label);
 
   const corpCodes = EXECUTIVE_CORPS.map((c) => c.corpCode);
-  const [weekTotals, monthTotals, lastYearTotals, page2Customers, page5Customers, seomdeulchaeUnits, page4Prod, page4ProdMonth, page4ProdLastYear] =
-    await Promise.all([
-      getSalesTotalByCorp({ corpCodes, startDate: weekStartYmd, endDate: weekEndYmd }),
-      getSalesTotalByCorp({ corpCodes, startDate: monthToDateStart, endDate: monthToDateEnd }),
-      getSalesTotalByCorp({ corpCodes, startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
-      getSalesByCustomer({ corpCode: "0400", startDate: weekStartYmd, endDate: weekEndYmd }),
-      getSalesByCustomer({ corpCode: "0460", startDate: weekStartYmd, endDate: weekEndYmd }),
-      loadSeomdeulchaeUnitReport(supabase, self.tenantId, weekStartDate, weekEndDate, month.start),
-      getTaepyeongSogeumProduction({ startDate: weekStartYmd, endDate: weekEndYmd }),
-      getTaepyeongSogeumProduction({ startDate: monthToDateStart, endDate: monthToDateEnd }),
-      getTaepyeongSogeumProduction({ startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
-    ]);
+  const [
+    weekTotals,
+    monthTotals,
+    lastYearTotals,
+    page2Customers,
+    page5Customers,
+    seomdeulchaeUnits,
+    topProductsWeek,
+    topProductsMonth,
+    page4Prod,
+    page4ProdMonth,
+    page4ProdLastYear,
+  ] = await Promise.all([
+    getSalesTotalByCorp({ corpCodes, startDate: weekStartYmd, endDate: weekEndYmd }),
+    getSalesTotalByCorp({ corpCodes, startDate: monthToDateStart, endDate: monthToDateEnd }),
+    getSalesTotalByCorp({ corpCodes, startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
+    getSalesByCustomer({ corpCode: "0400", startDate: weekStartYmd, endDate: weekEndYmd }),
+    getSalesByCustomer({ corpCode: "0460", startDate: weekStartYmd, endDate: weekEndYmd }),
+    loadSeomdeulchaeUnitReport(supabase, self.tenantId, weekStartDate, weekEndDate, month.start),
+    getTopSellingProducts(supabase, self.tenantId, weekStartDate, weekEndDate),
+    getTopSellingProducts(supabase, self.tenantId, month.start, weekEndDate),
+    getTaepyeongSogeumProduction({ startDate: weekStartYmd, endDate: weekEndYmd }),
+    getTaepyeongSogeumProduction({ startDate: monthToDateStart, endDate: monthToDateEnd }),
+    getTaepyeongSogeumProduction({ startDate: lastYearMonthStartYmd, endDate: lastYearMonthEndYmd }),
+  ]);
 
   const [page2Month, page5Month] = await Promise.all([
     getSalesByCustomer({ corpCode: "0400", startDate: monthToDateStart, endDate: monthToDateEnd }),
@@ -318,7 +375,7 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
       : null,
     page4,
     page5: { customers: page5Customers, weekActual: sum(page5Customers), monthActual: sum(page5Month) },
-    page6: seomdeulchaeUnits ? { units: seomdeulchaeUnits } : null,
+    page6: seomdeulchaeUnits ? { units: seomdeulchaeUnits, topProductsWeek, topProductsMonth } : null,
   };
 }
 

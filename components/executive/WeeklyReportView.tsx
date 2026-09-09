@@ -7,6 +7,7 @@ import {
   postComment,
   type WeeklyReportData,
   type WeeklyComment,
+  type TopSellingProduct,
 } from "@/app/actions/executive-report";
 
 const PAGE_TABS = [
@@ -359,6 +360,37 @@ function Page5({ report }: { report: WeeklyReportData }) {
   return <CustomerTable customers={report.page5.customers} total={report.page5.weekActual} />;
 }
 
+function TopProductsTable({ title, products }: { title: string; products: TopSellingProduct[] }) {
+  return (
+    <Table title={title}>
+      <thead>
+        <tr>
+          <th className="text-left">상품명</th>
+          <th>수량</th>
+          <th>금액</th>
+        </tr>
+      </thead>
+      <tbody className="text-center">
+        {products.length === 0 ? (
+          <tr>
+            <td colSpan={3} className="py-6 text-sm text-muted">
+              데이터가 없습니다.
+            </td>
+          </tr>
+        ) : (
+          products.map((p) => (
+            <tr key={p.productCode}>
+              <td className="text-left font-sans">{p.productName}</td>
+              <td>{kg(p.qty)}</td>
+              <td>{won(p.amount)}</td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </Table>
+  );
+}
+
 function Page6({ report }: { report: WeeklyReportData }) {
   if (!report.page6) {
     return (
@@ -375,31 +407,36 @@ function Page6({ report }: { report: WeeklyReportData }) {
   }
 
   return (
-    <Table title="■ 업장별 매출 실적 [단위: 원]">
-      <thead>
-        <tr>
-          <th className="text-left">구분</th>
-          <th>주간 계획</th>
-          <th>주간 실적</th>
-          <th>달성률</th>
-          <th>월간 계획</th>
-          <th>월간 실적</th>
-          <th>달성률</th>
-        </tr>
-      </thead>
-      <tbody className="text-center">
-        {report.page6.units.map((u) => (
-          <tr key={u.businessUnit} className={u.businessUnit === "전체" ? "total-row" : undefined}>
-            <td className="text-left font-sans">{u.businessUnit === "전체" ? "합계" : u.businessUnit}</td>
-            <td>{won(u.weekPlan)}</td>
-            <td>{won(u.weekActual)}</td>
-            <td>{u.weekActual === null ? "-" : rate(u.weekActual, u.weekPlan)}</td>
-            <td>{won(u.monthPlan)}</td>
-            <td>{won(u.monthActual)}</td>
-            <td>{u.monthActual === null ? "-" : rate(u.monthActual, u.monthPlan)}</td>
+    <div className="space-y-4">
+      <Table title="■ 업장별 매출 실적 [단위: 원]">
+        <thead>
+          <tr>
+            <th className="text-left">구분</th>
+            <th>주간 계획</th>
+            <th>주간 실적</th>
+            <th>달성률</th>
+            <th>월간 계획</th>
+            <th>월간 실적</th>
+            <th>달성률</th>
           </tr>
-        ))}
-      </tbody>
-    </Table>
+        </thead>
+        <tbody className="text-center">
+          {report.page6.units.map((u) => (
+            <tr key={u.businessUnit} className={u.businessUnit === "전체" ? "total-row" : undefined}>
+              <td className="text-left font-sans">{u.businessUnit === "전체" ? "합계" : u.businessUnit}</td>
+              <td>{won(u.weekPlan)}</td>
+              <td>{won(u.weekActual)}</td>
+              <td>{u.weekActual === null ? "-" : rate(u.weekActual, u.weekPlan)}</td>
+              <td>{won(u.monthPlan)}</td>
+              <td>{won(u.monthActual)}</td>
+              <td>{u.monthActual === null ? "-" : rate(u.monthActual, u.monthPlan)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+
+      <TopProductsTable title="■ 판매상품별 매출상위(주간 누적) [단위: 원]" products={report.page6.topProductsWeek} />
+      <TopProductsTable title="■ 판매상품별 매출상위(월간 누적) [단위: 원]" products={report.page6.topProductsMonth} />
+    </div>
   );
 }
