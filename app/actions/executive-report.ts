@@ -369,8 +369,11 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
   if (!self || !canViewReport(self.team, self.role)) return null;
 
   const weekEndDate = addDays(weekStartDate, 6);
-  const month = monthRange(weekStartDate);
-  const lastYearMonth = lastYearFullMonthRange(weekStartDate);
+  // "월간" 표시 기준은 그 주의 마지막 날(일요일)이 속한 달이다 — 8/31(월)~9/6(일)처럼 주가
+  // 두 달에 걸치면, 그 주 대부분(6/7일)이 속한 9월로 넘어가야 한다(계획/실적 둘 다 동일하게
+  // 사용자 확인). 달을 안 걸치는 보통 주는 weekStartDate와 같은 달이라 결과가 그대로다.
+  const month = monthRange(weekEndDate);
+  const lastYearMonth = lastYearFullMonthRange(weekEndDate);
   const monthToDateStart = toYmd(month.start);
   const monthToDateEnd = toYmd(weekEndDate);
   const weekStartYmd = toYmd(weekStartDate);
@@ -378,10 +381,12 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
   const lastYearMonthStartYmd = toYmd(lastYearMonth.start);
   const lastYearMonthEndYmd = toYmd(lastYearMonth.end);
 
-  // 주가 두 달에 걸치면(예: 8/31 월요일 시작 ~ 9/6 일요일) 두 달의 월간계획이 다 필요하다.
+  // 주가 두 달에 걸치면(예: 8/31 월요일 시작 ~ 9/6 일요일) 주간계획을 날짜별로 일할 계산하려면
+  // 두 달의 월간계획이 다 필요하다. "월간" 표시 값 자체는 항상 displayMonthKey(=주 마지막 날의
+  // 달) 기준.
   const startMonthKey = weekStartDate.slice(0, 7);
-  const endMonthKey = weekEndDate.slice(0, 7);
-  const monthKeys = startMonthKey === endMonthKey ? [startMonthKey] : [startMonthKey, endMonthKey];
+  const displayMonthKey = weekEndDate.slice(0, 7);
+  const monthKeys = startMonthKey === displayMonthKey ? [displayMonthKey] : [startMonthKey, displayMonthKey];
   const targets = await loadTargets(supabase, self.tenantId, weekStartDate, monthKeys);
 
   const corpCodes = EXECUTIVE_CORPS.map((c) => c.corpCode);
@@ -434,7 +439,7 @@ export async function getWeeklyReport(weekStartDate: string): Promise<WeeklyRepo
       // 기반으로 대체 계산한다.
       weekPlan: targets.salesWeek.get(c.corpCode) ?? computeWeekPlanFromMonthly(weekStartDate, monthPlanByKey),
       weekActual: (isYeomjeon ? yeomjeonWeekActual : null) ?? weekTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
-      monthPlan: monthPlanByKey?.get(startMonthKey) ?? null,
+      monthPlan: monthPlanByKey?.get(displayMonthKey) ?? null,
       monthActual: (isYeomjeon ? yeomjeonMonthActual : null) ?? monthTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
       lastYearMonthActual: lastYearTotals.find((t) => t.corpCode === c.corpCode)?.total ?? 0,
     };
