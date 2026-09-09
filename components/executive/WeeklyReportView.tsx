@@ -27,6 +27,16 @@ function addDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// 임의의 날짜가 속한 주의 월요일을 구한다 (app/(app)/executive/report/page.tsx의
+// currentWeekMonday()와 동일한 방식 — UTC 기준, 일요일은 -6일 보정).
+function mondayOf(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  const day = d.getUTCDay(); // 0=일 ... 1=월
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diffToMonday);
+  return d.toISOString().slice(0, 10);
+}
+
 function formatDateLabel(iso: string) {
   return iso.replaceAll("-", ".");
 }
@@ -71,14 +81,22 @@ export function WeeklyReportView({
 
   const weekEndDate = addDays(weekStartDate, 6);
 
-  const navigateWeek = (deltaDays: number) => {
-    const next = addDays(weekStartDate, deltaDays);
+  const loadWeek = (next: string) => {
     startTransition(async () => {
       const [nextReport, nextComments] = await Promise.all([getWeeklyReport(next), getComments(next)]);
       setWeekStartDate(next);
       setReport(nextReport);
       setComments(nextComments);
     });
+  };
+
+  const navigateWeek = (deltaDays: number) => loadWeek(addDays(weekStartDate, deltaDays));
+
+  const handleDatePick = (pickedDate: string) => {
+    if (!pickedDate) return;
+    const next = mondayOf(pickedDate);
+    if (next === weekStartDate) return;
+    loadWeek(next);
   };
 
   const handlePostComment = () => {
@@ -117,6 +135,14 @@ export function WeeklyReportView({
           >
             다음 주 →
           </button>
+          <input
+            type="date"
+            aria-label="날짜로 조회"
+            disabled={isPending}
+            value={weekStartDate}
+            onChange={(e) => handleDatePick(e.target.value)}
+            className="rounded-md border border-mist px-2 py-1.5 text-sm text-inktext disabled:opacity-50"
+          />
         </div>
       </header>
 
