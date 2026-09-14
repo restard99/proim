@@ -1,9 +1,11 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
-import { getSalesPeriodData, type SalesPeriodData } from "@/app/actions/sales";
+import { getSalesPeriodData, getProductSalesDetail, type SalesPeriodData } from "@/app/actions/sales";
 import { getYearlyProgress, type YearlyProgress } from "@/app/actions/sales-targets";
-import { groupCustomerSales } from "@/lib/yerp/customer-sort";
+import { groupCustomerSales, type GroupedCustomerSales } from "@/lib/yerp/customer-sort";
+
+type ProductSalesRow = { itemCode: string; itemName: string; qty: number; amount: number };
 
 type PeriodType = "weekly" | "monthly" | "mtd" | "yearly";
 type CompareBasis = "prev-week" | "prev-month" | "prev-year";
@@ -63,19 +65,17 @@ export function SalesByCustomerView() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  // 월간/월누적 조회에서 행을 펼쳤을 때 보여줄 업체별 제품 내역(customerCode -> 제품 목록)을
+  // 행(key)별로 캐싱해 둔다 — 같은 행을 다시 펼칠 때 재조회하지 않는다.
+  const [productDetails, setProductDetails] = useState<Map<string, Record<string, ProductSalesRow[]>>>(new Map());
+  const [loadingDetailKeys, setLoadingDetailKeys] = useState<Set<string>>(new Set());
 
   // 이마트/롯데/지에스 등 센터·지점별로 흩어진 거래처를 브랜드 단위로 합쳐서 보여준다
   // (클릭하면 원래 지점별 내역을 펼쳐볼 수 있음).
   const groupedRows = useMemo(() => groupCustomerSales(data?.rows ?? []), [data]);
 
-  function toggleGroup(key: string) {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
+  // 월간/월누적만 "업체별 납품 제품명/수량/금액"까지 펼쳐본다(주간은 기존처럼 지점별 금액만).
+  const showProductDrilldown = period === "monthly" || period === "mtd";
 
   const currentRange = useMemo(() => {
     if (period === "weekly") return { start: weekStart, end: addDays(weekStart, 6) };
@@ -113,6 +113,35 @@ export function SalesByCustomerView() {
   const compareStartYmd = toYmd(compareRange.start);
   const compareEndYmd = toYmd(compareRange.end);
 
+  // 행 클릭: 주간에서는 그룹(브랜드)만 펼쳐서 지점별 금액을 보여주고, 월간/월누적에서는
+  // 그룹이든 개별 거래처든 펼쳐서 업체별 납품 제품명/수량/금액까지 보여준다.
+  function toggleRow(row: GroupedCustomerSales) {
+    if (!row.isGroup && !showProductDrilldown) return;
+
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(row.key)) next.delete(row.key);
+      else next.add(row.key);
+      return next;
+    });
+
+    if (!showProductDrilldown || productDetails.has(row.key) || loadingDetailKeys.has(row.key)) return;
+
+    const customerCodes = row.isGroup ? row.details.map((d) => d.customerCode) : [row.key];
+    setLoadingDetailKeys((prev) => new Set(prev).add(row.key));
+    getProductSalesDetail({ startDate: startYmd, endDate: endYmd, customerCodes })
+      .then((result) => {
+        setProductDetails((prev) => new Map(prev).set(row.key, result));
+      })
+      .finally(() => {
+        setLoadingDetailKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(row.key);
+          return next;
+        });
+      });
+  }
+
   function runQuery() {
     if (period === "yearly") {
       startTransition(async () => {
@@ -127,6 +156,8 @@ export function SalesByCustomerView() {
       return;
     }
     startTransition(async () => {
+      setExpandedGroups(new Set());
+      setProductDetails(new Map());
       try {
         const result = await getSalesPeriodData({
           startDate: startYmd,
@@ -344,16 +375,24 @@ export function SalesByCustomerView() {
               </thead>
               <tbody className="divide-y divide-mist">
                 {groupedRows.map((row) => {
-                  const expanded = row.isGroup && expandedGroups.has(row.key);
+                  const clickable = row.isGroup || showProductDrilldown;
+                  const expanded = clickable && expandedGroups.has(row.key);
+                  const isLoadingDetail = loadingDetailKeys.has(row.key);
+                  const detailByCustomer = productDetails.get(row.key);
+                  // 펼쳤을 때 보여줄 "업체" 목록 — 그룹이면 원래 지점들, 개별 거래처면 자기 자신 하나.
+                  const companies = row.isGroup
+                    ? row.details
+                    : [{ customerCode: row.key, customerName: row.displayName, amount: row.amount, lastTradeDate: row.lastTradeDate }];
+
                   return (
                     <Fragment key={row.key}>
                       <tr
-                        onClick={row.isGroup ? () => toggleGroup(row.key) : undefined}
-                        className={row.isGroup ? "cursor-pointer hover:bg-mist/20" : undefined}
+                        onClick={clickable ? () => toggleRow(row) : undefined}
+                        className={clickable ? "cursor-pointer hover:bg-mist/20" : undefined}
                       >
                         <td className="px-4 py-3.5 font-medium">
-                          {row.isGroup && (
-                            <span className="mr-1.5 inline-block text-xs text-muted transition-transform" aria-hidden>
+                          {clickable && (
+                            <span className="mr-1.5 inline-block text-xs text-muted" aria-hidden>
                               {expanded ? "▾" : "▸"}
                             </span>
                           )}
@@ -365,7 +404,8 @@ export function SalesByCustomerView() {
                         <td className="px-4 py-3.5 text-right font-mono">{Math.round(row.amount).toLocaleString("ko-KR")}</td>
                         <td className="px-4 py-3.5 text-right font-mono text-xs text-muted">{row.lastTradeDate ?? "-"}</td>
                       </tr>
-                      {expanded &&
+
+                      {expanded && !showProductDrilldown &&
                         row.details.map((d) => (
                           <tr key={d.customerCode} className="bg-mist/10">
                             <td className="py-2.5 pl-10 pr-4 text-xs text-muted">{d.customerName}</td>
@@ -375,6 +415,57 @@ export function SalesByCustomerView() {
                             <td className="py-2.5 pr-4 text-right font-mono text-xs text-muted">{d.lastTradeDate ?? "-"}</td>
                           </tr>
                         ))}
+
+                      {expanded && showProductDrilldown && isLoadingDetail && (
+                        <tr className="bg-mist/10">
+                          <td colSpan={3} className="py-3 pl-10 pr-4 text-xs text-muted">
+                            불러오는 중...
+                          </td>
+                        </tr>
+                      )}
+
+                      {expanded && showProductDrilldown && !isLoadingDetail &&
+                        companies.map((c) => {
+                          const products = detailByCustomer?.[c.customerCode] ?? [];
+                          return (
+                            <Fragment key={c.customerCode}>
+                              <tr className="bg-mist/10">
+                                <td colSpan={2} className="py-2 pl-10 pr-4 text-xs font-semibold text-inktext">
+                                  {c.customerName}
+                                </td>
+                                <td className="py-2 pr-4 text-right font-mono text-xs text-muted">
+                                  {Math.round(c.amount).toLocaleString("ko-KR")}
+                                </td>
+                              </tr>
+                              {products.length > 0 && (
+                                <tr className="bg-mist/10 text-[11px] text-muted">
+                                  <td className="py-1 pl-14 pr-4">제품명</td>
+                                  <td className="py-1 pr-4 text-right">수량</td>
+                                  <td className="py-1 pr-4 text-right">금액</td>
+                                </tr>
+                              )}
+                              {products.length === 0 ? (
+                                <tr className="bg-mist/5">
+                                  <td colSpan={3} className="py-2 pl-14 pr-4 text-xs text-muted">
+                                    제품 내역이 없습니다.
+                                  </td>
+                                </tr>
+                              ) : (
+                                products.map((p) => (
+                                  <tr key={p.itemCode} className="bg-mist/5">
+                                    <td className="py-1.5 pl-14 pr-4 text-xs text-muted">{p.itemName}</td>
+                                    <td className="py-1.5 pr-4 text-right font-mono text-xs text-muted">
+                                      {p.qty.toLocaleString("ko-KR")}
+                                    </td>
+                                    <td className="py-1.5 pr-4 text-right font-mono text-xs text-muted">
+                                      {Math.round(p.amount).toLocaleString("ko-KR")}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </Fragment>
+                          );
+                        })}
                     </Fragment>
                   );
                 })}

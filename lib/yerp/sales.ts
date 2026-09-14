@@ -58,6 +58,60 @@ export async function getSalesByCustomer(params: {
   );
 }
 
+export type CustomerProductSales = {
+  customerCode: string;
+  itemCode: string;
+  itemName: string;
+  qty: number;
+  amount: number;
+};
+
+// 업체별 세부내역(월간/월누적 조회에서 행을 펼쳤을 때) — PM_SALES_MGMT(전표 헤더)와
+// PM_SALES_ITEM(전표 라인, 상품별 수량/금액)을 SALES_NO로 조인한다. 실측 결과 라인
+// SALES_AMT 합계가 헤더 SALES_AMT와 정확히 일치해(공급가액 기준) 헤더 합계와 같은 기준.
+export async function getProductSalesByCustomers(params: {
+  startDate: string;
+  endDate: string;
+  customerCodes: string[];
+}): Promise<CustomerProductSales[]> {
+  if (params.customerCodes.length === 0) return [];
+
+  const custIn = params.customerCodes.map((_, i) => `@c${i}`).join(", ");
+  const rows = await yerpQuery<{
+    CUST_CD: string;
+    ITM_CD: string;
+    ITM_NM: string | null;
+    QTY: number | null;
+    AMOUNT: number | null;
+  }>(
+    `
+    SELECT m.CUST_CD, i.ITM_CD, it.ITM_NM, SUM(i.SALES_QTY) AS QTY, SUM(i.SALES_AMT) AS AMOUNT
+    FROM SHUSER.PM_SALES_MGMT m
+    JOIN SHUSER.PM_SALES_ITEM i ON i.CORP_CODE = m.CORP_CODE AND i.SALES_NO = m.SALES_NO
+    LEFT JOIN SHUSER.PM_ITEM it ON it.CORP_CODE = i.CORP_CODE AND it.ITM_CD = i.ITM_CD
+    WHERE m.CORP_CODE = @corpCode
+      AND m.SALES_DT BETWEEN @startDate AND @endDate
+      AND m.CUST_CD IN (${custIn})
+    GROUP BY m.CUST_CD, i.ITM_CD, it.ITM_NM
+    ORDER BY m.CUST_CD, AMOUNT DESC
+    `,
+    {
+      corpCode: CORP_CODE,
+      startDate: params.startDate,
+      endDate: params.endDate,
+      ...Object.fromEntries(params.customerCodes.map((c, i) => [`c${i}`, c])),
+    },
+  );
+
+  return rows.map((r) => ({
+    customerCode: r.CUST_CD,
+    itemCode: r.ITM_CD,
+    itemName: r.ITM_NM ?? r.ITM_CD,
+    qty: Number(r.QTY ?? 0),
+    amount: Number(r.AMOUNT ?? 0),
+  }));
+}
+
 export async function getSalesTotal(params: {
   startDate: string;
   endDate: string;
