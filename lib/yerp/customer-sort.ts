@@ -10,18 +10,25 @@ export type CustomerGroupDef = {
   excludeKeywords?: string[];
 };
 
+// 표시 순서 자체가 우선순위다(사용자가 고정 요청한 순서: 샘표/해표/롯데/이마트/지에스리테일/
+// 농협/신세계푸드/이랜드리테일/섬들채) — 배열 순서를 바꾸면 화면 표시 순서도 그대로 바뀐다.
 const PRIORITY_GROUPS: CustomerGroupDef[] = [
   { label: "샘표", aliases: ["샘표"] },
   { label: "해표", aliases: ["해표", "사조대림"] },
-  // "(주)부방유통 이마트 안양점"도 포함(사용자 확인 — 이마트 안양점 납품 대행업체로 보이지만 합쳐서 보기로 함)
-  { label: "이마트", aliases: ["이마트"] },
   // 롯데마트/슈퍼/Market999/VIC마켓/프리미엄푸드마켓 등 전부 포함, 렌터카·IT 계열사만 제외(사용자 확인)
   { label: "롯데", aliases: ["롯데"], excludeKeywords: ["롯데렌탈", "롯데이노베이트"] },
+  // "(주)부방유통 이마트 안양점"도 포함(사용자 확인 — 이마트 안양점 납품 대행업체로 보이지만 합쳐서 보기로 함)
+  { label: "이마트", aliases: ["이마트"] },
   // "지에스"가 아니라 "지에스리테일"로 매칭 — 한국에스지에스(SGS)·지에스넷비전 같은 우연한 오매칭을 자동으로 배제(사용자 확인)
-  { label: "지에스", aliases: ["지에스리테일"] },
-  // 농협은행/법인카드/서울우유농협은 실제 매출 거래처가 아니라 자금 관련 계정이라 제외(사용자 확인)
-  { label: "농협", aliases: ["농협"], excludeKeywords: ["은행", "카드", "우유"] },
-  { label: "신세계", aliases: ["신세계"] },
+  { label: "지에스리테일", aliases: ["지에스리테일"] },
+  // "농협"이 아니라 "하나로마트"로 매칭 — 농협은행/법인카드/서울우유농협/농협경제지주 등
+  // 실제 매출 거래처가 아닌 계정들을 자동으로 배제한다(사용자 확인, 표시 라벨은 "농협"으로).
+  { label: "농협", aliases: ["하나로마트"] },
+  // "신세계"가 아니라 "신세계푸드"로 매칭 — 신세계 백화점 본점/신세계아이앤씨(IT)/
+  // 신세계엘앤비(와인) 같은 다른 계열사를 배제한다(사용자 확인).
+  { label: "신세계푸드", aliases: ["신세계푸드"] },
+  // 이랜드리테일(뉴코아/킴스클럽 등)도 "이랜드"로 묶어서 매칭한다.
+  { label: "이랜드리테일", aliases: ["이랜드"] },
   { label: "섬들채", aliases: ["섬들채"] },
 ];
 
@@ -82,11 +89,16 @@ export type GroupedCustomerSales = {
 // 행으로 남는다.
 export function groupCustomerSales<T extends CustomerSalesLike>(rows: T[]): GroupedCustomerSales[] {
   const groups = new Map<string, GroupedCustomerSales>();
+  // 그룹의 표시 라벨(예: "농협")과 실제 매칭 별칭(예: "하나로마트")이 다를 수 있어(FEAT-014
+  // TASK 후속 수정 — 라벨을 원래 별칭에서 바꾼 그룹이 생김), 정렬 순위는 원래 거래처명으로
+  // 찾아낸 그룹 인덱스를 그대로 저장해 두고 쓴다. 라벨 문자열로 다시 순위를 찾으면(예:
+  // "농협"이 "하나로마트" 별칭에 안 걸려서) 매칭이 깨져 정렬 순서 밖으로 밀려난다.
+  const groupRank = new Map<string, number>();
   const ungrouped: GroupedCustomerSales[] = [];
 
   for (const row of rows) {
-    const label = getCustomerGroupLabel(row.customerName);
-    if (!label) {
+    const idx = groupIndexOf(row.customerName);
+    if (idx === -1) {
       ungrouped.push({
         key: row.customerCode,
         displayName: row.customerName,
@@ -97,6 +109,8 @@ export function groupCustomerSales<T extends CustomerSalesLike>(rows: T[]): Grou
       });
       continue;
     }
+    const label = PRIORITY_GROUPS[idx].label;
+    groupRank.set(label, idx);
     let g = groups.get(label);
     if (!g) {
       g = { key: `group:${label}`, displayName: label, amount: 0, lastTradeDate: null, isGroup: true, details: [] };
@@ -111,9 +125,12 @@ export function groupCustomerSales<T extends CustomerSalesLike>(rows: T[]): Grou
 
   for (const g of groups.values()) g.details.sort((a, b) => b.amount - a.amount);
 
+  const rankOf = (row: GroupedCustomerSales) =>
+    row.isGroup ? (groupRank.get(row.displayName) ?? PRIORITY_GROUPS.length) : customerPriorityRank(row.displayName);
+
   return [...groups.values(), ...ungrouped].sort((a, b) => {
-    const rankA = customerPriorityRank(a.displayName);
-    const rankB = customerPriorityRank(b.displayName);
+    const rankA = rankOf(a);
+    const rankB = rankOf(b);
     if (rankA !== rankB) return rankA - rankB;
     if (rankA === PRIORITY_GROUPS.length) return a.displayName.localeCompare(b.displayName, "ko");
     return b.amount - a.amount;
