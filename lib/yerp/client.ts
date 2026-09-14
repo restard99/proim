@@ -61,8 +61,15 @@ export async function yerpQuery<T = Record<string, unknown>>(
     return result.recordset;
   } catch (err) {
     // 커넥션 풀 안의 연결이 죽어있는 채로 남아있으면 이후 요청도 계속 타임아웃날 수 있어,
-    // 실패 시 풀을 버리고 다음 요청에서 새로 연결하도록 한다.
-    if (pool === connectedPool) pool = null;
+    // 실패 시 풀을 버리고 다음 요청에서 새로 연결하도록 한다. 실제로 겪은 문제: Y-ERP
+    // 쪽 연결이 몇 분간 끊겼다가 복구된 뒤에도, 참조만 버리고(pool = null) 죽은 풀 자체를
+    // 안 닫아 두면(끊긴 소켓/재연결 타이머가 백그라운드에 계속 남음) 그 풀이 다음 연결
+    // 시도를 방해해서 서버를 재시작해야만 회복되는 경우가 있었다 — close()까지 명시적으로
+    // 호출해서 확실히 정리한다(close 자체가 실패해도 무시 — 이미 죽은 연결이라 상관없음).
+    if (pool === connectedPool) {
+      pool = null;
+      connectedPool.close().catch(() => {});
+    }
     throw err;
   }
 }
