@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { getSalesPeriodData, type SalesPeriodData } from "@/app/actions/sales";
 import { getYearlyProgress, type YearlyProgress } from "@/app/actions/sales-targets";
+import { groupCustomerSales } from "@/lib/yerp/customer-sort";
 
 type PeriodType = "weekly" | "monthly" | "mtd" | "yearly";
 type CompareBasis = "prev-week" | "prev-month" | "prev-year";
@@ -61,6 +62,20 @@ export function SalesByCustomerView() {
   const [yearlyData, setYearlyData] = useState<YearlyProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  // 이마트/롯데/지에스 등 센터·지점별로 흩어진 거래처를 브랜드 단위로 합쳐서 보여준다
+  // (클릭하면 원래 지점별 내역을 펼쳐볼 수 있음).
+  const groupedRows = useMemo(() => groupCustomerSales(data?.rows ?? []), [data]);
+
+  function toggleGroup(key: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   const currentRange = useMemo(() => {
     if (period === "weekly") return { start: weekStart, end: addDays(weekStart, 6) };
@@ -328,14 +343,42 @@ export function SalesByCustomerView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-mist">
-                {(data?.rows ?? []).map((row) => (
-                  <tr key={row.customerCode}>
-                    <td className="px-4 py-3.5 font-medium">{row.customerName}</td>
-                    <td className="px-4 py-3.5 text-right font-mono">{Math.round(row.amount).toLocaleString("ko-KR")}</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-xs text-muted">{row.lastTradeDate ?? "-"}</td>
-                  </tr>
-                ))}
-                {!isPending && (data?.rows.length ?? 0) === 0 && (
+                {groupedRows.map((row) => {
+                  const expanded = row.isGroup && expandedGroups.has(row.key);
+                  return (
+                    <Fragment key={row.key}>
+                      <tr
+                        onClick={row.isGroup ? () => toggleGroup(row.key) : undefined}
+                        className={row.isGroup ? "cursor-pointer hover:bg-mist/20" : undefined}
+                      >
+                        <td className="px-4 py-3.5 font-medium">
+                          {row.isGroup && (
+                            <span className="mr-1.5 inline-block text-xs text-muted transition-transform" aria-hidden>
+                              {expanded ? "▾" : "▸"}
+                            </span>
+                          )}
+                          {row.displayName}
+                          {row.isGroup && (
+                            <span className="ml-1.5 text-xs text-muted">({row.details.length}개 지점)</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right font-mono">{Math.round(row.amount).toLocaleString("ko-KR")}</td>
+                        <td className="px-4 py-3.5 text-right font-mono text-xs text-muted">{row.lastTradeDate ?? "-"}</td>
+                      </tr>
+                      {expanded &&
+                        row.details.map((d) => (
+                          <tr key={d.customerCode} className="bg-mist/10">
+                            <td className="py-2.5 pl-10 pr-4 text-xs text-muted">{d.customerName}</td>
+                            <td className="py-2.5 pr-4 text-right font-mono text-xs text-muted">
+                              {Math.round(d.amount).toLocaleString("ko-KR")}
+                            </td>
+                            <td className="py-2.5 pr-4 text-right font-mono text-xs text-muted">{d.lastTradeDate ?? "-"}</td>
+                          </tr>
+                        ))}
+                    </Fragment>
+                  );
+                })}
+                {!isPending && groupedRows.length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-4 py-10 text-center text-sm text-muted">
                       해당 기간 매출 데이터가 없습니다.
