@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { toSessionCookieOptions } from "./lib/supabase/session-cookie";
 
 const AUTH_ROUTES = ["/login", "/signup"];
 // 로그인 여부와 무관하게 항상 접근 가능한 경로. 특히 /reset-password는 이메일의
@@ -20,7 +21,9 @@ export async function proxy(request: NextRequest) {
         setAll: (cookiesToSet) => {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, toSessionCookieOptions(value, options)),
+          );
         },
       },
     }
