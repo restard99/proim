@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>거래처별 매출 — 엑셀 다운로드 디자인</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: "#14283A", ink2: "#0F1F2E", brine: "#1E6B72",
+          crimson: "#8B2942", crimsond: "#6E1F33",
+          salt: "#FAF8F3", mist: "#EFEAE1", inktext: "#1F2A33", muted: "#5B6B74",
+        },
+      },
+    },
+  };
+</script>
+</head>
+<body class="bg-salt text-inktext">
+
+<div class="max-w-6xl space-y-5 px-5 py-8 lg:px-8 mx-auto">
+
+  <h1 class="text-lg font-semibold text-inktext mb-2">거래처별 매출 — 엑셀 다운로드 버튼 추가 (02-design)</h1>
+  <p class="text-xs text-muted mb-6">탭(주간/월간/월누적)별 조회조건 줄에 "엑셀 다운로드" 버튼을 추가합니다. 연간목표대비 탭에는 버튼이 없습니다.</p>
+
+  <!-- ===================== 상태 1: 주간 탭 기본 화면 ===================== -->
+  <section class="mb-10">
+    <h2 class="text-sm font-semibold text-brine mb-3">상태 1 — 주간 탭 (버튼 활성)</h2>
+
+    <div class="inline-flex flex-wrap gap-1 rounded-lg border border-mist bg-white p-1">
+      <button class="rounded-md px-3 py-1.5 text-sm font-medium bg-ink text-salt">주간</button>
+      <button class="rounded-md px-3 py-1.5 text-sm font-medium text-muted">월간</button>
+      <button class="rounded-md px-3 py-1.5 text-sm font-medium text-muted">월누적</button>
+      <button class="rounded-md px-3 py-1.5 text-sm font-medium text-muted">연간목표대비</button>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3 mt-3">
+      <span class="text-sm font-medium text-inktext">2026.10.05 (월) ~ 2026.10.11 (일)</span>
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-muted">비교 기준</label>
+        <select class="rounded-md border border-mist px-3 py-2 text-sm"><option>전주 대비</option></select>
+      </div>
+      <div class="flex min-w-[160px] flex-1 items-center gap-2">
+        <label class="text-sm text-muted">거래처 검색</label>
+        <input type="text" placeholder="거래처명" class="flex-1 rounded-md border border-mist px-3 py-2 text-sm" />
+      </div>
+      <button class="rounded-md bg-crimson px-4 py-2 text-sm font-medium text-salt">검색</button>
+
+      <!-- 신규: 엑셀 다운로드 버튼 -->
+      <button type="button" class="flex items-center gap-1.5 rounded-md border border-brine px-3 py-2 text-sm font-medium text-brine hover:bg-brine/5 transition-colors">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 15.5v1a1.5 1.5 0 001.5 1.5h9a1.5 1.5 0 001.5-1.5v-1" stroke-linecap="round"/>
+        </svg>
+        엑셀 다운로드
+      </button>
+    </div>
+
+    <div class="overflow-hidden rounded-lg border border-mist bg-white mt-4">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-mist bg-mist/40 text-left text-xs text-muted">
+            <th class="px-4 py-3 font-medium">거래처</th>
+            <th class="px-4 py-3 text-right font-medium">주간 매출액</th>
+            <th class="px-4 py-3 text-right font-medium">최근 거래일</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-mist">
+          <tr class="hover:bg-mist/20"><td class="px-4 py-3.5 font-medium">▸ 이마트 <span class="text-xs text-muted">(5개 지점)</span></td><td class="px-4 py-3.5 text-right font-mono">82,400,000</td><td class="px-4 py-3.5 text-right font-mono text-xs text-muted">2026.10.10</td></tr>
+          <tr class="hover:bg-mist/20"><td class="px-4 py-3.5 font-medium">▸ 롯데 <span class="text-xs text-muted">(3개 지점)</span></td><td class="px-4 py-3.5 text-right font-mono">41,200,000</td><td class="px-4 py-3.5 text-right font-mono text-xs text-muted">2026.10.09</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== 상태 2: 다운로드 중 / 데이터없음 ===================== -->
+  <section class="mb-10">
+    <h2 class="text-sm font-semibold text-brine mb-3">상태 2 — 다운로드 중 / 데이터 없음</h2>
+    <div class="flex items-center gap-6">
+      <button type="button" disabled class="flex items-center gap-1.5 rounded-md border border-mist px-3 py-2 text-sm font-medium text-muted cursor-not-allowed">
+        <svg class="h-4 w-4 animate-spin" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="10" cy="10" r="7" stroke-opacity="0.25"/><path d="M17 10a7 7 0 00-7-7" stroke-linecap="round"/>
+        </svg>
+        생성 중…
+      </button>
+      <button type="button" disabled class="flex items-center gap-1.5 rounded-md border border-mist px-3 py-2 text-sm font-medium text-muted/50 cursor-not-allowed">
+        엑셀 다운로드 (데이터 없음)
+      </button>
+    </div>
+  </section>
+
+  <!-- ===================== 참고: 주간 탭 엑셀 미리보기 ===================== -->
+  <section class="mb-10">
+    <h2 class="text-sm font-semibold text-brine mb-3">참고 — 주간 탭 엑셀 시트 구성 (지점별 금액까지만)</h2>
+    <div class="overflow-hidden rounded-lg border border-mist bg-white">
+      <table class="w-full text-xs">
+        <tbody class="divide-y divide-mist">
+          <tr class="bg-ink text-salt font-medium"><td class="px-3 py-2" colspan="3">거래처별 매출 - 주간 (2026.10.05 ~ 2026.10.11)</td></tr>
+          <tr class="bg-mist/50 font-medium text-muted"><td class="px-3 py-2">거래처</td><td class="px-3 py-2 text-right">매출액</td><td class="px-3 py-2 text-right">최근거래일</td></tr>
+          <tr><td class="px-3 py-2">이마트</td><td class="px-3 py-2 text-right font-mono">82,400,000</td><td class="px-3 py-2 text-right font-mono">2026.10.10</td></tr>
+          <tr><td class="px-3 py-2">롯데</td><td class="px-3 py-2 text-right font-mono">41,200,000</td><td class="px-3 py-2 text-right font-mono">2026.10.09</td></tr>
+          <tr><td class="px-3 py-2" colspan="3">&nbsp;</td></tr>
+          <tr class="bg-mist/50 font-medium text-muted"><td class="px-3 py-2">거래처 / 지점</td><td class="px-3 py-2 text-right">매출액</td><td class="px-3 py-2 text-right">최근거래일</td></tr>
+          <tr class="bg-mist/20 font-medium"><td class="px-3 py-2" colspan="3">이마트</td></tr>
+          <tr><td class="px-3 py-2 pl-6">이마트 성수점</td><td class="px-3 py-2 text-right font-mono">18,000,000</td><td class="px-3 py-2 text-right font-mono">2026.10.10</td></tr>
+          <tr><td class="px-3 py-2 pl-6">이마트 죽전점</td><td class="px-3 py-2 text-right font-mono">15,400,000</td><td class="px-3 py-2 text-right font-mono">2026.10.08</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== 참고: 월간/월누적 엑셀 미리보기 ===================== -->
+  <section>
+    <h2 class="text-sm font-semibold text-brine mb-3">참고 — 월간/월누적 탭 엑셀 시트 구성 (제품 내역까지)</h2>
+    <div class="overflow-hidden rounded-lg border border-mist bg-white">
+      <table class="w-full text-xs">
+        <tbody class="divide-y divide-mist">
+          <tr class="bg-ink text-salt font-medium"><td class="px-3 py-2" colspan="3">거래처별 매출 - 월간 (2026.10)</td></tr>
+          <tr class="bg-mist/50 font-medium text-muted"><td class="px-3 py-2">거래처</td><td class="px-3 py-2 text-right">매출액</td><td class="px-3 py-2 text-right">최근거래일</td></tr>
+          <tr><td class="px-3 py-2">이마트</td><td class="px-3 py-2 text-right font-mono">340,000,000</td><td class="px-3 py-2 text-right font-mono">2026.10.10</td></tr>
+          <tr><td class="px-3 py-2" colspan="3">&nbsp;</td></tr>
+          <tr class="bg-mist/50 font-medium text-muted"><td class="px-3 py-2">거래처 / 업체 / 제품명</td><td class="px-3 py-2 text-right">수량/금액</td><td class="px-3 py-2 text-right"></td></tr>
+          <tr class="bg-mist/20 font-medium"><td class="px-3 py-2" colspan="3">이마트</td></tr>
+          <tr class="bg-mist/10"><td class="px-3 py-2 pl-6 font-medium">이마트 성수점</td><td class="px-3 py-2 text-right font-mono">18,000,000</td><td></td></tr>
+          <tr><td class="px-3 py-2 pl-10">맛있는천일염20kg</td><td class="px-3 py-2 text-right font-mono">800개</td><td class="px-3 py-2 text-right font-mono">12,000,000</td></tr>
+          <tr><td class="px-3 py-2 pl-10">꽃소금5kg</td><td class="px-3 py-2 text-right font-mono">1,200개</td><td class="px-3 py-2 text-right font-mono">6,000,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-muted mt-2">※ 주간은 지점별 금액까지만, 월간/월누적은 업체별 제품명/수량/금액까지 포함합니다.</p>
+  </section>
+
+</div>
+</body>
+</html>
