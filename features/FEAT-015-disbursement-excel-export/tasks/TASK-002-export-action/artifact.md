@@ -1,6 +1,6 @@
 # TASK-002: 엑셀 생성 Server Action — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `exportDisbursementsExcel()`을 추가했다. 요약 목록(`getDisbursementsByVendor`)과 전체 상세내역(`getAllVendorLedgerEntries`)을 조회한 뒤 ExcelJS로 한 시트에 제목행 → 요약표 → 빈 행 → 매입처별 구분행+상세내역 순으로 작성해 base64로 반환한다. 반환 타입은 기존 `executive-pl.ts`의 `ExportResult`와 동일한 형태다.

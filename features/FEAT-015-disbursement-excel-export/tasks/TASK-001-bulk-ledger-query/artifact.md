@@ -1,6 +1,6 @@
 # TASK-001: 전체 매입처 상세내역 일괄 조회 함수 — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `getAllVendorLedgerEntries()`를 추가해, 매입처 수와 무관하게 거래내역 조회 쿼리를 1번만 실행하도록 했다. 기존 `getVendorLedger`의 트랜잭션 SQL에서 `CUST_CD` 단일 필터를 제거하고 대신 `CUST_CD`를 SELECT에 포함시켜 전체 조회한 뒤, JS에서 매입처별로 그룹핑하고 각 매입처의 `beginBalance`부터 누적잔액을 계산한다.
