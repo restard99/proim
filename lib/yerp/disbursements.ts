@@ -212,3 +212,82 @@ export async function getVendorLedger(params: {
     endBalance: running,
   };
 }
+
+// 매입처별로 getVendorLedger를 따로 호출하면 매입처 수만큼 쿼리가 나가 느려지므로,
+// 조건에 맞는 전체 거래를 한 번에 조회해 CUST_CD별로 그룹핑한다.
+export async function getAllVendorLedgerEntries(params: {
+  corpCode: DisbursementCorpCode;
+  startDate: string;
+  endDate: string;
+  search?: string;
+  vendors: { vendorCode: string; vendorName: string; beginBalance: number }[];
+}): Promise<VendorLedger[]> {
+  const searchClause = params.search ? "AND g.CUST_NM LIKE @search" : "";
+  const searchParams = params.search ? { search: `%${params.search}%` } : {};
+
+  const txRows = await yerpQuery<{
+    CUST_CD: string;
+    SLIP_NO: string;
+    SLIP_DT: string;
+    DEB_CRD: string;
+    AMT: number | null;
+    NOTE_NM: string | null;
+    COUNTER_ACCT: string | null;
+  }>(
+    `
+    SELECT g.CUST_CD, g.SLIP_NO, g.SLIP_DT, g.DEB_CRD, g.AMT, g.NOTE_NM,
+      (SELECT TOP 1 s2.ACC_SBJ_NM
+       FROM SHUSER.AC_GNR_SLIP_T g2
+       JOIN SHUSER.AC_ACC_SBJ_T s2 ON s2.ACC_SBJ_CD = g2.ACC_SBJ_CD AND s2.CORP_CODE = g2.CORP_CODE
+       WHERE g2.CORP_CODE = g.CORP_CODE AND g2.SLIP_NO = g.SLIP_NO AND g2.SLIP_DT = g.SLIP_DT
+         AND g2.DEB_CRD <> g.DEB_CRD AND g2.ACC_SBJ_CD NOT IN (${AP_ACCOUNT_CODES.map((_, i) => `@accCode${i}`).join(", ")})
+      ) AS COUNTER_ACCT
+    FROM SHUSER.AC_GNR_SLIP_T g
+    WHERE g.CORP_CODE = @corpCode
+      AND ${apAccountClause("g")}
+      AND g.SLIP_DT BETWEEN @startDate AND @endDate
+      AND g.CUST_CD IS NOT NULL AND g.CUST_CD <> ''
+      ${searchClause}
+    ORDER BY g.CUST_CD ASC, g.SLIP_DT ASC, g.SLIP_NO ASC
+    `,
+    {
+      corpCode: params.corpCode,
+      startDate: params.startDate,
+      endDate: params.endDate,
+      ...apAccountParams(),
+      ...searchParams,
+    },
+  );
+
+  const entriesByVendor = new Map<string, typeof txRows>();
+  for (const row of txRows) {
+    const list = entriesByVendor.get(row.CUST_CD);
+    if (list) list.push(row);
+    else entriesByVendor.set(row.CUST_CD, [row]);
+  }
+
+  return params.vendors.map((vendor) => {
+    let running = vendor.beginBalance;
+    const rows = entriesByVendor.get(vendor.vendorCode) ?? [];
+    const entries: DisbursementLedgerEntry[] = rows.map((r) => {
+      const amount = Number(r.AMT ?? 0);
+      running += r.DEB_CRD === "4" ? amount : -amount;
+      return {
+        slipNo: r.SLIP_NO,
+        slipDate: r.SLIP_DT,
+        debCrd: r.DEB_CRD === "4" ? "4" : "3",
+        amount,
+        note: r.NOTE_NM ?? "",
+        counterAccount: r.COUNTER_ACCT,
+        runningBalance: running,
+      };
+    });
+    return {
+      vendorCode: vendor.vendorCode,
+      vendorName: vendor.vendorName,
+      beginBalance: vendor.beginBalance,
+      entries,
+      endBalance: running,
+    };
+  });
+}
