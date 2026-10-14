@@ -1,7 +1,12 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
-import { getDisbursementsData, getVendorLedgerData, type DisbursementsData } from "@/app/actions/disbursements";
+import {
+  getDisbursementsData,
+  getVendorLedgerData,
+  exportDisbursementsExcel,
+  type DisbursementsData,
+} from "@/app/actions/disbursements";
 import { YERP_CORPS, type YerpCorpCode } from "@/lib/yerp/corps";
 import type { VendorLedger } from "@/lib/yerp/disbursements";
 
@@ -24,6 +29,16 @@ function formatSlipDate(ymd: string) {
   if (ymd.length !== 8) return ymd;
   return `${ymd.slice(0, 4)}.${ymd.slice(4, 6)}.${ymd.slice(6, 8)}`;
 }
+function downloadBase64(base64: string, fileName: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function DisbursementsView() {
   const today = useMemo(() => new Date(), []);
@@ -37,6 +52,7 @@ export function DisbursementsView() {
   const [expandedCode, setExpandedCode] = useState<string | null>(null);
   const [ledgerCache, setLedgerCache] = useState<Record<string, VendorLedger>>({});
   const [isLoadingLedger, startLedgerTransition] = useTransition();
+  const [isExporting, startExporting] = useTransition();
 
   const start = toYmd(startDate);
   const end = toYmd(endDate);
@@ -49,6 +65,13 @@ export function DisbursementsView() {
       setData(result);
     });
   }, [corpCode, start, end, search]);
+
+  function handleExport() {
+    startExporting(async () => {
+      const result = await exportDisbursementsExcel({ corpCode, startDate: start, endDate: end, search: search || undefined });
+      if (result.ok) downloadBase64(result.base64, result.fileName);
+    });
+  }
 
   function toggleExpand(vendorCode: string) {
     if (expandedCode === vendorCode) {
@@ -109,6 +132,30 @@ export function DisbursementsView() {
             className="flex-1 rounded-md border border-mist px-3 py-2 text-sm outline-none focus:border-brine focus:ring-2 focus:ring-brine/30"
           />
         </div>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={isExporting || (data?.rows.length ?? 0) === 0}
+          className="flex items-center gap-1.5 rounded-md border border-brine px-3 py-2 text-sm font-medium text-brine transition-colors hover:bg-brine/5 disabled:cursor-not-allowed disabled:border-mist disabled:text-muted disabled:hover:bg-transparent"
+        >
+          {isExporting ? (
+            <>
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="10" cy="10" r="7" strokeOpacity="0.25" />
+                <path d="M17 10a7 7 0 00-7-7" strokeLinecap="round" />
+              </svg>
+              생성 중…
+            </>
+          ) : (
+            <>
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 15.5v1a1.5 1.5 0 001.5 1.5h9a1.5 1.5 0 001.5-1.5v-1" strokeLinecap="round" />
+              </svg>
+              엑셀 다운로드
+            </>
+          )}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
