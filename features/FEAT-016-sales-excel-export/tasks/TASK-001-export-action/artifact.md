@@ -1,6 +1,6 @@
 # TASK-001: 엑셀 생성 Server Action — 아티팩트
 
-## 상태: 완료
+## 상태: 배포 완료
 
 ## 구현 내용
 `exportSalesExcel()`을 추가했다. `getSalesByCustomer()` → `groupCustomerSales()`로 화면과 동일하게 요약을 만들고, 월간/월누적일 때만 전체 거래처코드를 모아 `getProductSalesByCustomers()`를 한 번 호출해 제품 내역을 붙인다. 주간은 지점별 금액까지, 월간/월누적은 업체별 제품명/수량/금액까지 담은 한 시트짜리 엑셀을 base64로 반환한다.
