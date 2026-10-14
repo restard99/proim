@@ -1,7 +1,12 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
-import { getSalesPeriodData, getProductSalesDetail, type SalesPeriodData } from "@/app/actions/sales";
+import {
+  getSalesPeriodData,
+  getProductSalesDetail,
+  exportSalesExcel,
+  type SalesPeriodData,
+} from "@/app/actions/sales";
 import { getYearlyProgress, type YearlyProgress } from "@/app/actions/sales-targets";
 import { groupCustomerSales, type GroupedCustomerSales } from "@/lib/yerp/customer-sort";
 
@@ -36,6 +41,16 @@ function formatDot(d: Date) {
 function formatWon(n: number) {
   return Math.round(n).toLocaleString("ko-KR") + "원";
 }
+function downloadBase64(base64: string, fileName: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 function startOfWeek(d: Date) {
   const date = new Date(d);
   const day = date.getDay();
@@ -64,6 +79,7 @@ export function SalesByCustomerView() {
   const [yearlyData, setYearlyData] = useState<YearlyProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isExporting, startExporting] = useTransition();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   // 월간/월누적 조회에서 행을 펼쳤을 때 보여줄 업체별 제품 내역(customerCode -> 제품 목록)을
   // 행(key)별로 캐싱해 둔다 — 같은 행을 다시 펼칠 때 재조회하지 않는다.
@@ -115,6 +131,21 @@ export function SalesByCustomerView() {
 
   // 행 클릭: 주간에서는 그룹(브랜드)만 펼쳐서 지점별 금액을 보여주고, 월간/월누적에서는
   // 그룹이든 개별 거래처든 펼쳐서 업체별 납품 제품명/수량/금액까지 보여준다.
+  function handleExport() {
+    if (period === "yearly") return;
+    const periodLabel = PERIOD_TABS.find((t) => t.type === period)?.label ?? period;
+    startExporting(async () => {
+      const result = await exportSalesExcel({
+        period,
+        periodLabel,
+        startDate: startYmd,
+        endDate: endYmd,
+        search: search || undefined,
+      });
+      if (result.ok) downloadBase64(result.base64, result.fileName);
+    });
+  }
+
   function toggleRow(row: GroupedCustomerSales) {
     if (!row.isGroup && !showProductDrilldown) return;
 
@@ -337,6 +368,32 @@ export function SalesByCustomerView() {
         >
           검색
         </button>
+        {period !== "yearly" && (
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting || groupedRows.length === 0}
+            className="flex items-center gap-1.5 rounded-md border border-brine px-3 py-2 text-sm font-medium text-brine transition-colors hover:bg-brine/5 disabled:cursor-not-allowed disabled:border-mist disabled:text-muted disabled:hover:bg-transparent"
+          >
+            {isExporting ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="10" cy="10" r="7" strokeOpacity="0.25" />
+                  <path d="M17 10a7 7 0 00-7-7" strokeLinecap="round" />
+                </svg>
+                생성 중…
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M4 15.5v1a1.5 1.5 0 001.5 1.5h9a1.5 1.5 0 001.5-1.5v-1" strokeLinecap="round" />
+                </svg>
+                엑셀 다운로드
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {error && <p className="text-sm text-crimsond">{error}</p>}
